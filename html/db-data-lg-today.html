@@ -1,0 +1,662 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>LGU+ 투데이 리포트 — 운세당</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card-bg: #ffffff;
+    --text: #1c1c1f;
+    --text-dim: #6b6b74;
+    --border: #e3e3e7;
+    --accent: #7c5cff;
+    --accent-bg: #efeaff;
+    --positive: #1a7f4b;
+    --negative: #c23b3b;
+    --table-head-bg: #f0f0f3;
+    --stripe: #fafafb;
+    --paid-bg: #eaf1ff;
+    --paid-head-bg: #d7e4ff;
+    --paid-text: #2a5db0;
+    --free-bg: #fff2e2;
+    --free-head-bg: #ffe3bd;
+    --free-text: #a15c00;
+    --cashback-bg: #efeaff;
+    --cashback-head-bg: #ddd1ff;
+    --cashback-text: #5c3fd6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171b;
+      --card-bg: #202024;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --border: #35353b;
+      --accent: #b3a1ff;
+      --accent-bg: #2a2440;
+      --positive: #5fd08c;
+      --negative: #ff8080;
+      --table-head-bg: #26262b;
+      --stripe: #232328;
+      --paid-bg: #1c2740;
+      --paid-head-bg: #253656;
+      --paid-text: #8fb4ff;
+      --free-bg: #3a2c10;
+      --free-head-bg: #4a3a15;
+      --free-text: #f0c374;
+      --cashback-bg: #2a2440;
+      --cashback-head-bg: #362a5c;
+      --cashback-text: #c9b8ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171b;
+    --card-bg: #202024;
+    --text: #ececef;
+    --text-dim: #9a9aa4;
+    --border: #35353b;
+    --accent: #b3a1ff;
+    --accent-bg: #2a2440;
+    --positive: #5fd08c;
+    --negative: #ff8080;
+    --table-head-bg: #26262b;
+    --stripe: #232328;
+    --paid-bg: #1c2740;
+    --paid-head-bg: #253656;
+    --paid-text: #8fb4ff;
+    --free-bg: #3a2c10;
+    --free-head-bg: #4a3a15;
+    --free-text: #f0c374;
+    --cashback-bg: #2a2440;
+    --cashback-head-bg: #362a5c;
+    --cashback-text: #c9b8ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px 214px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0; }
+  .site-nav {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    padding: 18px 10px;
+    overflow-y: auto;
+    z-index: 200;
+  }
+  .site-nav-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    padding: 0 8px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+  }
+  .site-nav a {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text);
+    line-height: 1.4;
+    padding: 9px 8px;
+    border-radius: 8px;
+    text-decoration: none;
+  }
+  .site-nav a:hover { background: var(--bg); }
+  .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+  h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .tab-btn-summary {
+    border-color: var(--accent);
+    color: var(--accent);
+    margin-right: 8px;
+  }
+  .tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .reload-btn {
+    margin-left: auto;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-dim);
+    padding: 7px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .reload-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .reload-btn:disabled { opacity: 0.5; cursor: default; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .card h2 {
+    font-size: 0.88rem;
+    font-weight: 400;
+    margin: 0 0 8px;
+  }
+  .card h2 .hint {
+    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    margin-left: 6px;
+  }
+  .stat-group-title {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin: 10px 0 6px;
+  }
+  .stat-group-title:first-of-type { margin-top: 0; }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .summary-grid-5 { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 760px) {
+    .summary-grid-5 { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  }
+  .stat { padding: 7px 10px; background: var(--stripe); border-radius: 8px; }
+  .stat .label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 2px; }
+  .stat .value { font-size: 0.92rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.78rem; min-width: 480px; }
+  th, td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+  th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.74rem; }
+  tbody tr:nth-child(even) { background: var(--stripe); }
+  tfoot td { font-weight: 400; border-top: 2px solid var(--border); border-bottom: none; }
+  th.col-paid { background: var(--paid-head-bg); color: var(--paid-text); }
+  td.col-paid { background: var(--paid-bg); }
+  th.col-free { background: var(--free-head-bg); color: var(--free-text); }
+  td.col-free { background: var(--free-bg); }
+  th.col-cashback { background: var(--cashback-head-bg); color: var(--cashback-text); }
+  td.col-cashback { background: var(--cashback-bg); color: var(--cashback-text); }
+  tfoot td.col-paid { background: var(--paid-bg); }
+  tfoot td.col-free { background: var(--free-bg); }
+  tfoot td.col-cashback { background: var(--cashback-bg); }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .legend .swatch.paid { background: var(--paid-head-bg); }
+  .legend .swatch.free { background: var(--free-head-bg); }
+  .legend .swatch.cashback { background: var(--cashback-head-bg); }
+  .delta { font-size: 0.68rem; margin-left: 2px; }
+  .delta.up { color: var(--negative); }
+  .delta.down { color: var(--paid-text); }
+  .delta.flat { color: var(--text-dim); }
+  .check-row {
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+  }
+  .check-row.ok::before { content: "✓ "; color: var(--positive); font-weight: 400; }
+  .check-row.bad::before { content: "✗ "; color: var(--negative); font-weight: 400; }
+  .check-row.loading::before { content: "⏳ "; }
+  .error-card { border-color: var(--negative); }
+  .error-card .msg { color: var(--negative); font-size: 0.85rem; margin-bottom: 12px; }
+  .retry-btn {
+    border: 1px solid var(--negative);
+    background: transparent;
+    color: var(--negative);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  footer {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    margin-top: 24px;
+    line-height: 1.7;
+  }
+  footer a { color: var(--text-dim); }
+</style>
+<body>
+  <div class="wrap">
+    <nav class="site-nav">
+      <div class="site-nav-title">리포트 메뉴</div>
+      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
+      <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
+      <a href="db-data-mindcare.html">마인드케어 리포트</a>
+      <a href="db-data-lg-today.html" class="active">LGU+ 투데이 리포트</a>
+      <a href="db-data-kt-today.html">KT 투데이 리포트</a>
+    </nav>
+    <h1>LGU+ 투데이 리포트</h1>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div id="content"></div>
+
+    <footer id="footer"></footer>
+  </div>
+
+<script>
+(function () {
+  const API_TEMPLATE = "https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={month}&telCd=LGU";
+  const FETCH_TIMEOUT_MS = 15000;
+
+  const numFmt = new Intl.NumberFormat('ko-KR');
+  const num = (n) => numFmt.format(n);
+  const won = (n) => numFmt.format(n) + '원';
+  function fmtDelta(delta) {
+    if (delta === null || delta === undefined) return '';
+    if (delta > 0) return `<span class="delta up">▲${num(delta)}</span>`;
+    if (delta < 0) return `<span class="delta down">▼${num(Math.abs(delta))}</span>`;
+    return `<span class="delta flat">–0</span>`;
+  }
+
+  const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+  function fmtDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const [, m, day] = dateStr.split('-');
+    return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
+  }
+  function fmtMonthLabel(monthKey) {
+    return `${parseInt(monthKey.split('-')[1], 10)}월`;
+  }
+
+  function sortedDays(monthlyData) {
+    return [...monthlyData.dailyStats].sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  // --- 실시간 fetch + 캐시 ---
+  const monthCache = new Map(); // monthKey -> { data, fetchedAt }
+  let lastFetchedAt = null;
+
+  async function fetchMonth(monthKey, { force = false } = {}) {
+    if (!force && monthCache.has(monthKey)) return monthCache.get(monthKey).data;
+
+    const url = API_TEMPLATE.replace('{month}', monthKey);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { mode: 'cors', signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const fetchedAt = new Date();
+      monthCache.set(monthKey, { data, fetchedAt });
+      lastFetchedAt = fetchedAt;
+      updateFooter();
+      return data;
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('요청 시간 초과');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function getMonthOrder() {
+    const YEAR = 2026;
+    const now = new Date();
+    let lastMonth = 12;
+    if (now.getFullYear() === YEAR) lastMonth = now.getMonth() + 1;
+    else if (now.getFullYear() < YEAR) lastMonth = 1;
+    const months = [];
+    for (let m = 1; m <= lastMonth; m++) months.push(`${YEAR}-${String(m).padStart(2, '0')}`);
+    return months;
+  }
+
+  // 연도 요약은 마감된(전월까지) 월만 집계 — 진행 중인 당월은 제외
+  function getClosedMonthOrder() {
+    return getMonthOrder().slice(0, -1);
+  }
+
+  function renderLoadingCard(msg) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="check-row loading">${msg}</div></div>`;
+  }
+
+  function renderErrorCard(msg, onRetry) {
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card error-card';
+    card.innerHTML = `<h2>데이터를 불러오지 못했습니다</h2><div class="msg">${msg}</div>`;
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'retry-btn';
+    retryBtn.textContent = '다시 시도';
+    retryBtn.onclick = onRetry;
+    card.appendChild(retryBtn);
+    content.appendChild(card);
+  }
+
+  function summaryCardHtml(titleHtml, latestPaid, latestFree, cbAgg) {
+    return `
+      <h2>${titleHtml}</h2>
+      <div class="stat-group-title">요약 (누적가입자는 최신값 기준)</div>
+      <div class="summary-grid summary-grid-5">
+        <div class="stat"><div class="label">유료 누적가입자</div><div class="value">${num(latestPaid)}</div></div>
+        <div class="stat"><div class="label">무료 누적가입자</div><div class="value">${num(latestFree)}</div></div>
+        <div class="stat"><div class="label">복돈 알림자수</div><div class="value">${num(cbAgg.subscriberCount)}</div></div>
+        <div class="stat"><div class="label">복돈 지급인원</div><div class="value">${num(cbAgg.payoutCount)}</div></div>
+        <div class="stat"><div class="label">복돈 지급금액</div><div class="value">${won(cbAgg.payoutAmount)}</div></div>
+      </div>`;
+  }
+
+  // rows: [{ label, paid, free, subscriberCount, payoutCount, payoutAmount }]
+  function combinedTableHtml({ headLabel, rows, sumAgg, hintHtml, checkHtml }) {
+    const bodyRows = rows
+      .map((r, i) => {
+        const prev = rows[i + 1];
+        const paidDelta = prev ? r.paid - prev.paid : null;
+        const freeDelta = prev ? r.free - prev.free : null;
+        return `<tr>
+        <td>${r.label}</td>
+        <td class="col-paid">${num(r.paid)} ${fmtDelta(paidDelta)}</td>
+        <td class="col-free">${num(r.free)} ${fmtDelta(freeDelta)}</td>
+        <td class="col-cashback">${num(r.subscriberCount)}</td>
+        <td class="col-cashback">${num(r.payoutCount)}</td>
+        <td class="col-cashback">${won(r.payoutAmount)}</td>
+      </tr>`;
+      })
+      .join('');
+    return `
+      <h2>가입자 현황 · 복돈 <span class="hint">${hintHtml}</span></h2>
+      <div class="legend">
+        <span><span class="swatch paid"></span>유료 누적</span>
+        <span><span class="swatch free"></span>무료 누적</span>
+        <span><span class="swatch cashback"></span>복돈</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>${headLabel}</th>
+              <th class="col-paid">유료 누적가입자</th>
+              <th class="col-free">무료 누적가입자</th>
+              <th class="col-cashback">복돈 알림자수</th>
+              <th class="col-cashback">복돈 지급인원</th>
+              <th class="col-cashback">복돈 지급금액</th>
+            </tr>
+          </thead>
+          <tbody>${bodyRows}</tbody>
+          <tfoot>
+            <tr>
+              <td>합계</td>
+              <td class="col-paid">–</td>
+              <td class="col-free">–</td>
+              <td class="col-cashback">${num(sumAgg.subscriberCount)}</td>
+              <td class="col-cashback">${num(sumAgg.payoutCount)}</td>
+              <td class="col-cashback">${won(sumAgg.payoutAmount)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="check-row">* 유료·무료 누적은 스냅샷 값이라 합산하지 않습니다(합계 열 "–") — 최신값은 위 요약 카드를 참고하세요.</div>
+      ${checkHtml || ''}
+      <div class="check-row">출처 — 유료·무료 누적: 와이즈모니터 · 복돈 지급인원·지급금액: DBeaver</div>`;
+  }
+
+  // --- 월간 뷰 ---
+  async function renderMonth(monthKey, opts = {}) {
+    setReloadEnabled(false);
+    renderLoadingCard(`${monthKey} 데이터 불러오는 중...`);
+    let data;
+    try {
+      data = await fetchMonth(monthKey, opts);
+    } catch (e) {
+      renderErrorCard(`${monthKey} 조회 실패 (${e.message})`, () => renderMonth(monthKey, { force: true }));
+      setReloadEnabled(true);
+      return;
+    }
+    setReloadEnabled(true);
+
+    const c = data.carrierStats[0];
+    const days = sortedDays(c.monthly);
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+
+    const latestPaid = days[0].paidCumulative;
+    const latestFree = days[0].freeCumulative;
+    const cbAgg = {
+      subscriberCount: c.monthly.cashbackSubscriberCount,
+      payoutCount: c.monthly.cashbackPayoutCount,
+      payoutAmount: c.monthly.cashbackPayoutAmount,
+    };
+
+    const rows = days.map((d) => ({
+      label: fmtDateLabel(d.date),
+      paid: d.paidCumulative,
+      free: d.freeCumulative,
+      subscriberCount: d.cashbackSubscriberCount,
+      payoutCount: d.cashbackPayoutCount,
+      payoutAmount: d.cashbackPayoutAmount,
+    }));
+    const cbSum = rows.reduce(
+      (acc, r) => ({
+        subscriberCount: acc.subscriberCount + r.subscriberCount,
+        payoutCount: acc.payoutCount + r.payoutCount,
+        payoutAmount: acc.payoutAmount + r.payoutAmount,
+      }),
+      { subscriberCount: 0, payoutCount: 0, payoutAmount: 0 }
+    );
+    const cbMatches =
+      cbSum.subscriberCount === cbAgg.subscriberCount &&
+      cbSum.payoutCount === cbAgg.payoutCount &&
+      cbSum.payoutAmount === cbAgg.payoutAmount;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      summaryCardHtml(
+        `${c.carrier} ${data.baseMonth} 월 요약 <span class="hint">${data.dateRange.from} ~ ${data.dateRange.to}</span>`,
+        latestPaid,
+        latestFree,
+        cbAgg
+      ) +
+      '<hr class="section-divider">' +
+      combinedTableHtml({
+        headLabel: '일자',
+        rows,
+        sumAgg: cbSum,
+        hintHtml: '해당 월 일별 상세 내역',
+        checkHtml: `<div class="check-row ${cbMatches ? 'ok' : 'bad'}">
+          ${cbMatches ? '일별 복돈 합계가 월 API 합계와 일치합니다.' : '일별 복돈 합계가 월 API 합계와 다릅니다 — 데이터 확인 필요.'}
+        </div>`,
+      });
+    content.appendChild(card);
+  }
+
+  // --- 연간 요약 뷰 (마감된 전월까지만 집계) ---
+  async function renderYear(year, opts = {}) {
+    setReloadEnabled(false);
+    const monthKeys = getClosedMonthOrder().filter((k) => k.startsWith(year + '-'));
+    if (monthKeys.length === 0) {
+      document.getElementById('content').innerHTML =
+        '<div class="card"><div class="check-row">마감된 월이 아직 없습니다 (당월 데이터는 요약에서 제외).</div></div>';
+      setReloadEnabled(true);
+      return;
+    }
+    const monthsData = [];
+    for (let i = 0; i < monthKeys.length; i++) {
+      renderLoadingCard(`${year}년 데이터 불러오는 중 (${i}/${monthKeys.length})...`);
+      try {
+        const data = await fetchMonth(monthKeys[i], opts);
+        monthsData.push(data);
+      } catch (e) {
+        renderErrorCard(`${monthKeys[i]} 조회 실패 (${e.message})`, () => renderYear(year, { force: true }));
+        setReloadEnabled(true);
+        return;
+      }
+    }
+    setReloadEnabled(true);
+
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+
+    const carriers = monthsData.map((d) => d.carrierStats[0]);
+    const carrierName = carriers[carriers.length - 1].carrier;
+
+    const lastDays = sortedDays(carriers[carriers.length - 1].monthly);
+    const latestPaid = lastDays[0].paidCumulative;
+    const latestFree = lastDays[0].freeCumulative;
+    const cbAgg = carriers.reduce(
+      (acc, c) => ({
+        subscriberCount: acc.subscriberCount + c.monthly.cashbackSubscriberCount,
+        payoutCount: acc.payoutCount + c.monthly.cashbackPayoutCount,
+        payoutAmount: acc.payoutAmount + c.monthly.cashbackPayoutAmount,
+      }),
+      { subscriberCount: 0, payoutCount: 0, payoutAmount: 0 }
+    );
+
+    const first = monthsData[0];
+    const last = monthsData[monthsData.length - 1];
+
+    const rows = [];
+    for (let i = monthsData.length - 1; i >= 0; i--) {
+      const c = carriers[i];
+      const days = sortedDays(c.monthly);
+      rows.push({
+        label: fmtMonthLabel(monthKeys[i]),
+        paid: days[0].paidCumulative,
+        free: days[0].freeCumulative,
+        subscriberCount: c.monthly.cashbackSubscriberCount,
+        payoutCount: c.monthly.cashbackPayoutCount,
+        payoutAmount: c.monthly.cashbackPayoutAmount,
+      });
+    }
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      summaryCardHtml(
+        `${carrierName} ${year}년 요약 <span class="hint">${first.dateRange.from} ~ ${last.dateRange.to} · 마감월 기준</span>`,
+        latestPaid,
+        latestFree,
+        cbAgg
+      ) +
+      '<hr class="section-divider">' +
+      combinedTableHtml({
+        headLabel: '월',
+        rows,
+        sumAgg: cbAgg,
+        hintHtml: `${year}년 월별 상세 내역 (누적가입자는 월말 기준)`,
+      });
+    content.appendChild(card);
+  }
+
+  // --- 탭/새로고침 UI ---
+  let currentView = null; // { type: 'year'|'month', key }
+
+  function setReloadEnabled(enabled) {
+    const btn = document.getElementById('reloadBtn');
+    if (btn) btn.disabled = !enabled;
+  }
+
+  function renderCurrentView(opts = {}) {
+    if (!currentView) return;
+    if (currentView.type === 'year') renderYear(currentView.key, opts);
+    else renderMonth(currentView.key, opts);
+  }
+
+  function updateFooter() {
+    const footer = document.getElementById('footer');
+    const ts = lastFetchedAt ? lastFetchedAt.toLocaleTimeString('ko-KR') : '-';
+    footer.innerHTML =
+      `데이터는 carrier-subscription-stats API에서 실시간으로 조회됩니다 · 마지막 조회: ${ts}<br>` +
+      `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
+  }
+
+  function init() {
+    const tabsEl = document.getElementById('tabs');
+    const months = getMonthOrder();
+    const year = months[0].split('-')[0];
+
+    const yearBtn = document.createElement('button');
+    yearBtn.className = 'tab-btn tab-btn-summary';
+    yearBtn.textContent = `${year}년`;
+    yearBtn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+      yearBtn.classList.add('active');
+      currentView = { type: 'year', key: year };
+      renderYear(year);
+    };
+    tabsEl.appendChild(yearBtn);
+
+    months.forEach((mk, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab-btn' + (i === months.length - 1 ? ' active' : '');
+      btn.textContent = `${mk.split('-')[1]}월`;
+      btn.onclick = () => {
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = { type: 'month', key: mk };
+        renderMonth(mk);
+      };
+      tabsEl.appendChild(btn);
+    });
+
+    const reloadBtn = document.createElement('button');
+    reloadBtn.id = 'reloadBtn';
+    reloadBtn.className = 'reload-btn';
+    reloadBtn.textContent = '↻ 새로고침';
+    reloadBtn.onclick = () => renderCurrentView({ force: true });
+    tabsEl.appendChild(reloadBtn);
+
+    updateFooter();
+    currentView = { type: 'month', key: months[months.length - 1] };
+    renderMonth(months[months.length - 1]);
+  }
+
+  init();
+})();
+</script>
+</body>
