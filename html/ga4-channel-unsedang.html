@@ -1,0 +1,369 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>GA4 매체별 유입 리포트 — 운세당</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card-bg: #ffffff;
+    --text: #1c1c1f;
+    --text-dim: #6b6b74;
+    --border: #e3e3e7;
+    --accent: #7c5cff;
+    --accent-bg: #efeaff;
+    --table-head-bg: #f0f0f3;
+    --stripe: #fafafb;
+    --warn-bg: #fff4e5;
+    --warn-text: #8a5300;
+    --s0-bg: #efeaff; --s0-head-bg: #ddd1ff; --s0-text: #5c3fd6;
+    --s1-bg: #eaf1ff; --s1-head-bg: #d7e4ff; --s1-text: #2a5db0;
+    --s2-bg: #fff2e2; --s2-head-bg: #ffe3bd; --s2-text: #a15c00;
+    --s3-bg: #e8f7ee; --s3-head-bg: #cdedd9; --s3-text: #1f7a45;
+    --s4-bg: #ffe8f0; --s4-head-bg: #ffd0e0; --s4-text: #b8236a;
+    --s5-bg: #e0f7f7; --s5-head-bg: #c2eeee; --s5-text: #147a7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171b;
+      --card-bg: #202024;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --border: #35353b;
+      --accent: #b3a1ff;
+      --accent-bg: #2a2440;
+      --table-head-bg: #26262b;
+      --stripe: #232328;
+      --warn-bg: #3a2c10;
+      --warn-text: #f0c374;
+      --s0-bg: #2a2440; --s0-head-bg: #362a5c; --s0-text: #c9b8ff;
+      --s1-bg: #1c2740; --s1-head-bg: #253656; --s1-text: #8fb4ff;
+      --s2-bg: #3a2c10; --s2-head-bg: #4a3a15; --s2-text: #f0c374;
+      --s3-bg: #123420; --s3-head-bg: #1a4a2d; --s3-text: #7fe3a8;
+      --s4-bg: #3d1a28; --s4-head-bg: #4d2035; --s4-text: #ff9dc4;
+      --s5-bg: #0f2e2e; --s5-head-bg: #164343; --s5-text: #6fe0e0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171b;
+    --card-bg: #202024;
+    --text: #ececef;
+    --text-dim: #9a9aa4;
+    --border: #35353b;
+    --accent: #b3a1ff;
+    --accent-bg: #2a2440;
+    --table-head-bg: #26262b;
+    --stripe: #232328;
+    --warn-bg: #3a2c10;
+    --warn-text: #f0c374;
+    --s0-bg: #2a2440; --s0-head-bg: #362a5c; --s0-text: #c9b8ff;
+    --s1-bg: #1c2740; --s1-head-bg: #253656; --s1-text: #8fb4ff;
+    --s2-bg: #3a2c10; --s2-head-bg: #4a3a15; --s2-text: #f0c374;
+    --s3-bg: #123420; --s3-head-bg: #1a4a2d; --s3-text: #7fe3a8;
+    --s4-bg: #3d1a28; --s4-head-bg: #4d2035; --s4-text: #ff9dc4;
+    --s5-bg: #0f2e2e; --s5-head-bg: #164343; --s5-text: #6fe0e0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px 214px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1200px; margin: 0; }
+  .site-nav {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 190px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--card-bg); border-right: 1px solid var(--border);
+    padding: 18px 10px; overflow-y: auto; z-index: 200;
+  }
+  .site-nav-title { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); padding: 0 8px; margin-bottom: 8px; white-space: nowrap; }
+  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; }
+  .site-nav a:hover { background: var(--bg); }
+  .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+  h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .card h2 { font-size: 0.88rem; font-weight: 400; margin: 0 0 8px; }
+  .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .stat { padding: 7px 10px; background: var(--stripe); border-radius: 8px; }
+  .stat .label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 2px; }
+  .stat .value { font-size: 0.8rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .notice { border-color: var(--warn-text); }
+  .notice h2 { color: var(--warn-text); }
+  .notice ul { margin: 0; padding-left: 18px; font-size: 0.8rem; color: var(--text); }
+  .notice li { margin-bottom: 6px; }
+  footer { color: var(--text-dim); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
+  footer a { color: var(--text-dim); }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.76rem; min-width: 640px; }
+  th, td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: center; font-variant-numeric: normal; }
+  th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.72rem; }
+  tbody tr:nth-child(even) { background: var(--stripe); }
+  tfoot td { font-weight: 600; border-top: 2px solid var(--border); border-bottom: none; }
+  th.col-s0 { background: var(--s0-head-bg); color: var(--s0-text); }
+  th.col-s1 { background: var(--s1-head-bg); color: var(--s1-text); }
+  th.col-s2 { background: var(--s2-head-bg); color: var(--s2-text); }
+  th.col-s3 { background: var(--s3-head-bg); color: var(--s3-text); }
+  th.col-s4 { background: var(--s4-head-bg); color: var(--s4-text); }
+  th.col-s5 { background: var(--s5-head-bg); color: var(--s5-text); }
+  td.col-s0 { background: color-mix(in srgb, var(--s0-bg) 55%, transparent); }
+  td.col-s1 { background: color-mix(in srgb, var(--s1-bg) 55%, transparent); }
+  td.col-s2 { background: color-mix(in srgb, var(--s2-bg) 55%, transparent); }
+  td.col-s3 { background: color-mix(in srgb, var(--s3-bg) 55%, transparent); }
+  td.col-s4 { background: color-mix(in srgb, var(--s4-bg) 55%, transparent); }
+  td.col-s5 { background: color-mix(in srgb, var(--s5-bg) 55%, transparent); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; font-size: 0.7rem; color: var(--text-dim); }
+  .legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+  .legend .swatch.s0 { background: var(--s0-head-bg); }
+  .legend .swatch.s1 { background: var(--s1-head-bg); }
+  .legend .swatch.s2 { background: var(--s2-head-bg); }
+  .legend .swatch.s3 { background: var(--s3-head-bg); }
+  .legend .swatch.s4 { background: var(--s4-head-bg); }
+  .legend .swatch.s5 { background: var(--s5-head-bg); }
+  .note { margin-top: 8px; font-size: 0.74rem; color: var(--warn-text); background: var(--warn-bg); padding: 7px 10px; border-radius: 8px; }
+  .path-hint { font-size: 0.68rem; color: var(--text-dim); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-bottom: 6px; }
+</style>
+<body>
+  <div class="wrap">
+    <nav class="site-nav">
+      <div class="site-nav-title">리포트 메뉴</div>
+      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
+      <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
+      <a href="ga4-channel-unsedang.html" class="active">운세당 매체별 유입</a>
+      <a href="db-data-mindcare.html">마인드케어 리포트</a>
+      <a href="db-data-lg-today.html">LGU+ 투데이 리포트</a>
+      <a href="db-data-kt-today.html">KT 투데이 리포트</a>
+    </nav>
+    <h1>운세당 매체별 유입 리포트 (GA4)</h1>
+
+    <div id="content"></div>
+    <footer id="footer"></footer>
+  </div>
+
+<script>
+  const REFERRER_DAILY = {
+    lg: {"2026-09-07":[182,222],"2026-09-08":[146,173],"2026-09-09":[175,224],"2026-09-10":[163,197],"2026-09-11":[124,171],"2026-09-12":[244,301],"2026-09-13":[188,249],"2026-09-14":[474,563],"2026-09-15":[343,469],"2026-09-16":[422,531],"2026-09-17":[281,385],"2026-09-18":[276,389],"2026-09-19":[521,684],"2026-09-20":[318,465]},
+    notSet: {"2026-09-07":[223,258],"2026-09-08":[178,222],"2026-09-09":[195,230],"2026-09-10":[183,211],"2026-09-11":[177,220],"2026-09-12":[182,214],"2026-09-13":[223,251],"2026-09-14":[199,229],"2026-09-15":[231,268],"2026-09-16":[193,230],"2026-09-17":[230,258],"2026-09-18":[204,241],"2026-09-19":[185,201],"2026-09-20":[200,225]},
+    direct: {"2026-09-07":[69,119],"2026-09-08":[51,100],"2026-09-09":[45,70],"2026-09-10":[80,124],"2026-09-11":[57,80],"2026-09-12":[64,95],"2026-09-13":[52,78],"2026-09-14":[51,85],"2026-09-15":[54,85],"2026-09-16":[64,114],"2026-09-17":[58,88],"2026-09-18":[55,98],"2026-09-19":[52,83],"2026-09-20":[49,70]},
+    naverGrp: {"2026-09-07":[5,6],"2026-09-08":[6,6],"2026-09-09":[1,1],"2026-09-10":[1,1],"2026-09-11":[3,4],"2026-09-12":[4,7],"2026-09-13":[1,1],"2026-09-14":[6,9],"2026-09-15":[3,3],"2026-09-16":[10,12],"2026-09-17":[1,1],"2026-09-18":[6,7],"2026-09-19":[4,6],"2026-09-20":[4,4]},
+    googleGrp: {"2026-09-07":[9,21],"2026-09-08":[11,27],"2026-09-09":[10,23],"2026-09-10":[18,40],"2026-09-11":[11,28],"2026-09-12":[13,24],"2026-09-13":[15,28],"2026-09-14":[11,22],"2026-09-15":[7,15],"2026-09-16":[15,34],"2026-09-17":[14,26],"2026-09-18":[17,28],"2026-09-19":[10,18],"2026-09-20":[11,21]},
+    etcGrp: {"2026-09-07":[4,7],"2026-09-08":[6,6],"2026-09-09":[3,3],"2026-09-10":[7,18],"2026-09-11":[3,9],"2026-09-12":[2,2],"2026-09-13":[1,1],"2026-09-14":[7,20],"2026-09-15":[2,7],"2026-09-16":[2,2],"2026-09-17":[4,6],"2026-09-18":[6,9],"2026-09-19":[0,1],"2026-09-20":[2,2]},
+  };
+  const REFERRER_TOTALS = {
+    lg: 3052, notSet: 2533, direct: 374,
+    naverGrp: 50, googleGrp: 65, etcGrp: 28,
+  };
+  const REFERRER_GROUPS = [
+    { key: 'lg', label: 'LG(투데이배너)' },
+    { key: 'notSet', label: '미확인' },
+    { key: 'direct', label: '다이렉트' },
+    { key: 'naverGrp', label: '네이버' },
+    { key: 'googleGrp', label: '구글' },
+    { key: 'etcGrp', label: '기타' },
+  ];
+  // "기타" 그룹 각주용 — 개별 재조회 값(그룹 합계 28명과는 별개, 단순 합산 시 29명으로
+  // 중복 집계되니 섞어 쓰지 말 것). sessions는 집계 가능 지표라 그대로 더해도 정확함.
+  const ETC_BREAKDOWN = [
+    { label: '결제(payments.danalpay.com)', users: 12, sessions: 30 },
+    { label: '카카오 로그인(kauth.kakao.com)', users: 5, sessions: 24 },
+    { label: '카카오 계정(accounts.kakao.com)', users: 2, sessions: 6 },
+    { label: '자체 캠페인(unsedang_portal)', users: 8, sessions: 29 },
+    { label: '배너(banner_01)', users: 1, sessions: 1 },
+    { label: 'AI(chatgpt.com)', users: 1, sessions: 3 },
+  ];
+  // 일자별 "합계" 열 — 그룹 6개를 단순히 더한 값이 아니라, 소스 필터 없이 사이트 전체를
+  // 별도로 재조회한 진짜 활성사용자(중복 없음). 그룹 합산치와는 소폭 다를 수 있다(동일인이
+  // 같은 날 여러 소스를 통해 방문한 경우).
+  const TOTAL_DAILY = {"2026-09-07":487,"2026-09-08":391,"2026-09-09":426,"2026-09-10":447,"2026-09-11":369,"2026-09-12":506,"2026-09-13":477,"2026-09-14":741,"2026-09-15":631,"2026-09-16":697,"2026-09-17":577,"2026-09-18":552,"2026-09-19":770,"2026-09-20":580};
+  const TOTAL_PERIOD = 6001;
+</script>
+<script>
+(function () {
+  const ACCOUNT_ID = '488612198';
+  const ACCOUNT_NAME = 'unsedang-a3588';
+  const GENERATED_AT = '2026-09-21 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const DATE_RANGE = { from: '2026-09-07', to: '2026-09-20' };
+
+  const CONSULT_API = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=2026-09';
+  const FETCH_TIMEOUT_MS = 10000;
+  let CONSULT_DAILY = null; // {date: 상담수} — fetch 성공 시 채워짐
+  let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
+  let CONSULT_ERROR_MSG = '';
+
+  const numFmt = new Intl.NumberFormat('ko-KR');
+  const fmtUsers = (n) => (n == null ? '–' : numFmt.format(n) + '명');
+  const fmtCount = (n) => (n == null ? '–' : numFmt.format(n) + '건');
+  const fmtPercent = (n) => (n == null ? '–' : n.toFixed(1) + '%');
+  const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+  function fmtDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const [, m, day] = dateStr.split('-');
+    return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
+  }
+  function rangeDates() {
+    const dates = [];
+    const [fy, fm, fd] = DATE_RANGE.from.split('-').map(Number);
+    const [ty, tm, td] = DATE_RANGE.to.split('-').map(Number);
+    let cur = Date.UTC(fy, fm - 1, fd);
+    const end = Date.UTC(ty, tm - 1, td);
+    while (cur <= end) {
+      const d = new Date(cur);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${day}`);
+      cur += 86400000;
+    }
+    return dates;
+  }
+
+  function dailyUsers(g, date) { const v = REFERRER_DAILY[g.key][date]; return v ? v[0] : 0; }
+  function totalUsers(g) { return REFERRER_TOTALS[g.key]; }
+
+  async function loadConsultStats() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(CONSULT_API, { mode: 'cors', signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const map = {};
+      for (const day of data.dailyStats || []) {
+        map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
+      }
+      CONSULT_DAILY = map;
+      CONSULT_STATE = 'ok';
+    } catch (e) {
+      CONSULT_STATE = 'error';
+      CONSULT_ERROR_MSG = e.name === 'AbortError' ? '요청 시간 초과' : String(e.message || e);
+      console.error('상담 데이터 로드 실패', e);
+    } finally {
+      clearTimeout(timer);
+      document.getElementById('content').innerHTML = renderSectionCard();
+      updateFooter();
+    }
+  }
+
+  function renderLegend() {
+    return `<div class="legend">${REFERRER_GROUPS
+      .map((g, i) => `<span><span class="swatch s${i}"></span>${g.label}</span>`)
+      .join('')}</div>`;
+  }
+
+  function renderSummary() {
+    const dates = rangeDates();
+    const items = REFERRER_GROUPS.map((g) => `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(totalUsers(g))}</div></div>`);
+    items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(TOTAL_PERIOD)}</div></div>`);
+    if (CONSULT_STATE === 'ok') {
+      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${fmtCount(consultSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">전환율(2주 합계)</div><div class="value">${fmtPercent((consultSum / TOTAL_PERIOD) * 100)}</div></div>`);
+    } else {
+      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
+    }
+    return `<div class="summary-grid">${items.join('')}</div>`;
+  }
+
+  function consultCell(date) {
+    if (CONSULT_STATE === 'loading') return '로딩 중…';
+    if (CONSULT_STATE === 'error') return '로드 실패';
+    const v = CONSULT_DAILY[date];
+    return v == null ? '–' : fmtCount(v);
+  }
+  function convRateCell(date) {
+    if (CONSULT_STATE !== 'ok') return '–';
+    const v = CONSULT_DAILY[date];
+    const total = TOTAL_DAILY[date];
+    if (v == null || !total) return '–';
+    return fmtPercent((v / total) * 100);
+  }
+
+  function renderTable() {
+    const dates = rangeDates();
+    const headRow = `<th>일자</th>` + REFERRER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>전환율</th>`;
+    const bodyRows = [...dates]
+      .reverse()
+      .map((date) => {
+        const cells = REFERRER_GROUPS
+          .map((g, i) => `<td class="col-s${i}">${fmtUsers(dailyUsers(g, date))}</td>`)
+          .join('');
+        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
+      })
+      .join('');
+    const footCells = REFERRER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(totalUsers(g))}</td>`).join('');
+    let consultFoot = '–';
+    let convFoot = '–';
+    if (CONSULT_STATE === 'ok') {
+      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      consultFoot = fmtCount(consultSum);
+      convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
+    } else if (CONSULT_STATE === 'error') {
+      consultFoot = '로드 실패';
+    } else {
+      consultFoot = '로딩 중…';
+    }
+    return `<div class="table-scroll"><table>
+      <thead><tr>${headRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${convFoot}</td></tr></tfoot>
+    </table></div>`;
+  }
+
+  function renderEtcFootnote() {
+    const items = ETC_BREAKDOWN.map((it) => `${it.label} ${fmtUsers(it.users)}·${fmtCount(it.sessions)}`).join(' · ');
+    return `<div class="note">ℹ "기타" 세부 항목(2주 합계, 개별 재조회 값 — 그룹 합계 ${fmtUsers(totalUsers({ key: 'etcGrp' }))}과 다름, 단순 합산 금지): ${items}</div>`;
+  }
+
+  function renderTotalFootnote() {
+    return `<div class="note">ℹ "합계" 열은 6개 그룹을 단순히 더한 값이 아니라, 소스 구분 없이 사이트 전체를 별도로 재조회한 활성사용자입니다 — 같은 날 여러 경로로 방문한 사람이 있으면 그룹 합산치보다 작을 수 있습니다.</div>`;
+  }
+
+  function renderConsultFootnote() {
+    const statusText = CONSULT_STATE === 'error'
+      ? ` (로드 실패: ${CONSULT_ERROR_MSG} — 페이지를 새로고침하면 재시도됩니다)`
+      : '';
+    return `<div class="note">ℹ "상담수"는 <a href="${CONSULT_API}" target="_blank" rel="noopener">DB API(consultation-stats)</a>에서
+      <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수 합계입니다 — 위 매체 유입
+      표(GA4)와 달리 정적 스냅샷이 아닙니다. "전환율" = 상담수 ÷ "합계"(사이트 전체 활성사용자) ×
+      100으로, 유입 대비 상담 전환 정도를 보는 참고 지표입니다.${statusText}</div>`;
+  }
+
+  function renderSectionCard() {
+    return `
+      <div class="card">
+        <h2>매체별 유입 (레퍼러 도메인 그룹) <span class="hint">최근 2주 일별 활성사용자 (${DATE_RANGE.from} ~ ${DATE_RANGE.to})</span></h2>
+        <div class="path-hint">sessionSource</div>
+        ${renderSummary()}
+        ${renderLegend()}
+        ${renderTable()}
+        ${renderEtcFootnote()}
+        ${renderTotalFootnote()}
+        ${renderConsultFootnote()}
+      </div>`;
+  }
+
+  function updateFooter() {
+    const consultStatusLine = CONSULT_STATE === 'ok'
+      ? '상담수/전환율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
+      : CONSULT_STATE === 'error'
+        ? `상담수/전환율 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
+        : '상담수/전환율 실시간 fetch 중…';
+    document.getElementById('footer').innerHTML =
+      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 조회 기간 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}<br>` +
+      `매체 유입(활성사용자) 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — GA4는 공개 API 엔드포인트가 없어 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
+      `상담수/전환율 열은 예외적으로 <b>${CONSULT_API}</b>를 ${consultStatusLine}<br>` +
+      `표에 표시되는 활성사용자는 비집계 지표입니다 — 일별 값은 그날 실측치, 합계 행/열(그룹별·전체)은 항상 해당 범위로 별도 재조회한 순사용자 수이며 일별 값을 단순히 더한 것이 아닙니다.<br>` +
+      `생성 시각: ${GENERATED_AT}`;
+  }
+
+  function init() {
+    document.getElementById('content').innerHTML = renderSectionCard();
+    updateFooter();
+    loadConsultStats();
+  }
+
+  init();
+})();
+</script>
