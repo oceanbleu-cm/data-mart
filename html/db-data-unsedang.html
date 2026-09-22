@@ -22,6 +22,12 @@
     --postpaid-bg: #fff2e2;
     --postpaid-head-bg: #ffe3bd;
     --postpaid-text: #a15c00;
+    --new-bg: #e8f7ec;
+    --new-head-bg: #cdeed7;
+    --new-text: #1f7a42;
+    --later-bg: #fbe9f3;
+    --later-head-bg: #f6cfe6;
+    --later-text: #a3236f;
     --total-bg: #efeaff;
     --total-head-bg: #ddd1ff;
     --total-text: #5c3fd6;
@@ -47,6 +53,12 @@
       --postpaid-bg: #3a2c10;
       --postpaid-head-bg: #4a3a15;
       --postpaid-text: #f0c374;
+      --new-bg: #16301f;
+      --new-head-bg: #1f4a2c;
+      --new-text: #7fd99a;
+      --later-bg: #3a1a2c;
+      --later-head-bg: #4a2138;
+      --later-text: #f2a0cc;
       --total-bg: #2a2440;
       --total-head-bg: #362a5c;
       --total-text: #c9b8ff;
@@ -72,6 +84,12 @@
     --postpaid-bg: #3a2c10;
     --postpaid-head-bg: #4a3a15;
     --postpaid-text: #f0c374;
+    --new-bg: #16301f;
+    --new-head-bg: #1f4a2c;
+    --new-text: #7fd99a;
+    --later-bg: #3a1a2c;
+    --later-head-bg: #4a2138;
+    --later-text: #f2a0cc;
     --total-bg: #2a2440;
     --total-head-bg: #362a5c;
     --total-text: #c9b8ff;
@@ -218,15 +236,22 @@
   thead tr:first-child > th:first-child { text-align: left; }
   tbody tr:nth-child(even) { background: var(--stripe); }
   tfoot td { font-weight: 400; border-top: 2px solid var(--border); border-bottom: none; }
-  th.col-prepaid { background: var(--prepaid-head-bg); color: var(--prepaid-text); }
-  td.col-prepaid { background: var(--prepaid-bg); }
-  th.col-postpaid { background: var(--postpaid-head-bg); color: var(--postpaid-text); }
-  td.col-postpaid { background: var(--postpaid-bg); }
+  th.col-m-amount { background: var(--prepaid-head-bg); color: var(--prepaid-text); }
+  td.col-m-amount { background: var(--prepaid-bg); }
+  th.col-m-new { background: var(--new-head-bg); color: var(--new-text); }
+  td.col-m-new { background: var(--new-bg); }
+  th.col-m-sameday { background: var(--postpaid-head-bg); color: var(--postpaid-text); }
+  td.col-m-sameday { background: var(--postpaid-bg); }
+  th.col-m-later { background: var(--later-head-bg); color: var(--later-text); }
+  td.col-m-later { background: var(--later-bg); }
   th.col-total { background: var(--total-head-bg); color: var(--total-text); }
   td.col-total { background: var(--total-bg); color: var(--total-text); font-weight: 400; }
-  tfoot td.col-prepaid { background: var(--prepaid-bg); }
-  tfoot td.col-postpaid { background: var(--postpaid-bg); }
+  tfoot td.col-m-amount { background: var(--prepaid-bg); }
+  tfoot td.col-m-new { background: var(--new-bg); }
+  tfoot td.col-m-sameday { background: var(--postpaid-bg); }
+  tfoot td.col-m-later { background: var(--later-bg); }
   tfoot td.col-total { background: var(--total-bg); }
+  .grp-start { border-left: 2px solid var(--border); }
   .legend {
     display: flex;
     flex-wrap: wrap;
@@ -243,8 +268,10 @@
     margin-right: 5px;
     vertical-align: middle;
   }
-  .legend .swatch.prepaid { background: var(--prepaid-head-bg); }
-  .legend .swatch.postpaid { background: var(--postpaid-head-bg); }
+  .legend .swatch.amount { background: var(--prepaid-head-bg); }
+  .legend .swatch.new { background: var(--new-head-bg); }
+  .legend .swatch.sameday { background: var(--postpaid-head-bg); }
+  .legend .swatch.later { background: var(--later-head-bg); }
   .legend .swatch.total { background: var(--total-head-bg); }
   .badge {
     display: inline-block;
@@ -391,9 +418,11 @@
   // rows: [{ label, revenue, consultationCount, revTotal, cntTotal, avg }]
   const GROUP_LEGEND_HTML = `
     <div class="legend">
-      <span><span class="swatch prepaid"></span>선불</span>
-      <span><span class="swatch postpaid"></span>후불</span>
       <span><span class="swatch total"></span>합계</span>
+      <span><span class="swatch amount"></span>매출·건수</span>
+      <span><span class="swatch new"></span>신규</span>
+      <span><span class="swatch sameday"></span>재상담(당일)</span>
+      <span><span class="swatch later"></span>재상담(이후)</span>
     </div>`;
 
   function revenueTableHtml({ headLabel, rows, sumRev, sumRevTotal, avgAll, hintHtml, checkHtml }) {
@@ -403,14 +432,14 @@
         <td>${r.label}</td>
         <td class="col-total">${won(r.revTotal)}</td>
         <td>${won(r.avg)}</td>
-        <td class="col-prepaid">${won(r.revenue.prepaid.total)}</td>
-        <td class="col-prepaid">${won(r.revenue.prepaid.newConsultation)}</td>
-        <td class="col-prepaid">${won(r.revenue.prepaid.sameDayRepeatConsultation)}</td>
-        <td class="col-prepaid">${won(r.revenue.prepaid.laterRepeatConsultation)}</td>
-        <td class="col-postpaid">${won(r.revenue.postpaid.total)}</td>
-        <td class="col-postpaid">${won(r.revenue.postpaid.newConsultation)}</td>
-        <td class="col-postpaid">${won(r.revenue.postpaid.sameDayRepeatConsultation)}</td>
-        <td class="col-postpaid">${won(r.revenue.postpaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount grp-start">${won(r.revenue.prepaid.total)}</td>
+        <td class="col-m-new">${won(r.revenue.prepaid.newConsultation)}</td>
+        <td class="col-m-sameday">${won(r.revenue.prepaid.sameDayRepeatConsultation)}</td>
+        <td class="col-m-later">${won(r.revenue.prepaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount grp-start">${won(r.revenue.postpaid.total)}</td>
+        <td class="col-m-new">${won(r.revenue.postpaid.newConsultation)}</td>
+        <td class="col-m-sameday">${won(r.revenue.postpaid.sameDayRepeatConsultation)}</td>
+        <td class="col-m-later">${won(r.revenue.postpaid.laterRepeatConsultation)}</td>
       </tr>`
       )
       .join('');
@@ -424,12 +453,12 @@
               <th rowspan="2">${headLabel}</th>
               <th class="col-total" rowspan="2">매출 합계</th>
               <th rowspan="2">건당 평균매출</th>
-              <th class="col-prepaid" rowspan="2">선불 매출</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="2">선불 재상담</th>
-              <th class="col-postpaid" rowspan="2">후불 매출</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="2">후불 재상담</th>
+              <th class="col-m-amount grp-start" rowspan="2">선불 매출</th><th class="col-m-new" rowspan="2">선불 신규</th><th colspan="2">선불 재상담</th>
+              <th class="col-m-amount grp-start" rowspan="2">후불 매출</th><th class="col-m-new" rowspan="2">후불 신규</th><th colspan="2">후불 재상담</th>
             </tr>
             <tr>
-              <th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
-              <th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
+              <th class="col-m-sameday">당일</th><th class="col-m-later">이후</th>
+              <th class="col-m-sameday">당일</th><th class="col-m-later">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -438,14 +467,14 @@
               <td>합계</td>
               <td class="col-total">${won(sumRevTotal)}</td>
               <td>${won(avgAll)}</td>
-              <td class="col-prepaid">${won(sumRev.prepaid.total)}</td>
-              <td class="col-prepaid">${won(sumRev.prepaid.newConsultation)}</td>
-              <td class="col-prepaid">${won(sumRev.prepaid.sameDayRepeatConsultation)}</td>
-              <td class="col-prepaid">${won(sumRev.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-postpaid">${won(sumRev.postpaid.total)}</td>
-              <td class="col-postpaid">${won(sumRev.postpaid.newConsultation)}</td>
-              <td class="col-postpaid">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
-              <td class="col-postpaid">${won(sumRev.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${won(sumRev.prepaid.total)}</td>
+              <td class="col-m-new">${won(sumRev.prepaid.newConsultation)}</td>
+              <td class="col-m-sameday">${won(sumRev.prepaid.sameDayRepeatConsultation)}</td>
+              <td class="col-m-later">${won(sumRev.prepaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${won(sumRev.postpaid.total)}</td>
+              <td class="col-m-new">${won(sumRev.postpaid.newConsultation)}</td>
+              <td class="col-m-sameday">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
+              <td class="col-m-later">${won(sumRev.postpaid.laterRepeatConsultation)}</td>
             </tr>
           </tfoot>
         </table>
@@ -460,14 +489,14 @@
         (r) => `<tr>
         <td>${r.label}</td>
         <td class="col-total">${cnt(r.cntTotal)}</td>
-        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.total)}</td>
-        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.newConsultation)}</td>
-        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}</td>
-        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}</td>
-        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.total)}</td>
-        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.newConsultation)}</td>
-        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}</td>
-        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}</td>
+        <td class="col-m-new">${cnt(r.consultationCount.prepaid.newConsultation)}</td>
+        <td class="col-m-sameday">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}</td>
+        <td class="col-m-later">${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount grp-start">${cnt(r.consultationCount.postpaid.total)}</td>
+        <td class="col-m-new">${cnt(r.consultationCount.postpaid.newConsultation)}</td>
+        <td class="col-m-sameday">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}</td>
+        <td class="col-m-later">${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}</td>
       </tr>`
       )
       .join('');
@@ -480,12 +509,12 @@
             <tr>
               <th rowspan="2">${headLabel}</th>
               <th class="col-total" rowspan="2">건수 합계</th>
-              <th class="col-prepaid" rowspan="2">선불 건수</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="2">선불 재상담</th>
-              <th class="col-postpaid" rowspan="2">후불 건수</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="2">후불 재상담</th>
+              <th class="col-m-amount grp-start" rowspan="2">선불 건수</th><th class="col-m-new" rowspan="2">선불 신규</th><th colspan="2">선불 재상담</th>
+              <th class="col-m-amount grp-start" rowspan="2">후불 건수</th><th class="col-m-new" rowspan="2">후불 신규</th><th colspan="2">후불 재상담</th>
             </tr>
             <tr>
-              <th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
-              <th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
+              <th class="col-m-sameday">당일</th><th class="col-m-later">이후</th>
+              <th class="col-m-sameday">당일</th><th class="col-m-later">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -493,14 +522,14 @@
             <tr>
               <td>합계</td>
               <td class="col-total">${cnt(sumCntTotal)}</td>
-              <td class="col-prepaid">${cnt(sumCnt.prepaid.total)}</td>
-              <td class="col-prepaid">${cnt(sumCnt.prepaid.newConsultation)}</td>
-              <td class="col-prepaid">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}</td>
-              <td class="col-prepaid">${cnt(sumCnt.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-postpaid">${cnt(sumCnt.postpaid.total)}</td>
-              <td class="col-postpaid">${cnt(sumCnt.postpaid.newConsultation)}</td>
-              <td class="col-postpaid">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}</td>
-              <td class="col-postpaid">${cnt(sumCnt.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${cnt(sumCnt.prepaid.total)}</td>
+              <td class="col-m-new">${cnt(sumCnt.prepaid.newConsultation)}</td>
+              <td class="col-m-sameday">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}</td>
+              <td class="col-m-later">${cnt(sumCnt.prepaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${cnt(sumCnt.postpaid.total)}</td>
+              <td class="col-m-new">${cnt(sumCnt.postpaid.newConsultation)}</td>
+              <td class="col-m-sameday">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}</td>
+              <td class="col-m-later">${cnt(sumCnt.postpaid.laterRepeatConsultation)}</td>
             </tr>
           </tfoot>
         </table>
