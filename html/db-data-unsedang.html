@@ -214,7 +214,8 @@
   th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
   th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.74rem; }
   thead th { text-align: center; vertical-align: middle; }
-  thead th:first-child { text-align: left; }
+  thead th:first-child { text-align: center; }
+  thead tr:first-child > th:first-child { text-align: left; }
   tbody tr:nth-child(even) { background: var(--stripe); }
   tfoot td { font-weight: 400; border-top: 2px solid var(--border); border-bottom: none; }
   th.col-prepaid { background: var(--prepaid-head-bg); color: var(--prepaid-text); }
