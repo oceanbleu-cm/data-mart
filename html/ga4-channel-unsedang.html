@@ -231,6 +231,7 @@
   const CONSULT_API = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=2026-09';
   const FETCH_TIMEOUT_MS = 10000;
   let CONSULT_DAILY = null; // {date: 상담수} — fetch 성공 시 채워짐
+  let CONSULT_USER_DAILY = null; // {date: 상담인원(userCount, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
 
@@ -272,10 +273,13 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const map = {};
+      const userMap = {};
       for (const day of data.dailyStats || []) {
         map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
+        userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
       }
       CONSULT_DAILY = map;
+      CONSULT_USER_DAILY = userMap;
       CONSULT_STATE = 'ok';
     } catch (e) {
       CONSULT_STATE = 'error';
@@ -314,6 +318,12 @@
     const v = CONSULT_DAILY[date];
     return v == null ? '–' : fmtCount(v);
   }
+  function consultUserCell(date) {
+    if (CONSULT_STATE === 'loading') return '로딩 중…';
+    if (CONSULT_STATE === 'error') return '로드 실패';
+    const v = CONSULT_USER_DAILY[date];
+    return v == null ? '–' : fmtUsers(v);
+  }
   function convRateCell(date) {
     if (CONSULT_STATE !== 'ok') return '–';
     const v = CONSULT_DAILY[date];
@@ -324,32 +334,37 @@
 
   function renderTable() {
     const dates = rangeDates();
-    const headRow = `<th>일자</th>` + REFERRER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>전환율</th>`;
+    const headRow = `<th>일자</th>` + REFERRER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th>`;
     const bodyRows = [...dates]
       .reverse()
       .map((date) => {
         const cells = REFERRER_GROUPS
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(dailyUsers(g, date))}</td>`)
           .join('');
-        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
+        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
       })
       .join('');
     const footCells = REFERRER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(totalUsers(g))}</td>`).join('');
     let consultFoot = '–';
+    let consultUserFoot = '–';
     let convFoot = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      const consultUserSum = dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
       consultFoot = fmtCount(consultSum);
+      consultUserFoot = fmtUsers(consultUserSum);
       convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
     } else if (CONSULT_STATE === 'error') {
       consultFoot = '로드 실패';
+      consultUserFoot = '로드 실패';
     } else {
       consultFoot = '로딩 중…';
+      consultUserFoot = '로딩 중…';
     }
     return `<div class="table-scroll"><table>
       <thead><tr>${headRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${convFoot}</td></tr></tfoot>
+      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td></tr></tfoot>
     </table></div>`;
   }
 
@@ -368,8 +383,11 @@
       : '';
     return `<div class="note">ℹ "상담수"는 <a href="${CONSULT_API}" target="_blank" rel="noopener">DB API(consultation-stats)</a>에서
       <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수 합계입니다 — 위 매체 유입
-      표(GA4)와 달리 정적 스냅샷이 아닙니다. "전환율" = 상담수 ÷ "합계"(사이트 전체 활성사용자) ×
-      100으로, 유입 대비 상담 전환 정도를 보는 참고 지표입니다.${statusText}</div>`;
+      표(GA4)와 달리 정적 스냅샷이 아닙니다. "상담인원"은 동일 API의 userCount(선불+후불 단순 합산)로,
+      한 사람이 여러 번 상담하면 "상담수"보다 작게 나옵니다(참고용 근사치 — prepaid/postpaid
+      userCount를 그대로 더한 값이라 두 결제방식을 모두 쓴 사람은 중복 집계될 수 있습니다).
+      "전환율" = 상담수 ÷ "합계"(사이트 전체 활성사용자) × 100으로, 유입 대비 상담 전환 정도를
+      보는 참고 지표입니다.${statusText}</div>`;
   }
 
   function renderSectionCard() {
@@ -418,6 +436,7 @@
     const byGroup = {};
     FIRST_USER_GROUPS.forEach((g) => { byGroup[g.key] = firstUserDailyUsers(g, date); });
     const consult = CONSULT_STATE === 'ok' ? CONSULT_DAILY[date] : null;
+    const consultUser = CONSULT_STATE === 'ok' ? CONSULT_USER_DAILY[date] : null;
     const rate = (consult != null && total) ? (consult / total) * 100 : null;
     const n = (v) => (v == null ? '–' : numFmt.format(v));
     const pct = (v) => (v == null ? '–' : v.toFixed(1) + '%');
@@ -432,6 +451,7 @@
       `기타: ${n(byGroup.etcGrp)}`,
       `-------`,
       `상담수: ${n(consult)}`,
+      `상담인원: ${n(consultUser)}`,
       `전환율: ${pct(rate)}`,
     ].join('\n');
   }
@@ -471,7 +491,7 @@
 
   function renderFirstUserTable() {
     const dates = rangeDates();
-    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>전환율</th>`;
+    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th>`;
     const bodyRows = [...dates]
       .reverse()
       .map((date) => {
@@ -479,25 +499,30 @@
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
           .join('');
         const dateCell = `<td class="date-cell"><span>${fmtDateLabel(date)}</span><button type="button" class="copy-btn" onclick="copyFirstUserDay('${date}', this)">복사</button></td>`;
-        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
+        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
       })
       .join('');
     const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
     let consultFoot = '–';
+    let consultUserFoot = '–';
     let convFoot = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      const consultUserSum = dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
       consultFoot = fmtCount(consultSum);
+      consultUserFoot = fmtUsers(consultUserSum);
       convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
     } else if (CONSULT_STATE === 'error') {
       consultFoot = '로드 실패';
+      consultUserFoot = '로드 실패';
     } else {
       consultFoot = '로딩 중…';
+      consultUserFoot = '로딩 중…';
     }
     return `<div class="table-scroll"><table>
       <thead><tr>${headRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${convFoot}</td></tr></tfoot>
+      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td></tr></tfoot>
     </table></div>`;
   }
 
