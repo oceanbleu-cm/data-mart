@@ -12,14 +12,22 @@
      날짜를 밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
 이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
-`.claude/commands/update-ga4-channel-unsedang.md`가 미리 10개의 임시 JSON 파일을 만들어두면
+`.claude/commands/update-ga4-channel-unsedang.md`가 미리 12개의 임시 JSON 파일을 만들어두면
 이 스크립트가 그것을 읽어 HTML에 반영한다.
+
+이 페이지에는 두 개의 독립 섹션이 있다 — ①"레퍼러 도메인 그룹"(`REFERRER_DAILY`/
+`REFERRER_TOTALS`/`ETC_BREAKDOWN`, GA4 `sessionSource` 기준), ②"첫 사용자 소스 그룹"
+(`FIRST_USER_DAILY`/`FIRST_USER_TOTALS`, GA4 `firstUserSource` 기준). 둘 다 같은 `TOTAL_DAILY`/
+`TOTAL_PERIOD`(사이트 전체, attribution 기준과 무관하게 동일)를 공유한다. 계산 방식이 서로
+다르다: ①은 세션마다 소스가 바뀔 수 있어 그룹 합계를 GA4에 필터 병합 재조회해야 하지만,
+②는 firstUserSource가 사용자당 평생 하나뿐인 값이라 원본 값을 단순 합산해도 정확하다(GA4도
+①방식 필터 재조회를 firstUserSource에는 거부한다 — "summing deduplicated values" 에러).
 
 사용법:
     python3 update_ga4_channel_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                             [--generated-at STR] [--no-backup]
 
-입력 디렉터리(--indir) 안의 10개 파일 스키마:
+입력 디렉터리(--indir) 안의 12개 파일 스키마:
     raw_incremental.json : {"rows": [{"date","channel","activeUsers","sessions"}, ...]}
                             (마지막 수록일 다음날 ~ 새 to. channel은 GA4 원본 표시값 그대로.
                              이 중 LG/(not set)/(direct) 3개만 실제로 사용되고 나머지는
@@ -35,10 +43,18 @@
     total_daily.json     : {"rows": [{"date","activeUsers"}, ...]}
                             (소스 필터 없음, 마지막 수록일 다음날 ~ 새 to)
     total_period.json    : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우 전체, 소스 필터 없음)
+    firstuser_raw_incremental.json : {"rows": [{"date","source","activeUsers","sessions"}, ...]}
+                            (firstUserSource 기준, dimension 포함, 마지막 수록일 다음날 ~ 새 to.
+                             그룹별 일별 값은 이 원본 행들을 FIRST_USER_LABEL_TO_GROUP으로
+                             단순 합산해서 만든다 — 병합 필터 쿼리 불필요.)
+    firstuser_raw_period.json : {"rows": [{"source","activeUsers","sessions"}, ...]}
+                            (firstUserSource 기준, dimension 포함, 새 윈도우 전체. 그룹별
+                             기간 합계도 마찬가지로 단순 합산해서 만든다.)
 
-    channel_daily.json에 없는 새 sessionSource 값이 raw_incremental.json/raw_period.json에
-    나타나면 SafetyError로 중단된다 — RAW_LABEL 매핑 추가 + HTML의 REFERRER_GROUPS/ETC_BREAKDOWN/
-    CSS(색상 토큰) 수동 반영이 먼저 필요하다.
+    channel_daily.json에 없는 새 sessionSource 값이 raw_incremental.json/raw_period.json에,
+    또는 FIRST_USER_LABEL_TO_GROUP에 없는 새 firstUserSource 값이 firstuser_raw_*.json에
+    나타나면 SafetyError로 중단된다 — 매핑 추가 + HTML의 REFERRER_GROUPS/ETC_BREAKDOWN/
+    FIRST_USER_GROUPS/CSS(색상 토큰) 수동 반영이 먼저 필요하다.
 """
 import argparse
 import json
@@ -75,6 +91,21 @@ ETC_ITEM_LABELS = {
 ETC_ITEM_ORDER = ['danalpay', 'kauthKakao', 'accountsKakao', 'unsedangPortal', 'banner01', 'chatgpt']
 
 GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'etcGrp']
+
+# --- 알려진 GA4 원본 firstUserSource 값 (sessionSource와는 별개 값 집합) ---
+FIRST_USER_LABEL_TO_GROUP = {
+    'LG': 'lg',
+    '(not set)': 'notSet',
+    '(direct)': 'direct',
+    'm.search.naver.com': 'naverGrp',
+    'naver': 'naverGrp',
+    'navercafe': 'naverGrp',
+    'm.ad.search.naver.com': 'naverGrp',
+    'google': 'googleGrp',
+    'google-play': 'googleGrp',
+    'unsedang_portal': 'etcGrp',
+    'banner_01': 'etcGrp',
+}
 
 GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
 
@@ -204,6 +235,40 @@ def load_period(indir):
     return referrer_totals, etc_breakdown, total_period
 
 
+def load_firstuser_incremental(indir):
+    """반환: ({group_key: {date: [u, s]}}, all_dates) — firstuser_raw_incremental.json을
+    FIRST_USER_LABEL_TO_GROUP으로 단순 합산(정확함 — firstUserSource는 사용자당 평생 1개)."""
+    incr = {k: {} for k in GROUP_KEYS}
+    rows = _read_rows(indir, 'firstuser_raw_incremental.json')
+    unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
+    if unknown:
+        raise SafetyError(
+            f'알 수 없는 첫 사용자 소스 값: {unknown} — FIRST_USER_LABEL_TO_GROUP에 매핑 추가와 '
+            f'HTML의 FIRST_USER_GROUPS/CSS 색상 토큰 수동 반영이 먼저 필요합니다.'
+        )
+    for r in rows:
+        gkey = FIRST_USER_LABEL_TO_GROUP[r['source']]
+        bucket = incr[gkey].setdefault(r['date'], [0, 0])
+        bucket[0] += r['activeUsers'] or 0
+        bucket[1] += r['sessions']
+
+    all_dates = sorted({d for series in incr.values() for d in series})
+    return incr, all_dates
+
+
+def load_firstuser_period(indir):
+    """반환: {group_key: int} — firstuser_raw_period.json을 그룹별로 단순 합산(정확함)."""
+    totals = {k: 0 for k in GROUP_KEYS}
+    rows = _read_rows(indir, 'firstuser_raw_period.json')
+    unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
+    if unknown:
+        raise SafetyError(f'firstuser_raw_period.json: 알 수 없는 첫 사용자 소스 값 {unknown}')
+    for r in rows:
+        gkey = FIRST_USER_LABEL_TO_GROUP[r['source']]
+        totals[gkey] += r['activeUsers'] or 0
+    return totals
+
+
 # ---------------------------------------------------------------------------
 # 3. 병합 + 윈도우 슬라이딩
 # ---------------------------------------------------------------------------
@@ -221,34 +286,41 @@ def merge_and_slide(old_series, incr_series, new_from, new_to):
 # 4. 검증
 # ---------------------------------------------------------------------------
 
-def validate(new_daily, new_totals, new_total_daily, new_total_period, new_from, new_to):
+def validate_group_series(label, new_daily, new_totals, new_from, new_to):
+    """REFERRER_*/FIRST_USER_* 공통 — 6개 그룹 일별/기간 값 검증. label은 에러 메시지 접두사."""
     warnings = []
 
     for gkey, series in new_daily.items():
         for d, (u, s) in series.items():
             if d < new_from or d > new_to:
-                raise SafetyError(f'G-WINDOW 위반: {gkey} {d}가 윈도우({new_from}~{new_to}) 밖에 남아있습니다.')
+                raise SafetyError(f'G-WINDOW 위반: {label}.{gkey} {d}가 윈도우({new_from}~{new_to}) 밖에 남아있습니다.')
             if u < 0 or s < 0:
-                raise SafetyError(f'G6 위반: {gkey} {d} 값에 음수 포함 ({u}, {s})')
+                raise SafetyError(f'G6 위반: {label}.{gkey} {d} 값에 음수 포함 ({u}, {s})')
+
+    for gkey in GROUP_KEYS:
+        day_vals = [v[0] for v in new_daily[gkey].values()]
+        period_val = new_totals[gkey]
+        if period_val < 0:
+            raise SafetyError(f'G6 위반: {label}.{gkey}가 음수입니다.')
+        if day_vals:
+            day_sum, day_max = sum(day_vals), max(day_vals)
+            if not (day_max <= period_val <= day_sum):
+                warnings.append(
+                    f'{label}.{gkey}: 기간 합계(dedup)={period_val}가 일별 활성사용자 범위 [{day_max}, {day_sum}] '
+                    f'밖입니다 — 재조회 결과를 확인하세요(경고만, 중단하지 않음).'
+                )
+
+    return warnings
+
+
+def validate_total_daily(new_total_daily, new_total_period, new_from, new_to):
+    warnings = []
 
     for d, u in new_total_daily.items():
         if d < new_from or d > new_to:
             raise SafetyError(f'G-WINDOW 위반: TOTAL_DAILY {d}가 윈도우 밖에 남아있습니다.')
         if u < 0:
             raise SafetyError(f'G6 위반: TOTAL_DAILY {d} 값이 음수입니다 ({u})')
-
-    for gkey in GROUP_KEYS:
-        day_vals = [v[0] for v in new_daily[gkey].values()]
-        period_val = new_totals[gkey]
-        if period_val < 0:
-            raise SafetyError(f'G6 위반: REFERRER_TOTALS.{gkey}가 음수입니다.')
-        if day_vals:
-            day_sum, day_max = sum(day_vals), max(day_vals)
-            if not (day_max <= period_val <= day_sum):
-                warnings.append(
-                    f'{gkey}: 기간 합계(dedup)={period_val}가 일별 활성사용자 범위 [{day_max}, {day_sum}] '
-                    f'밖입니다 — 재조회 결과를 확인하세요(경고만, 중단하지 않음).'
-                )
 
     if new_total_period < 0:
         raise SafetyError('G6 위반: TOTAL_PERIOD가 음수입니다.')
@@ -291,8 +363,8 @@ def render_daily_block(name, data):
     return '\n'.join(lines)
 
 
-def render_totals_block(totals):
-    lines = ['  const REFERRER_TOTALS = {']
+def render_totals_block(name, totals):
+    lines = [f'  const {name} = {{']
     for key in GROUP_KEYS:
         lines.append(f'    {key}: {totals[key]},')
     lines.append('  };')
@@ -348,13 +420,17 @@ def main():
 
     daily_start, daily_end, daily_body = extract_block(src, 'REFERRER_DAILY', '  ')
     _, _, total_daily_body = extract_single_line_block(src, 'TOTAL_DAILY', '  ')
+    _, _, fu_daily_body = extract_block(src, 'FIRST_USER_DAILY', '  ')
 
     old_daily = parse_daily_block(daily_body)
+    old_fu_daily = parse_daily_block(fu_daily_body)
     for k in GROUP_KEYS:
         old_daily.setdefault(k, {})
+        old_fu_daily.setdefault(k, {})
     old_total_daily = json.loads(total_daily_body.strip())
 
     incr_daily, incr_total_daily, incoming_dates = load_incremental(args.indir)
+    incr_fu_daily, fu_incoming_dates = load_firstuser_incremental(args.indir)
 
     new_to = max(incoming_dates)
     new_from_date = date.fromisoformat(new_to) - timedelta(days=WINDOW_DAYS - 1)
@@ -364,12 +440,24 @@ def main():
         print(f'이미 최신 상태입니다(마지막 수록일 {date_range["to"]}).')
         return
 
+    extra_warnings = []
+    if not fu_incoming_dates or max(fu_incoming_dates) < new_to:
+        extra_warnings.append(
+            f'firstuser_raw_incremental.json에 {new_to}까지의 데이터가 없습니다 — '
+            f'FIRST_USER_DAILY가 REFERRER_DAILY보다 최신성이 뒤처질 수 있습니다.'
+        )
+
     new_daily = {k: merge_and_slide(old_daily.get(k, {}), incr_daily.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
     new_total_daily = merge_and_slide({}, dict(old_total_daily, **incr_total_daily), new_from, new_to)
+    new_fu_daily = {k: merge_and_slide(old_fu_daily.get(k, {}), incr_fu_daily.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
 
     new_totals, new_etc, new_total_period = load_period(args.indir)
+    new_fu_totals = load_firstuser_period(args.indir)
 
-    warnings = validate(new_daily, new_totals, new_total_daily, new_total_period, new_from, new_to)
+    warnings = extra_warnings
+    warnings += validate_group_series('REFERRER', new_daily, new_totals, new_from, new_to)
+    warnings += validate_total_daily(new_total_daily, new_total_period, new_from, new_to)
+    warnings += validate_group_series('FIRST_USER', new_fu_daily, new_fu_totals, new_from, new_to)
 
     generated_at = args.generated_at or datetime.now(timezone.utc).strftime(GENERATED_AT_FMT)
 
@@ -378,7 +466,7 @@ def main():
     new_src = replace_block_text(new_src, d_start, d_end, render_daily_block('REFERRER_DAILY', new_daily))
 
     t_start, t_end, _ = extract_block(new_src, 'REFERRER_TOTALS', '  ')
-    new_src = replace_block_text(new_src, t_start, t_end, render_totals_block(new_totals))
+    new_src = replace_block_text(new_src, t_start, t_end, render_totals_block('REFERRER_TOTALS', new_totals))
 
     e_start, e_end, _ = extract_block(new_src, 'ETC_BREAKDOWN', '  ', open_ch='[', close_ch=']')
     new_src = replace_block_text(new_src, e_start, e_end, render_etc_block(new_etc))
@@ -386,19 +474,28 @@ def main():
     td_start, td_end, _ = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
     new_src = replace_block_text(new_src, td_start, td_end, render_total_daily(new_total_daily))
 
+    fud_start, fud_end, _ = extract_block(new_src, 'FIRST_USER_DAILY', '  ')
+    new_src = replace_block_text(new_src, fud_start, fud_end, render_daily_block('FIRST_USER_DAILY', new_fu_daily))
+
+    fut_start, fut_end, _ = extract_block(new_src, 'FIRST_USER_TOTALS', '  ')
+    new_src = replace_block_text(new_src, fut_start, fut_end, render_totals_block('FIRST_USER_TOTALS', new_fu_totals))
+
     new_src = patch_scalars(new_src, new_from, new_to, new_total_period, generated_at)
 
     # --- 스모크 테스트: 재작성한 소스를 다시 파싱해 라운드트립 일치 확인 ---
     _, _, chk_daily_body = extract_block(new_src, 'REFERRER_DAILY', '  ')
     _, _, chk_total_daily_body = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
+    _, _, chk_fu_daily_body = extract_block(new_src, 'FIRST_USER_DAILY', '  ')
     assert parse_daily_block(chk_daily_body) == new_daily
     assert json.loads(chk_total_daily_body.strip()) == new_total_daily
+    assert parse_daily_block(chk_fu_daily_body) == new_fu_daily
     chk_range = parse_scalars(new_src)
     assert chk_range == {'from': new_from, 'to': new_to}
 
     print('=== update_ga4_channel_unsedang.py 요약 ===')
     print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (14일 유지, 롤링)')
-    print(f'그룹별 기간 합계(활성사용자): {new_totals}')
+    print(f'[레퍼러 도메인] 그룹별 기간 합계(활성사용자): {new_totals}')
+    print(f'[첫 사용자 소스] 그룹별 기간 합계(활성사용자): {new_fu_totals}')
     print(f'전체 기간 합계(활성사용자): {new_total_period}')
     if warnings:
         print('경고:')
