@@ -318,7 +318,7 @@
   // (그 결제방식 안에서는 중복 제거가 보장됨), 선불+후불 합계나 여러 항목을 가로질러
   // 더한 값(신규+재상담 등)은 동일 유저가 양쪽에 겹칠 수 있어 API도 "더하면 안 된다"고
   // 명시한다 — 그런 자리에는 이 괄호를 절대 붙이지 않는다.
-  const uc = (n) => (n == null ? '' : ` (${numFmt.format(n)})`);
+  const uc = (n) => (n == null ? '' : ` (${numFmt.format(n)}명)`);
 
   const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
   function fmtDateLabel(dateStr) {
