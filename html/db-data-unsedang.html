@@ -205,10 +205,12 @@
   th, td {
     padding: 5px 8px;
     border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
+  th:last-child, td:last-child { border-right: none; }
   th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
   th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.74rem; }
   tbody tr:nth-child(even) { background: var(--stripe); }
@@ -400,12 +402,10 @@
         <td>${won(r.avg)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.total)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.newConsultation)}</td>
-        <td class="col-prepaid">${won(r.revenue.prepaid.repeatConsultation)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.sameDayRepeatConsultation)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.laterRepeatConsultation)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.total)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.newConsultation)}</td>
-        <td class="col-postpaid">${won(r.revenue.postpaid.repeatConsultation)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.sameDayRepeatConsultation)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.laterRepeatConsultation)}</td>
       </tr>`
@@ -421,12 +421,12 @@
               <th rowspan="2">${headLabel}</th>
               <th class="col-total" rowspan="2">매출 합계</th>
               <th rowspan="2">건당 평균매출</th>
-              <th class="col-prepaid" rowspan="2">선불 매출</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="3">선불 재상담</th>
-              <th class="col-postpaid" rowspan="2">후불 매출</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="3">후불 재상담</th>
+              <th class="col-prepaid" rowspan="2">선불 매출</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="2">선불 재상담</th>
+              <th class="col-postpaid" rowspan="2">후불 매출</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="2">후불 재상담</th>
             </tr>
             <tr>
-              <th class="col-prepaid">합계</th><th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
-              <th class="col-postpaid">합계</th><th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
+              <th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
+              <th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -437,12 +437,10 @@
               <td>${won(avgAll)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.total)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.newConsultation)}</td>
-              <td class="col-prepaid">${won(sumRev.prepaid.repeatConsultation)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.sameDayRepeatConsultation)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.laterRepeatConsultation)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.total)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.newConsultation)}</td>
-              <td class="col-postpaid">${won(sumRev.postpaid.repeatConsultation)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.laterRepeatConsultation)}</td>
             </tr>
@@ -461,12 +459,10 @@
         <td class="col-total">${cnt(r.cntTotal)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.total)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.newConsultation)}</td>
-        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.repeatConsultation)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.total)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.newConsultation)}</td>
-        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.repeatConsultation)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}</td>
       </tr>`
@@ -481,12 +477,12 @@
             <tr>
               <th rowspan="2">${headLabel}</th>
               <th class="col-total" rowspan="2">건수 합계</th>
-              <th class="col-prepaid" rowspan="2">선불 건수</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="3">선불 재상담</th>
-              <th class="col-postpaid" rowspan="2">후불 건수</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="3">후불 재상담</th>
+              <th class="col-prepaid" rowspan="2">선불 건수</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="2">선불 재상담</th>
+              <th class="col-postpaid" rowspan="2">후불 건수</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="2">후불 재상담</th>
             </tr>
             <tr>
-              <th class="col-prepaid">합계</th><th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
-              <th class="col-postpaid">합계</th><th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
+              <th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
+              <th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -496,12 +492,10 @@
               <td class="col-total">${cnt(sumCntTotal)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.total)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.newConsultation)}</td>
-              <td class="col-prepaid">${cnt(sumCnt.prepaid.repeatConsultation)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.laterRepeatConsultation)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.total)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.newConsultation)}</td>
-              <td class="col-postpaid">${cnt(sumCnt.postpaid.repeatConsultation)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.laterRepeatConsultation)}</td>
             </tr>
