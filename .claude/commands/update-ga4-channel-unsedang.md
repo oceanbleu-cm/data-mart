@@ -32,7 +32,7 @@ firstUserSource가 사용자당 평생 하나뿐인 값이라 원본 값을 **�
 **배열 순서**: `REFERRER_DAILY`/`FIRST_USER_DAILY`의 `[a,b]` = `[활성사용자, 세션]`.
 
 **새 원본 소스 값이 나타나면 자동 처리되지 않는다.** `scripts/update_ga4_channel_unsedang.py`의
-`GROUP_DAILY_KEYS`/`ETC_ITEM_KEYS`/`NAVER_SUB_LABELS`/`GOOGLE_SUB_LABELS`(sessionSource용)
+`GROUP_DAILY_KEYS`/`ETC_ITEM_KEYS`/`NAVER_SUB_LABELS`/`GOOGLE_SUB_LABELS`/`NOTSET_SUB_LABELS`(sessionSource용)
 또는 `FIRST_USER_LABEL_TO_GROUP`(firstUserSource용)에 없는 값이 쿼리 결과에 나오면
 `[SafetyError]`로 중단된다. 이 경우 ①해당 매핑 테이블에 새 값 추가, ②
 `html/ga4-channel-unsedang.html`의 `REFERRER_GROUPS`/`FIRST_USER_GROUPS`(신규 그룹이면)
@@ -55,10 +55,10 @@ CSS 색상 토큰(s6) 추가가 먼저 필요하다 — 절대 임의로 기존 
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
 5. `$ARGUMENTS`에 `--dry-run`이 있으면 §7에서 스크립트를 `--dry-run`으로만 실행한다.
 
-## §2 증분 쿼리 6건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
+## §2 증분 쿼리 7건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
 `ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
-`start_date=incr_from`, `end_date=new_to`로 아래 6개 쿼리를 실행한다.
+`start_date=incr_from`, `end_date=new_to`로 아래 7개 쿼리를 실행한다.
 
 **쿼리 1 — 원본 채널 전체(그룹핑 없음, sessionSource)**
 - fields: `date,sessionSource,activeUsers,sessions`
@@ -86,28 +86,39 @@ CSS 색상 토큰(s6) 추가가 먼저 필요하다 — 절대 임의로 기존 
 - (이 값은 병합 쿼리가 필요 없다 — §0 참고. `scripts/update_ga4_channel_unsedang.py`의
   `FIRST_USER_LABEL_TO_GROUP`으로 그룹별 합산한다.)
 
+**쿼리 7 — 미확인(notSet) 병합**
+- fields: `date,activeUsers,sessions`
+- filter: `sessionSource == '(not set)' OR sessionSource == ''`
+- (`'(not set)'`과 GA4가 소스를 확인 못해 내려주는 `''`(빈 문자열) 두 raw 라벨을 그냥
+  더하면 같은 세션이 이중 계산될 수 있어, naver/google/etc와 동일하게 병합 필터
+  재조회가 필요하다 — sessionSource는 세션 스코프라 단순 합산이 부정확하다는 §0의
+  원칙 그대로다.)
+
 응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
 
-## §3 기간 전체 쿼리 6건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
+## §3 기간 전체 쿼리 7건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
 
 `date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
-`date`를 빼고** 아래 6개를 실행한다.
+`date`를 빼고** 아래 7개를 실행한다.
 
-**쿼리 7 — 원본 채널 전체 기간 합계(sessionSource)**
+**쿼리 8 — 원본 채널 전체 기간 합계(sessionSource)**
 - fields: `sessionSource,activeUsers,sessions`
 - filter: 없음
-- (여기서 LG/`(not set)`/`(direct)` 3개 행과, "기타" 6개 항목 각각의 기간 합계를
-  한 번에 얻는다 — 나머지 행(네이버/구글 서브소스)은 버린다.)
+- (여기서 LG/`(direct)` 2개 행과, "기타" 6개 항목 각각의 기간 합계를 한 번에 얻는다 —
+  나머지 행(네이버/구글 서브소스, `(not set)`/``)은 버린다 — `(not set)`/``은 쿼리13의
+  병합값을 쓴다.)
 
-**쿼리 8 — 네이버 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리2와 동일
-**쿼리 9 — 구글 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리3과 동일
-**쿼리 10 — 기타 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리4와 동일
-**쿼리 11 — 사이트 전체 기간 합계**: fields `activeUsers`, filter 없음
+**쿼리 9 — 네이버 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리2와 동일
+**쿼리 10 — 구글 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리3과 동일
+**쿼리 11 — 기타 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리4와 동일
+**쿼리 12 — 사이트 전체 기간 합계**: fields `activeUsers`, filter 없음
 
-**쿼리 12 — 원본 첫 사용자 소스 전체 기간 합계(firstUserSource)**
+**쿼리 13 — 원본 첫 사용자 소스 전체 기간 합계(firstUserSource)**
 - fields: `firstUserSource,activeUsers,sessions`
 - filter: 없음
 - (병합 쿼리 없이 이 한 건으로 6개 그룹의 기간 합계를 전부 합산해서 만든다.)
+
+**쿼리 14 — 미확인(notSet) 병합 기간 합계**: fields `activeUsers`, filter = §2 쿼리7과 동일
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다. 이 리포트는 누적이 아니라 "최근 14일" 롤링 창이므로, 창이 하루
@@ -117,16 +128,16 @@ CSS 색상 토큰(s6) 추가가 먼저 필요하다 — 절대 임의로 기존 
 
 ## §4 임시 JSON 저장
 
-`mkdir -p /tmp/ga4-channel-update/<YYYYMMDD-HHMMSS>/` 후 아래 12개 파일을 Write:
+`mkdir -p /tmp/ga4-channel-update/<YYYYMMDD-HHMMSS>/` 후 아래 14개 파일을 Write:
 
 - `raw_incremental.json`: `{"rows":[{"date","channel","activeUsers","sessions"}, ...]}` (쿼리1)
-- `naver_daily.json` / `google_daily.json` / `etc_daily.json`: `{"rows":[{"date","activeUsers","sessions"}, ...]}` (쿼리2/3/4)
+- `naver_daily.json` / `google_daily.json` / `etc_daily.json` / `notset_daily.json`: `{"rows":[{"date","activeUsers","sessions"}, ...]}` (쿼리2/3/4/7)
 - `total_daily.json`: `{"rows":[{"date","activeUsers"}, ...]}` (쿼리5)
 - `firstuser_raw_incremental.json`: `{"rows":[{"date","source","activeUsers","sessions"}, ...]}` (쿼리6)
-- `raw_period.json`: `{"rows":[{"channel","activeUsers","sessions"}, ...]}` (쿼리7)
-- `naver_period.json` / `google_period.json` / `etc_period.json`: `{"rows":[{"activeUsers": N}]}` (쿼리8/9/10, **한 행만**)
-- `total_period.json`: `{"rows":[{"activeUsers": N}]}` (쿼리11, **한 행만**)
-- `firstuser_raw_period.json`: `{"rows":[{"source","activeUsers","sessions"}, ...]}` (쿼리12)
+- `raw_period.json`: `{"rows":[{"channel","activeUsers","sessions"}, ...]}` (쿼리8)
+- `naver_period.json` / `google_period.json` / `etc_period.json` / `notset_period.json`: `{"rows":[{"activeUsers": N}]}` (쿼리9/10/11/14, **한 행만**)
+- `total_period.json`: `{"rows":[{"activeUsers": N}]}` (쿼리12, **한 행만**)
+- `firstuser_raw_period.json`: `{"rows":[{"source","activeUsers","sessions"}, ...]}` (쿼리13)
 
 `channel`/`source` 필드는 GA4가 반환한 표시값 그대로 쓴다(예: `'LG'`, `'(not set)'`,
 `'(direct)'`, `'payments.danalpay.com'`, `'m.search.naver.com'` 등) — 가공하지 말 것. 값이

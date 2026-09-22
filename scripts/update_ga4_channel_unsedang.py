@@ -12,7 +12,7 @@
      날짜를 밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
 이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
-`.claude/commands/update-ga4-channel-unsedang.md`가 미리 12개의 임시 JSON 파일을 만들어두면
+`.claude/commands/update-ga4-channel-unsedang.md`가 미리 14개의 임시 JSON 파일을 만들어두면
 이 스크립트가 그것을 읽어 HTML에 반영한다.
 
 이 페이지에는 두 개의 독립 섹션이 있다 — ①"레퍼러 도메인 그룹"(`REFERRER_DAILY`/
@@ -27,18 +27,22 @@
     python3 update_ga4_channel_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                             [--generated-at STR] [--no-backup]
 
-입력 디렉터리(--indir) 안의 12개 파일 스키마:
+입력 디렉터리(--indir) 안의 14개 파일 스키마:
     raw_incremental.json : {"rows": [{"date","channel","activeUsers","sessions"}, ...]}
                             (마지막 수록일 다음날 ~ 새 to. channel은 GA4 원본 표시값 그대로.
-                             이 중 LG/(not set)/(direct) 3개만 실제로 사용되고 나머지는
-                             "알려진 값인지" 검증용으로만 쓰인다.)
+                             이 중 LG/(direct) 2개만 실제로 사용되고 나머지는 "알려진 값인지"
+                             검증용으로만 쓰인다 — '(not set)'/''(빈 문자열)도 raw로는 오지만
+                             notset_daily.json의 병합값을 대신 쓴다.)
     raw_period.json      : {"rows": [{"channel","activeUsers","sessions"}, ...]}
-                            (새 윈도우 전체 재조회, dimension 없이 channel만. LG/(not set)/
-                             (direct) 기간 합계 + "기타" 6개 항목의 기간 합계를 여기서 뽑는다.)
-    naver_daily.json / google_daily.json / etc_daily.json
+                            (새 윈도우 전체 재조회, dimension 없이 channel만. LG/(direct)
+                             기간 합계 + "기타" 6개 항목의 기간 합계를 여기서 뽑는다.)
+    naver_daily.json / google_daily.json / etc_daily.json / notset_daily.json
                           : {"rows": [{"date","activeUsers","sessions"}, ...]}
-                            (각 그룹 필터 병합, 마지막 수록일 다음날 ~ 새 to)
-    naver_period.json / google_period.json / etc_period.json
+                            (각 그룹 필터 병합, 마지막 수록일 다음날 ~ 새 to. notset은
+                             sessionSource == '(not set)' OR sessionSource == '' 필터 —
+                             두 raw 라벨을 그냥 더하면 같은 세션이 이중 계산될 수 있어
+                             naver/google/etc와 동일하게 병합 재조회가 필요하다.)
+    naver_period.json / google_period.json / etc_period.json / notset_period.json
                           : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우 전체 필터 병합)
     total_daily.json     : {"rows": [{"date","activeUsers"}, ...]}
                             (소스 필터 없음, 마지막 수록일 다음날 ~ 새 to)
@@ -67,7 +71,14 @@ from datetime import date, datetime, timedelta, timezone
 WINDOW_DAYS = 14
 
 # --- 알려진 GA4 원본 sessionSource 값 (오타·신규 소스 조기 탐지용) ---
-GROUP_DAILY_KEYS = {'LG': 'lg', '(not set)': 'notSet', '(direct)': 'direct'}
+# GROUP_DAILY_KEYS는 "원본 라벨 1개 = 그룹 전체"라 병합 재조회 없이 그대로 쓸 수 있는 값만
+# 담는다. '(not set)'은 ''(빈 문자열)이라는 두 번째 raw 라벨이 생기면서(GA4가 소스를 확인
+# 못해 내려주는 또 다른 표기) 더 이상 이 조건을 만족하지 않으므로 NOTSET_SUB_LABELS로 옮기고
+# naver/google/etc와 동일하게 병합 필터 재조회(notset_daily.json/notset_period.json)로
+# 처리한다 — 두 raw 라벨을 그냥 더하면 같은 세션이 이중 계산될 수 있다(실측: 기간 합계
+# 병합조회 2550명 vs 단순합산 2577명, 27명 차이).
+GROUP_DAILY_KEYS = {'LG': 'lg', '(direct)': 'direct'}
+NOTSET_SUB_LABELS = {'(not set)', ''}
 ETC_ITEM_KEYS = {
     'payments.danalpay.com': 'danalpay',
     'kauth.kakao.com': 'kauthKakao',
@@ -78,7 +89,7 @@ ETC_ITEM_KEYS = {
 }
 NAVER_SUB_LABELS = {'m.search.naver.com', 'naver', 'navercafe', 'm.naver.com', 'nid.naver.com'}
 GOOGLE_SUB_LABELS = {'google-play', 'google'}
-KNOWN_RAW_LABELS = set(GROUP_DAILY_KEYS) | set(ETC_ITEM_KEYS) | NAVER_SUB_LABELS | GOOGLE_SUB_LABELS
+KNOWN_RAW_LABELS = set(GROUP_DAILY_KEYS) | set(ETC_ITEM_KEYS) | NAVER_SUB_LABELS | GOOGLE_SUB_LABELS | NOTSET_SUB_LABELS
 
 ETC_ITEM_LABELS = {
     'danalpay': '결제(payments.danalpay.com)',
@@ -93,10 +104,12 @@ ETC_ITEM_ORDER = ['danalpay', 'kauthKakao', 'accountsKakao', 'unsedangPortal', '
 GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'etcGrp']
 
 # --- 알려진 GA4 원본 firstUserSource 값 (sessionSource와는 별개 값 집합) ---
+# ''(빈 문자열)은 GA4가 소스를 확인하지 못해 내려준 값 — '(not set)'과 동일하게 취급.
 FIRST_USER_LABEL_TO_GROUP = {
     'LG': 'lg',
     '(not set)': 'notSet',
     '(direct)': 'direct',
+    '': 'notSet',
     'm.search.naver.com': 'naverGrp',
     'naver': 'naverGrp',
     'navercafe': 'naverGrp',
@@ -183,16 +196,16 @@ def load_incremental(indir):
     if unknown:
         raise SafetyError(
             f'알 수 없는 채널 값: {unknown} — RAW_LABEL 매핑(GROUP_DAILY_KEYS/ETC_ITEM_KEYS/'
-            f'NAVER_SUB_LABELS/GOOGLE_SUB_LABELS) 추가와 HTML의 REFERRER_GROUPS/ETC_BREAKDOWN/'
-            f'CSS 색상 토큰 수동 반영이 먼저 필요합니다.'
+            f'NAVER_SUB_LABELS/GOOGLE_SUB_LABELS/NOTSET_SUB_LABELS) 추가와 HTML의 REFERRER_GROUPS/'
+            f'ETC_BREAKDOWN/CSS 색상 토큰 수동 반영이 먼저 필요합니다.'
         )
     for r in raw_rows:
         gkey = GROUP_DAILY_KEYS.get(r['channel'])
         if gkey is None:
-            continue  # naver/google/etc 서브소스는 raw_incremental에서 무시(병합 쿼리로 별도 처리)
+            continue  # naver/google/etc/notset 서브소스는 raw_incremental에서 무시(병합 쿼리로 별도 처리)
         incr[gkey][r['date']] = [r['activeUsers'] or 0, r['sessions']]
 
-    for fname, gkey in (('naver_daily.json', 'naverGrp'), ('google_daily.json', 'googleGrp'), ('etc_daily.json', 'etcGrp')):
+    for fname, gkey in (('naver_daily.json', 'naverGrp'), ('google_daily.json', 'googleGrp'), ('etc_daily.json', 'etcGrp'), ('notset_daily.json', 'notSet')):
         for r in _read_rows(indir, fname):
             incr[gkey][r['date']] = [r['activeUsers'] or 0, r['sessions']]
 
@@ -223,12 +236,13 @@ def load_period(indir):
         if ikey is not None:
             etc_breakdown[ikey] = {'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
 
-    for gkey in ('lg', 'notSet', 'direct'):
+    for gkey in ('lg', 'direct'):
         referrer_totals.setdefault(gkey, 0)  # 해당 기간에 0건이면 행 자체가 없을 수 있음(정상)
 
     referrer_totals['naverGrp'] = _read_single_value(indir, 'naver_period.json')
     referrer_totals['googleGrp'] = _read_single_value(indir, 'google_period.json')
     referrer_totals['etcGrp'] = _read_single_value(indir, 'etc_period.json')
+    referrer_totals['notSet'] = _read_single_value(indir, 'notset_period.json')
 
     total_period = _read_single_value(indir, 'total_period.json')
 
