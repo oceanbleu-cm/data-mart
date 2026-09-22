@@ -313,6 +313,12 @@
   const numFmt = new Intl.NumberFormat('ko-KR');
   const won = (n) => numFmt.format(n) + '원';
   const cnt = (n) => numFmt.format(n) + '건';
+  // 건수 옆에 괄호로 붙이는 유저수(userCount) — 같은 유저의 반복 상담이 건수에는 여러 번
+  // 잡히지만 userCount는 중복 제거된 값이다. prepaid/postpaid 각각의 값만 유효하고
+  // (그 결제방식 안에서는 중복 제거가 보장됨), 선불+후불 합계나 여러 항목을 가로질러
+  // 더한 값(신규+재상담 등)은 동일 유저가 양쪽에 겹칠 수 있어 API도 "더하면 안 된다"고
+  // 명시한다 — 그런 자리에는 이 괄호를 절대 붙이지 않는다.
+  const uc = (n) => (n == null ? '' : ` (${numFmt.format(n)})`);
 
   const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
   function fmtDateLabel(dateStr) {
@@ -345,7 +351,7 @@
       });
   }
 
-  function summaryCardHtml(titleHtml, revAgg, cntAgg) {
+  function summaryCardHtml(titleHtml, revAgg, cntAgg, userAgg) {
     const revAll = revAgg.prepaid.total + revAgg.postpaid.total;
     const revNew = revAgg.prepaid.newConsultation + revAgg.postpaid.newConsultation;
     const revRepeat = revAgg.prepaid.repeatConsultation + revAgg.postpaid.repeatConsultation;
@@ -369,8 +375,8 @@
       <div class="stat-group-title">상담 건수</div>
       <div class="summary-grid">
         <div class="stat"><div class="label">합계</div><div class="value">${cnt(cntAll)}</div></div>
-        <div class="stat"><div class="label">선불</div><div class="value">${cnt(cntAgg.prepaid.total)}</div></div>
-        <div class="stat"><div class="label">후불</div><div class="value">${cnt(cntAgg.postpaid.total)}</div></div>
+        <div class="stat"><div class="label">선불</div><div class="value">${cnt(cntAgg.prepaid.total)}${uc(userAgg && userAgg.prepaid.total)}</div></div>
+        <div class="stat"><div class="label">후불</div><div class="value">${cnt(cntAgg.postpaid.total)}${uc(userAgg && userAgg.postpaid.total)}</div></div>
         <div class="stat"><div class="label">신규</div><div class="value">${cnt(cntNew)}</div></div>
         <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div><div class="sub">당일 ${cnt(cntSameDay)} · 이후 ${cnt(cntLater)}</div></div>
       </div>`;
@@ -440,24 +446,31 @@
       ${checkHtml || ''}`;
   }
 
-  // rows: [{ label, revenue, consultationCount, revTotal, cntTotal, avg }] — 매출 표와 동일한 항목 구조
-  function countTableHtml({ headLabel, rows, sumCnt, sumCntTotal, hintHtml, checkHtml }) {
+  // rows: [{ label, revenue, consultationCount, userCount, revTotal, cntTotal, avg }] — 매출
+  // 표와 동일한 항목 구조. userCount는 있으면 건수 옆에 (N)으로 표시 — 선불/후불 각각의
+  // 항목별 값만(합계·신규·재상담 각 칸) 유효하고, "건수 합계" 열(선불+후불)에는 API가
+  // 유효한 합산값을 주지 않으므로 붙이지 않는다. footUserCount는 tfoot 합계 행 전용 —
+  // 여러 행(일/월)을 합산한 값이라 API가 준 값이 있을 때만(월간 뷰) 넘기고, 연간 뷰처럼
+  // 직접 합산한 값밖에 없을 때는 넘기지 않는다(합산 자체가 부정확하므로).
+  function countTableHtml({ headLabel, rows, sumCnt, sumCntTotal, hintHtml, checkHtml, footUserCount }) {
     const bodyRows = rows
-      .map(
-        (r) => `<tr>
+      .map((r) => {
+        const u = r.userCount;
+        return `<tr>
         <td>${r.label}</td>
         <td class="col-total">${cnt(r.cntTotal)}</td>
-        <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}</td>
-        <td>${cnt(r.consultationCount.prepaid.newConsultation)}</td>
-        <td class="col-m-amount">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}</td>
-        <td>${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}</td>
-        <td class="col-m-amount grp-start">${cnt(r.consultationCount.postpaid.total)}</td>
-        <td>${cnt(r.consultationCount.postpaid.newConsultation)}</td>
-        <td class="col-m-amount">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}</td>
-        <td>${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}</td>
-      </tr>`
-      )
+        <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}${uc(u && u.prepaid.total)}</td>
+        <td>${cnt(r.consultationCount.prepaid.newConsultation)}${uc(u && u.prepaid.newConsultation)}</td>
+        <td class="col-m-amount">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}${uc(u && u.prepaid.sameDayRepeatConsultation)}</td>
+        <td>${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}${uc(u && u.prepaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount grp-start">${cnt(r.consultationCount.postpaid.total)}${uc(u && u.postpaid.total)}</td>
+        <td>${cnt(r.consultationCount.postpaid.newConsultation)}${uc(u && u.postpaid.newConsultation)}</td>
+        <td class="col-m-amount">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}${uc(u && u.postpaid.sameDayRepeatConsultation)}</td>
+        <td>${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}${uc(u && u.postpaid.laterRepeatConsultation)}</td>
+      </tr>`;
+      })
       .join('');
+    const fu = footUserCount;
     return `
       <h2>상담 건수 <span class="hint">${hintHtml}</span></h2>
       ${GROUP_LEGEND_HTML}
@@ -480,14 +493,14 @@
             <tr>
               <td>합계</td>
               <td class="col-total">${cnt(sumCntTotal)}</td>
-              <td class="col-m-amount grp-start">${cnt(sumCnt.prepaid.total)}</td>
-              <td>${cnt(sumCnt.prepaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(sumCnt.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-m-amount grp-start">${cnt(sumCnt.postpaid.total)}</td>
-              <td>${cnt(sumCnt.postpaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(sumCnt.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${cnt(sumCnt.prepaid.total)}${uc(fu && fu.prepaid.total)}</td>
+              <td>${cnt(sumCnt.prepaid.newConsultation)}${uc(fu && fu.prepaid.newConsultation)}</td>
+              <td class="col-m-amount">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}${uc(fu && fu.prepaid.sameDayRepeatConsultation)}</td>
+              <td>${cnt(sumCnt.prepaid.laterRepeatConsultation)}${uc(fu && fu.prepaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${cnt(sumCnt.postpaid.total)}${uc(fu && fu.postpaid.total)}</td>
+              <td>${cnt(sumCnt.postpaid.newConsultation)}${uc(fu && fu.postpaid.newConsultation)}</td>
+              <td class="col-m-amount">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}${uc(fu && fu.postpaid.sameDayRepeatConsultation)}</td>
+              <td>${cnt(sumCnt.postpaid.laterRepeatConsultation)}${uc(fu && fu.postpaid.laterRepeatConsultation)}</td>
             </tr>
           </tfoot>
         </table>
@@ -581,7 +594,8 @@
     summary.innerHTML = summaryCardHtml(
       `${m.baseMonth} 월 요약 <span class="hint">${m.dateRange.from} ~ ${m.dateRange.to}</span>`,
       m.revenue,
-      m.consultationCount
+      m.consultationCount,
+      m.userCount
     );
     content.appendChild(summary);
 
@@ -595,6 +609,7 @@
         label: fmtDateLabel(d.date),
         revenue: d.revenue,
         consultationCount: d.consultationCount,
+        userCount: d.userCount,
         revTotal: d.revTotal,
         cntTotal: d.cntTotal,
         avg,
@@ -629,6 +644,7 @@
       rows: dayRows,
       sumCnt,
       sumCntTotal,
+      footUserCount: m.userCount,
       hintHtml: '해당 월 일별 상담건수 내역',
       checkHtml: `<div class="check-row ${cntMatches ? 'ok' : 'bad'}">
         ${cntMatches ? '일별 상담건수 합계가 월 API 합계와 일치합니다.' : '일별 상담건수 합계가 월 API 합계와 다릅니다 — 데이터 확인 필요.'}
@@ -642,7 +658,7 @@
       .map((c) => `<tr><td>${c.rank}위 · ${c.consultantName}</td><td>${won(c.revenueAmount)}</td></tr>`)
       .join('');
     const cntRows = m.topConsultationCountConsultants
-      .map((c) => `<tr><td>${c.rank}위 · ${c.consultantName}</td><td>${cnt(c.consultationCount)}</td></tr>`)
+      .map((c) => `<tr><td>${c.rank}위 · ${c.consultantName}</td><td>${cnt(c.consultationCount)}${uc(c.userCount)}</td></tr>`)
       .join('');
     topCard.innerHTML = `
       <h2>상담사 TOP5 <span class="hint">월 전체 기준 (일별 TOP5 합산이 아닌 API 월간 순위 원본)</span></h2>
@@ -719,6 +735,7 @@
         label: fmtMonthLabel(mk),
         revenue: m.revenue,
         consultationCount: m.consultationCount,
+        userCount: m.userCount,
         revTotal,
         cntTotal,
         avg,
