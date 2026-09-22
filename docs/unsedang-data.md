@@ -38,24 +38,32 @@
     "prepaid": {
       "total": 84200000,               //   선불 매출액 합계
       "newConsultation": 52300000,     //   선불 · 신규상담 매출
-      "repeatConsultation": 31900000   //   선불 · 재상담 매출
+      "repeatConsultation": 31900000,           //   선불 · 재상담 매출 (당일 + 이후)
+      "sameDayRepeatConsultation": 12400000,    //   선불 · 당일 재상담 매출
+      "laterRepeatConsultation": 19500000       //   선불 · 이후 재상담 매출
     },
     "postpaid": {
       "total": 41100000,               //   후불 매출액 합계
       "newConsultation": 24500000,     //   후불 · 신규상담 매출
-      "repeatConsultation": 16600000   //   후불 · 재상담 매출
+      "repeatConsultation": 16600000,           //   후불 · 재상담 매출 (당일 + 이후)
+      "sameDayRepeatConsultation": 7300000,     //   후불 · 당일 재상담 매출
+      "laterRepeatConsultation": 9300000        //   후불 · 이후 재상담 매출
     }
   },
   "consultationCount": {               // 상담 건수 - 결제 방식별 구분 (신규/재상담 세부 breakdown 포함)
     "prepaid": {
       "total": 6120,                   //   선불 상담 건수
       "newConsultation": 3450,         //   선불 · 신규상담 건수
-      "repeatConsultation": 2670       //   선불 · 재상담 건수
+      "repeatConsultation": 2670,               //   선불 · 재상담 건수 (당일 + 이후)
+      "sameDayRepeatConsultation": 1080,        //   선불 · 당일 재상담 건수
+      "laterRepeatConsultation": 1590           //   선불 · 이후 재상담 건수
     },
     "postpaid": {
       "total": 2870,                   //   후불 상담 건수
       "newConsultation": 1620,         //   후불 · 신규상담 건수
-      "repeatConsultation": 1250       //   후불 · 재상담 건수
+      "repeatConsultation": 1250,               //   후불 · 재상담 건수 (당일 + 이후)
+      "sameDayRepeatConsultation": 520,         //   후불 · 당일 재상담 건수
+      "laterRepeatConsultation": 730            //   후불 · 이후 재상담 건수
     }
   },
 
@@ -74,23 +82,23 @@
     { "rank": 5, "consultantId": "C1091", "consultantName": "최상담", "consultationCount": 244 }
   ],
 
-  "dailyStats": [                      // dateRange 내 날짜별 통계 배열 (요소 하나 = 하루치 데이터)
+  "dailyStats": [                      // dateRange 내 날짜별 통계 배열 (요소 하나 = 하루치 데이터, 상담이 없는 날짜도 0 으로 포함)
     {
       "date": "2026-09-01",            // 해당 일자 (YYYY-MM-DD)
-      "revenue": {                     // 해당 일자의 선불/후불 매출액 (신규/재상담 breakdown 포함)
-        "prepaid": { "total": 2810000, "newConsultation": 1720000, "repeatConsultation": 1090000 },
-        "postpaid": { "total": 1390000, "newConsultation": 830000, "repeatConsultation": 560000 }
+      "revenue": {                     // 해당 일자의 선불/후불 매출액 (월별 revenue 와 동일 구조)
+        "prepaid": { "total": 2810000, "newConsultation": 1720000, "repeatConsultation": 1090000, "sameDayRepeatConsultation": 420000, "laterRepeatConsultation": 670000 },
+        "postpaid": { "total": 1390000, "newConsultation": 830000, "repeatConsultation": 560000, "sameDayRepeatConsultation": 230000, "laterRepeatConsultation": 330000 }
       },
-      "consultationCount": {           // 해당 일자의 선불/후불 상담 건수 (신규/재상담 breakdown 포함)
-        "prepaid": { "total": 205, "newConsultation": 118, "repeatConsultation": 87 },
-        "postpaid": { "total": 96, "newConsultation": 54, "repeatConsultation": 42 }
+      "consultationCount": {           // 해당 일자의 선불/후불 상담 건수 (월별 consultationCount 와 동일 구조)
+        "prepaid": { "total": 205, "newConsultation": 118, "repeatConsultation": 87, "sameDayRepeatConsultation": 34, "laterRepeatConsultation": 53 },
+        "postpaid": { "total": 96, "newConsultation": 54, "repeatConsultation": 42, "sameDayRepeatConsultation": 17, "laterRepeatConsultation": 25 }
       },
       "topRevenueConsultants": [       // 해당 일자 매출액 기준 상담사 TOP5 (월별 항목과 동일 구조, 일 단위로 집계)
-        { "rank": 1, "consultantId": "C1024", "consultantName": "김상담", "revenueAmount": 320000 }
-        // ... rank 2~5 생략 (실제 응답에는 최대 5건까지 포함)
+        { "rank": 1, "consultantId": "1024", "consultantName": "김상담", "revenueAmount": 320000 }
+        // ... rank 2~5 생략 (실제 응답에는 최대 5건까지 포함, 해당 일자에 상담이 없으면 빈 배열)
       ],
       "topConsultationCountConsultants": [ // 해당 일자 상담 건수 기준 상담사 TOP5
-        { "rank": 1, "consultantId": "C1003", "consultantName": "박상담", "consultationCount": 18 }
+        { "rank": 1, "consultantId": "1003", "consultantName": "박상담", "consultationCount": 18 }
         // ... rank 2~5 생략
       ]
     }

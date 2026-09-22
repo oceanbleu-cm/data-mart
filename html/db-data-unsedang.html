@@ -199,6 +199,7 @@
   .stat { padding: 7px 10px; background: var(--stripe); border-radius: 8px; }
   .stat .label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 2px; }
   .stat .value { font-size: 0.92rem; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 0.68rem; color: var(--text-dim); margin-top: 2px; font-variant-numeric: tabular-nums; }
   .table-scroll { overflow-x: auto; }
   table { border-collapse: collapse; width: 100%; font-size: 0.78rem; min-width: 720px; }
   th, td {
@@ -327,18 +328,18 @@
     return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
   }
 
+  const AGG_FIELDS = ['total', 'newConsultation', 'repeatConsultation', 'sameDayRepeatConsultation', 'laterRepeatConsultation'];
   function emptyAgg() {
-    return {
-      prepaid: { total: 0, newConsultation: 0, repeatConsultation: 0 },
-      postpaid: { total: 0, newConsultation: 0, repeatConsultation: 0 },
-    };
+    const zero = () => Object.fromEntries(AGG_FIELDS.map((f) => [f, 0]));
+    return { prepaid: zero(), postpaid: zero() };
   }
   function addInto(agg, src) {
     for (const k of ['prepaid', 'postpaid']) {
-      agg[k].total += src[k].total;
-      agg[k].newConsultation += src[k].newConsultation;
-      agg[k].repeatConsultation += src[k].repeatConsultation;
+      for (const f of AGG_FIELDS) agg[k][f] += src[k][f];
     }
+  }
+  function aggMatches(a, b) {
+    return ['prepaid', 'postpaid'].every((k) => AGG_FIELDS.every((f) => a[k][f] === b[k][f]));
   }
 
   function buildDays(monthData) {
@@ -355,9 +356,13 @@
     const revAll = revAgg.prepaid.total + revAgg.postpaid.total;
     const revNew = revAgg.prepaid.newConsultation + revAgg.postpaid.newConsultation;
     const revRepeat = revAgg.prepaid.repeatConsultation + revAgg.postpaid.repeatConsultation;
+    const revSameDay = revAgg.prepaid.sameDayRepeatConsultation + revAgg.postpaid.sameDayRepeatConsultation;
+    const revLater = revAgg.prepaid.laterRepeatConsultation + revAgg.postpaid.laterRepeatConsultation;
     const cntAll = cntAgg.prepaid.total + cntAgg.postpaid.total;
     const cntNew = cntAgg.prepaid.newConsultation + cntAgg.postpaid.newConsultation;
     const cntRepeat = cntAgg.prepaid.repeatConsultation + cntAgg.postpaid.repeatConsultation;
+    const cntSameDay = cntAgg.prepaid.sameDayRepeatConsultation + cntAgg.postpaid.sameDayRepeatConsultation;
+    const cntLater = cntAgg.prepaid.laterRepeatConsultation + cntAgg.postpaid.laterRepeatConsultation;
     return `
       <h2>${titleHtml}</h2>
       <div class="stat-group-title">매출</div>
@@ -366,7 +371,7 @@
         <div class="stat"><div class="label">선불</div><div class="value">${won(revAgg.prepaid.total)}</div></div>
         <div class="stat"><div class="label">후불</div><div class="value">${won(revAgg.postpaid.total)}</div></div>
         <div class="stat"><div class="label">신규</div><div class="value">${won(revNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${won(revRepeat)}</div></div>
+        <div class="stat"><div class="label">재상담</div><div class="value">${won(revRepeat)}</div><div class="sub">당일 ${won(revSameDay)} · 이후 ${won(revLater)}</div></div>
       </div>
       <div class="stat-group-title">상담 건수</div>
       <div class="summary-grid">
@@ -374,7 +379,7 @@
         <div class="stat"><div class="label">선불</div><div class="value">${cnt(cntAgg.prepaid.total)}</div></div>
         <div class="stat"><div class="label">후불</div><div class="value">${cnt(cntAgg.postpaid.total)}</div></div>
         <div class="stat"><div class="label">신규</div><div class="value">${cnt(cntNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div></div>
+        <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div><div class="sub">당일 ${cnt(cntSameDay)} · 이후 ${cnt(cntLater)}</div></div>
       </div>`;
   }
 
@@ -396,9 +401,13 @@
         <td class="col-prepaid">${won(r.revenue.prepaid.total)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.newConsultation)}</td>
         <td class="col-prepaid">${won(r.revenue.prepaid.repeatConsultation)}</td>
+        <td class="col-prepaid">${won(r.revenue.prepaid.sameDayRepeatConsultation)}</td>
+        <td class="col-prepaid">${won(r.revenue.prepaid.laterRepeatConsultation)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.total)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.newConsultation)}</td>
         <td class="col-postpaid">${won(r.revenue.postpaid.repeatConsultation)}</td>
+        <td class="col-postpaid">${won(r.revenue.postpaid.sameDayRepeatConsultation)}</td>
+        <td class="col-postpaid">${won(r.revenue.postpaid.laterRepeatConsultation)}</td>
       </tr>`
       )
       .join('');
@@ -409,11 +418,15 @@
         <table>
           <thead>
             <tr>
-              <th>${headLabel}</th>
-              <th class="col-total">매출 합계</th>
-              <th>건당 평균매출</th>
-              <th class="col-prepaid">선불 매출</th><th class="col-prepaid">선불 신규</th><th class="col-prepaid">선불 재상담</th>
-              <th class="col-postpaid">후불 매출</th><th class="col-postpaid">후불 신규</th><th class="col-postpaid">후불 재상담</th>
+              <th rowspan="2">${headLabel}</th>
+              <th class="col-total" rowspan="2">매출 합계</th>
+              <th rowspan="2">건당 평균매출</th>
+              <th class="col-prepaid" rowspan="2">선불 매출</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="3">선불 재상담</th>
+              <th class="col-postpaid" rowspan="2">후불 매출</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="3">후불 재상담</th>
+            </tr>
+            <tr>
+              <th class="col-prepaid">합계</th><th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
+              <th class="col-postpaid">합계</th><th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -425,9 +438,13 @@
               <td class="col-prepaid">${won(sumRev.prepaid.total)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.newConsultation)}</td>
               <td class="col-prepaid">${won(sumRev.prepaid.repeatConsultation)}</td>
+              <td class="col-prepaid">${won(sumRev.prepaid.sameDayRepeatConsultation)}</td>
+              <td class="col-prepaid">${won(sumRev.prepaid.laterRepeatConsultation)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.total)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.newConsultation)}</td>
               <td class="col-postpaid">${won(sumRev.postpaid.repeatConsultation)}</td>
+              <td class="col-postpaid">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
+              <td class="col-postpaid">${won(sumRev.postpaid.laterRepeatConsultation)}</td>
             </tr>
           </tfoot>
         </table>
@@ -445,9 +462,13 @@
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.total)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.newConsultation)}</td>
         <td class="col-prepaid">${cnt(r.consultationCount.prepaid.repeatConsultation)}</td>
+        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}</td>
+        <td class="col-prepaid">${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.total)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.newConsultation)}</td>
         <td class="col-postpaid">${cnt(r.consultationCount.postpaid.repeatConsultation)}</td>
+        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}</td>
+        <td class="col-postpaid">${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}</td>
       </tr>`
       )
       .join('');
@@ -458,10 +479,14 @@
         <table>
           <thead>
             <tr>
-              <th>${headLabel}</th>
-              <th class="col-total">건수 합계</th>
-              <th class="col-prepaid">선불 건수</th><th class="col-prepaid">선불 신규</th><th class="col-prepaid">선불 재상담</th>
-              <th class="col-postpaid">후불 건수</th><th class="col-postpaid">후불 신규</th><th class="col-postpaid">후불 재상담</th>
+              <th rowspan="2">${headLabel}</th>
+              <th class="col-total" rowspan="2">건수 합계</th>
+              <th class="col-prepaid" rowspan="2">선불 건수</th><th class="col-prepaid" rowspan="2">선불 신규</th><th class="col-prepaid" colspan="3">선불 재상담</th>
+              <th class="col-postpaid" rowspan="2">후불 건수</th><th class="col-postpaid" rowspan="2">후불 신규</th><th class="col-postpaid" colspan="3">후불 재상담</th>
+            </tr>
+            <tr>
+              <th class="col-prepaid">합계</th><th class="col-prepaid">당일</th><th class="col-prepaid">이후</th>
+              <th class="col-postpaid">합계</th><th class="col-postpaid">당일</th><th class="col-postpaid">이후</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -472,9 +497,13 @@
               <td class="col-prepaid">${cnt(sumCnt.prepaid.total)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.newConsultation)}</td>
               <td class="col-prepaid">${cnt(sumCnt.prepaid.repeatConsultation)}</td>
+              <td class="col-prepaid">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}</td>
+              <td class="col-prepaid">${cnt(sumCnt.prepaid.laterRepeatConsultation)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.total)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.newConsultation)}</td>
               <td class="col-postpaid">${cnt(sumCnt.postpaid.repeatConsultation)}</td>
+              <td class="col-postpaid">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}</td>
+              <td class="col-postpaid">${cnt(sumCnt.postpaid.laterRepeatConsultation)}</td>
             </tr>
           </tfoot>
         </table>
@@ -591,20 +620,8 @@
     const sumCntTotal = sumCnt.prepaid.total + sumCnt.postpaid.total;
     const avgAll = sumCntTotal > 0 ? Math.round(sumRevTotal / sumCntTotal) : 0;
 
-    const revMatches =
-      sumRev.prepaid.total === m.revenue.prepaid.total &&
-      sumRev.prepaid.newConsultation === m.revenue.prepaid.newConsultation &&
-      sumRev.prepaid.repeatConsultation === m.revenue.prepaid.repeatConsultation &&
-      sumRev.postpaid.total === m.revenue.postpaid.total &&
-      sumRev.postpaid.newConsultation === m.revenue.postpaid.newConsultation &&
-      sumRev.postpaid.repeatConsultation === m.revenue.postpaid.repeatConsultation;
-    const cntMatches =
-      sumCnt.prepaid.total === m.consultationCount.prepaid.total &&
-      sumCnt.prepaid.newConsultation === m.consultationCount.prepaid.newConsultation &&
-      sumCnt.prepaid.repeatConsultation === m.consultationCount.prepaid.repeatConsultation &&
-      sumCnt.postpaid.total === m.consultationCount.postpaid.total &&
-      sumCnt.postpaid.newConsultation === m.consultationCount.postpaid.newConsultation &&
-      sumCnt.postpaid.repeatConsultation === m.consultationCount.postpaid.repeatConsultation;
+    const revMatches = aggMatches(sumRev, m.revenue);
+    const cntMatches = aggMatches(sumCnt, m.consultationCount);
 
     const revenueCard = document.createElement('div');
     revenueCard.className = 'card';
