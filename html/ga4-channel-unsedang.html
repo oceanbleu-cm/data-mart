@@ -124,6 +124,14 @@
   .legend .swatch.s5 { background: var(--s5-head-bg); }
   .note { margin-top: 8px; font-size: 0.74rem; color: var(--warn-text); background: var(--warn-bg); padding: 7px 10px; border-radius: 8px; }
   .path-hint { font-size: 0.68rem; color: var(--text-dim); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-bottom: 6px; }
+  .copy-btn {
+    font-size: 0.68rem; padding: 3px 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--text-dim);
+    cursor: pointer; font-variant-numeric: normal;
+  }
+  .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .copy-btn:disabled { color: var(--accent); border-color: var(--accent); cursor: default; }
+  td.date-cell { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; }
 </style>
 <body>
   <div class="wrap">
@@ -404,6 +412,63 @@
     return `<div class="summary-grid">${items.join('')}</div>`;
   }
 
+  // --- 일자별 데이터 클립보드 복사 (첫 사용자 소스 그룹 표 전용) ---
+  function firstUserCopyText(date) {
+    const total = TOTAL_DAILY[date];
+    const byGroup = {};
+    FIRST_USER_GROUPS.forEach((g) => { byGroup[g.key] = firstUserDailyUsers(g, date); });
+    const consult = CONSULT_STATE === 'ok' ? CONSULT_DAILY[date] : null;
+    const rate = (consult != null && total) ? (consult / total) * 100 : null;
+    const n = (v) => (v == null ? '–' : numFmt.format(v));
+    const pct = (v) => (v == null ? '–' : v.toFixed(1) + '%');
+    return [
+      `${fmtDateLabel(date)} (${date})`,
+      `총 방문자: ${n(total)}`,
+      `LG: ${n(byGroup.lg)}`,
+      `미확인: ${n(byGroup.notSet)}`,
+      `다이렉트: ${n(byGroup.direct)}`,
+      `naver: ${n(byGroup.naverGrp)}`,
+      `google: ${n(byGroup.googleGrp)}`,
+      `기타: ${n(byGroup.etcGrp)}`,
+      `-------`,
+      `상담수: ${n(consult)}`,
+      `전환율: ${pct(rate)}`,
+    ].join('\n');
+  }
+
+  window.copyFirstUserDay = function (date, btn) {
+    const text = firstUserCopyText(date);
+    const onDone = () => {
+      if (!btn) return;
+      const orig = btn.textContent;
+      btn.textContent = '복사됨';
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1200);
+    };
+    const fallbackCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand('copy');
+        onDone();
+      } catch (e) {
+        console.error('클립보드 복사 실패', e);
+        alert('복사에 실패했습니다.');
+      }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onDone).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  };
+
   function renderFirstUserTable() {
     const dates = rangeDates();
     const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>전환율</th>`;
@@ -413,7 +478,8 @@
         const cells = FIRST_USER_GROUPS
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
           .join('');
-        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
+        const dateCell = `<td class="date-cell"><span>${fmtDateLabel(date)}</span><button type="button" class="copy-btn" onclick="copyFirstUserDay('${date}', this)">복사</button></td>`;
+        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
       })
       .join('');
     const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
