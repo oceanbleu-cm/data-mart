@@ -458,7 +458,7 @@
         const u = r.userCount;
         return `<tr>
         <td>${r.label}</td>
-        <td class="col-total">${cnt(r.cntTotal)}</td>
+        <td class="col-total">${cnt(r.cntTotal)}${uc(u && u.prepaid.total + u.postpaid.total)}</td>
         <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}${uc(u && u.prepaid.total)}</td>
         <td>${cnt(r.consultationCount.prepaid.newConsultation)}${uc(u && u.prepaid.newConsultation)}</td>
         <td class="col-m-amount">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}${uc(u && u.prepaid.sameDayRepeatConsultation)}</td>
@@ -492,7 +492,7 @@
           <tfoot>
             <tr>
               <td>합계</td>
-              <td class="col-total">${cnt(sumCntTotal)}</td>
+              <td class="col-total">${cnt(sumCntTotal)}${uc(fu && fu.prepaid.total + fu.postpaid.total)}</td>
               <td class="col-m-amount grp-start">${cnt(sumCnt.prepaid.total)}${uc(fu && fu.prepaid.total)}</td>
               <td>${cnt(sumCnt.prepaid.newConsultation)}${uc(fu && fu.prepaid.newConsultation)}</td>
               <td class="col-m-amount">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}${uc(fu && fu.prepaid.sameDayRepeatConsultation)}</td>
