@@ -178,6 +178,36 @@
   // 같은 날 여러 소스를 통해 방문한 경우).
   const TOTAL_DAILY = {"2026-09-07":487,"2026-09-08":391,"2026-09-09":426,"2026-09-10":447,"2026-09-11":369,"2026-09-12":506,"2026-09-13":477,"2026-09-14":741,"2026-09-15":631,"2026-09-16":697,"2026-09-17":577,"2026-09-18":552,"2026-09-19":770,"2026-09-20":580};
   const TOTAL_PERIOD = 6001;
+
+  // --- 두 번째 섹션: 첫 사용자 소스(firstUserSource, 최초 유입 시점의 소스) 기준 ---
+  // firstUserSource는 사용자당 평생 단 하나뿐인 값(최초 유입 시점에 고정)이라, sessionSource와
+  // 달리 같은 도메인 계열의 원본 값들을 단순 합산해도 중복 집계가 발생하지 않는다(GA4도 이
+  // dimension은 필터만 걸고 dimension을 빼면 재조회 자체를 거부함 — "summing deduplicated
+  // values" 에러). 그래서 아래 일별/기간 합계는 모두 원본 값 합산으로 계산했다(정확함).
+  const FIRST_USER_DAILY = {
+    lg: {"2026-09-07":[180,220],"2026-09-08":[144,172],"2026-09-09":[173,221],"2026-09-10":[161,192],"2026-09-11":[121,159],"2026-09-12":[243,302],"2026-09-13":[189,251],"2026-09-14":[471,555],"2026-09-15":[341,465],"2026-09-16":[420,534],"2026-09-17":[279,382],"2026-09-18":[276,393],"2026-09-19":[521,686],"2026-09-20":[318,466]},
+    notSet: {"2026-09-07":[202,219],"2026-09-08":[165,191],"2026-09-09":[178,210],"2026-09-10":[172,194],"2026-09-11":[167,199],"2026-09-12":[172,193],"2026-09-13":[209,232],"2026-09-14":[187,211],"2026-09-15":[213,242],"2026-09-16":[173,195],"2026-09-17":[208,233],"2026-09-18":[183,213],"2026-09-19":[173,184],"2026-09-20":[191,213]},
+    direct: {"2026-09-07":[70,129],"2026-09-08":[52,108],"2026-09-09":[48,75],"2026-09-10":[76,132],"2026-09-11":[52,93],"2026-09-12":[62,101],"2026-09-13":[49,79],"2026-09-14":[50,93],"2026-09-15":[51,89],"2026-09-16":[63,110],"2026-09-17":[59,91],"2026-09-18":[54,102],"2026-09-19":[49,79],"2026-09-20":[46,67]},
+    naverGrp: {"2026-09-07":[14,25],"2026-09-08":[11,22],"2026-09-09":[10,12],"2026-09-10":[10,14],"2026-09-11":[7,18],"2026-09-12":[9,15],"2026-09-13":[7,7],"2026-09-14":[10,27],"2026-09-15":[7,15],"2026-09-16":[16,25],"2026-09-17":[7,15],"2026-09-18":[14,26],"2026-09-19":[8,14],"2026-09-20":[8,12]},
+    googleGrp: {"2026-09-07":[19,37],"2026-09-08":[19,41],"2026-09-09":[17,32],"2026-09-10":[28,59],"2026-09-11":[21,40],"2026-09-12":[20,32],"2026-09-13":[23,39],"2026-09-14":[22,41],"2026-09-15":[18,35],"2026-09-16":[25,59],"2026-09-17":[23,41],"2026-09-18":[25,39],"2026-09-19":[19,30],"2026-09-20":[16,28]},
+    etcGrp: {"2026-09-07":[2,3],"2026-09-11":[1,4],"2026-09-14":[1,1],"2026-09-15":[1,1],"2026-09-16":[1,1],"2026-09-17":[1,2],"2026-09-20":[1,1]},
+  };
+  const FIRST_USER_TOTALS = {
+    lg: 3044,
+    notSet: 2403,
+    direct: 374,
+    naverGrp: 89,
+    googleGrp: 87,
+    etcGrp: 4,
+  };
+  const FIRST_USER_GROUPS = [
+    { key: 'lg', label: 'LG' },
+    { key: 'notSet', label: '미확인' },
+    { key: 'direct', label: '다이렉트' },
+    { key: 'naverGrp', label: 'naver' },
+    { key: 'googleGrp', label: 'google' },
+    { key: 'etcGrp', label: '기타' },
+  ];
 </script>
 <script>
 (function () {
@@ -241,7 +271,7 @@
       console.error('상담 데이터 로드 실패', e);
     } finally {
       clearTimeout(timer);
-      document.getElementById('content').innerHTML = renderSectionCard();
+      document.getElementById('content').innerHTML = renderSectionCard() + renderFirstUserSectionCard();
       updateFooter();
     }
   }
@@ -344,6 +374,60 @@
       </div>`;
   }
 
+  // --- 첫 사용자 소스 섹션(간단 버전 — 상담수/전환율 없음, 합계 열은 위 섹션과 동일한
+  // 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 재사용: 어느 기준으로 쪼개든 사이트 전체
+  // 활성사용자 수 자체는 같기 때문) ---
+  function firstUserDailyUsers(g, date) { const v = FIRST_USER_DAILY[g.key][date]; return v ? v[0] : 0; }
+  function firstUserTotal(g) { return FIRST_USER_TOTALS[g.key]; }
+
+  function renderFirstUserLegend() {
+    return `<div class="legend">${FIRST_USER_GROUPS
+      .map((g, i) => `<span><span class="swatch s${i}"></span>${g.label}</span>`)
+      .join('')}</div>`;
+  }
+
+  function renderFirstUserSummary() {
+    const items = FIRST_USER_GROUPS.map((g) => `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(firstUserTotal(g))}</div></div>`);
+    items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(TOTAL_PERIOD)}</div></div>`);
+    return `<div class="summary-grid">${items.join('')}</div>`;
+  }
+
+  function renderFirstUserTable() {
+    const dates = rangeDates();
+    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th>`;
+    const bodyRows = [...dates]
+      .reverse()
+      .map((date) => {
+        const cells = FIRST_USER_GROUPS
+          .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
+          .join('');
+        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td></tr>`;
+      })
+      .join('');
+    const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
+    return `<div class="table-scroll"><table>
+      <thead><tr>${headRow}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td></tr></tfoot>
+    </table></div>`;
+  }
+
+  function renderFirstUserFootnote() {
+    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다(위 "레퍼러 도메인 그룹" 섹션의 sessionSource와는 이 점이 다릅니다 — 그쪽은 세션마다 값이 바뀔 수 있어 그룹 합계를 GA4에 별도 병합 재조회했습니다). "합계" 열은 위 섹션과 동일한 사이트 전체 값입니다.</div>`;
+  }
+
+  function renderFirstUserSectionCard() {
+    return `
+      <div class="card">
+        <h2>매체별 유입 (첫 사용자 소스 그룹) <span class="hint">최근 2주 일별 활성사용자 (${DATE_RANGE.from} ~ ${DATE_RANGE.to})</span></h2>
+        <div class="path-hint">firstUserSource</div>
+        ${renderFirstUserSummary()}
+        ${renderFirstUserLegend()}
+        ${renderFirstUserTable()}
+        ${renderFirstUserFootnote()}
+      </div>`;
+  }
+
   function updateFooter() {
     const consultStatusLine = CONSULT_STATE === 'ok'
       ? '상담수/전환율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
@@ -359,7 +443,7 @@
   }
 
   function init() {
-    document.getElementById('content').innerHTML = renderSectionCard();
+    document.getElementById('content').innerHTML = renderSectionCard() + renderFirstUserSectionCard();
     updateFooter();
     loadConsultStats();
   }
