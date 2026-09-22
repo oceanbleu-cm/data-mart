@@ -55,10 +55,16 @@
                             (firstUserSource 기준, dimension 포함, 새 윈도우 전체. 그룹별
                              기간 합계도 마찬가지로 단순 합산해서 만든다.)
 
-    channel_daily.json에 없는 새 sessionSource 값이 raw_incremental.json/raw_period.json에,
-    또는 FIRST_USER_LABEL_TO_GROUP에 없는 새 firstUserSource 값이 firstuser_raw_*.json에
-    나타나면 SafetyError로 중단된다 — 매핑 추가 + HTML의 REFERRER_GROUPS/ETC_BREAKDOWN/
-    FIRST_USER_GROUPS/CSS(색상 토큰) 수동 반영이 먼저 필요하다.
+    알려진 매핑 테이블(GROUP_DAILY_KEYS/ETC_ITEM_KEYS/NAVER_SUB_LABELS/GOOGLE_SUB_LABELS/
+    NOTSET_SUB_LABELS/FIRST_USER_LABEL_TO_GROUP)에 없는 새 sessionSource/firstUserSource
+    값이 나타나면 더 이상 SafetyError로 중단하지 않는다 — classify_source()가 자동으로
+    분류한다: 'naver' 포함(대소문자 무시) → naverGrp, 'google' 포함 → googleGrp,
+    '(not set)'/''(빈 문자열) → notSet, 그 외 전부 → etcGrp(레퍼러 도메인 그룹의 경우
+    ETC_BREAKDOWN에 원본 라벨 그대로 새 항목이 자동 추가된다). 자동 분류된 값은
+    "경고" 목록에 남아 사람이 사후 확인할 수 있게 한다. sessionSource 그룹 합계는
+    여전히 병합 필터 재조회 값(naver/google/etc/notset_*.json)에서 오므로, 새 값이
+    나타났을 때 그 값이 속한 그룹의 병합 쿼리 필터에도 포함되도록 커맨드 문서(§2/§3)의
+    동적 필터 구성 절차를 따라야 정확하다 — 이 스크립트만으로는 보장할 수 없다.
 """
 import argparse
 import json
@@ -119,6 +125,21 @@ FIRST_USER_LABEL_TO_GROUP = {
     'unsedang_portal': 'etcGrp',
     'banner_01': 'etcGrp',
 }
+
+def classify_source(raw):
+    """알려진 매핑 테이블에 없는 새 sessionSource/firstUserSource 원본 값을 자동 분류한다.
+    'naver'가 포함되면(대소문자 무시) naverGrp, 'google'이 포함되면 googleGrp,
+    '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp — LG/(direct)는 이 함수를
+    거치지 않고 항상 정확히 일치할 때만 별도 처리된다."""
+    if raw in ('(not set)', ''):
+        return 'notSet'
+    low = raw.lower()
+    if 'naver' in low:
+        return 'naverGrp'
+    if 'google' in low:
+        return 'googleGrp'
+    return 'etcGrp'
+
 
 GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
 
@@ -188,17 +209,17 @@ def _read_single_value(indir, fname, field='activeUsers'):
 
 
 def load_incremental(indir):
-    """반환: {group_key: {date: [u, s]}} — lg/notSet/direct/naverGrp/googleGrp/etcGrp 6개 키."""
+    """반환: (incr, total_daily_incr, all_dates, label_warnings).
+    incr: {group_key: {date: [u, s]}} — lg/notSet/direct/naverGrp/googleGrp/etcGrp 6개 키."""
     incr = {k: {} for k in GROUP_KEYS}
 
     raw_rows = _read_rows(indir, 'raw_incremental.json')
-    unknown = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
-    if unknown:
-        raise SafetyError(
-            f'알 수 없는 채널 값: {unknown} — RAW_LABEL 매핑(GROUP_DAILY_KEYS/ETC_ITEM_KEYS/'
-            f'NAVER_SUB_LABELS/GOOGLE_SUB_LABELS/NOTSET_SUB_LABELS) 추가와 HTML의 REFERRER_GROUPS/'
-            f'ETC_BREAKDOWN/CSS 색상 토큰 수동 반영이 먼저 필요합니다.'
-        )
+    new_labels = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
+    label_warnings = [
+        f"신규 sessionSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장 — "
+        f'해당 그룹의 병합 쿼리 필터에 포함되지 않았다면 그룹 합계가 과소집계될 수 있습니다)'
+        for lbl in new_labels
+    ]
     for r in raw_rows:
         gkey = GROUP_DAILY_KEYS.get(r['channel'])
         if gkey is None:
@@ -215,18 +236,25 @@ def load_incremental(indir):
     if not all_dates:
         raise SafetyError('신규 일별 데이터가 0건입니다 — GA4 쿼리가 실패했거나 범위가 잘못됐을 가능성이 있습니다.')
 
-    return incr, total_daily_incr, all_dates
+    return incr, total_daily_incr, all_dates, label_warnings
 
 
 def load_period(indir):
-    """반환: (referrer_totals: {group_key: int}, etc_breakdown: {item_key: {users, sessions}}, total_period: int)"""
+    """반환: (referrer_totals: {group_key: int}, etc_breakdown: {item_key: {label,users,sessions}},
+    etc_order: [item_key, ...], total_period: int, label_warnings: [str, ...]).
+    etc_breakdown/etc_order는 ETC_ITEM_ORDER의 알려진 항목에 더해, raw_period.json에서
+    classify_source()로 'etcGrp'로 자동 분류된 새 원본 값을 원본 라벨 그대로 추가한다."""
     raw_rows = _read_rows(indir, 'raw_period.json')
-    unknown = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
-    if unknown:
-        raise SafetyError(f'raw_period.json: 알 수 없는 채널 값 {unknown}')
+    new_labels = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
+    label_warnings = [
+        f"신규 sessionSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장 — "
+        f'해당 그룹의 병합 쿼리 필터에 포함되지 않았다면 그룹 합계가 과소집계될 수 있습니다)'
+        for lbl in new_labels
+    ]
 
     referrer_totals = {}
-    etc_breakdown = {k: {'users': 0, 'sessions': 0} for k in ETC_ITEM_ORDER}
+    etc_breakdown = {k: {'label': ETC_ITEM_LABELS[k], 'users': 0, 'sessions': 0} for k in ETC_ITEM_ORDER}
+    etc_order = list(ETC_ITEM_ORDER)
     for r in raw_rows:
         gkey = GROUP_DAILY_KEYS.get(r['channel'])
         if gkey is not None:
@@ -234,7 +262,13 @@ def load_period(indir):
             continue
         ikey = ETC_ITEM_KEYS.get(r['channel'])
         if ikey is not None:
-            etc_breakdown[ikey] = {'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
+            etc_breakdown[ikey] = {'label': ETC_ITEM_LABELS[ikey], 'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
+        elif classify_source(r['channel']) == 'etcGrp':
+            key = r['channel']
+            label = f'기타({key})' if key else '기타(빈 값)'
+            etc_breakdown[key] = {'label': label, 'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
+            if key not in etc_order:
+                etc_order.append(key)
 
     for gkey in ('lg', 'direct'):
         referrer_totals.setdefault(gkey, 0)  # 해당 기간에 0건이면 행 자체가 없을 수 있음(정상)
@@ -246,41 +280,46 @@ def load_period(indir):
 
     total_period = _read_single_value(indir, 'total_period.json')
 
-    return referrer_totals, etc_breakdown, total_period
+    return referrer_totals, etc_breakdown, etc_order, total_period, label_warnings
 
 
 def load_firstuser_incremental(indir):
-    """반환: ({group_key: {date: [u, s]}}, all_dates) — firstuser_raw_incremental.json을
-    FIRST_USER_LABEL_TO_GROUP으로 단순 합산(정확함 — firstUserSource는 사용자당 평생 1개)."""
+    """반환: ({group_key: {date: [u, s]}}, all_dates, label_warnings) —
+    firstuser_raw_incremental.json을 FIRST_USER_LABEL_TO_GROUP으로 단순 합산(정확함 —
+    firstUserSource는 사용자당 평생 1개). 매핑에 없는 값은 classify_source()로 자동
+    분류해서 그대로 합산에 포함한다(단순 합산이 정확하므로 병합 쿼리가 필요 없어
+    sessionSource와 달리 즉시 정확하다)."""
     incr = {k: {} for k in GROUP_KEYS}
     rows = _read_rows(indir, 'firstuser_raw_incremental.json')
     unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
-    if unknown:
-        raise SafetyError(
-            f'알 수 없는 첫 사용자 소스 값: {unknown} — FIRST_USER_LABEL_TO_GROUP에 매핑 추가와 '
-            f'HTML의 FIRST_USER_GROUPS/CSS 색상 토큰 수동 반영이 먼저 필요합니다.'
-        )
+    label_warnings = [
+        f"신규 firstUserSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장)"
+        for lbl in unknown
+    ]
     for r in rows:
-        gkey = FIRST_USER_LABEL_TO_GROUP[r['source']]
+        gkey = FIRST_USER_LABEL_TO_GROUP.get(r['source']) or classify_source(r['source'])
         bucket = incr[gkey].setdefault(r['date'], [0, 0])
         bucket[0] += r['activeUsers'] or 0
         bucket[1] += r['sessions']
 
     all_dates = sorted({d for series in incr.values() for d in series})
-    return incr, all_dates
+    return incr, all_dates, label_warnings
 
 
 def load_firstuser_period(indir):
-    """반환: {group_key: int} — firstuser_raw_period.json을 그룹별로 단순 합산(정확함)."""
+    """반환: ({group_key: int}, label_warnings) — firstuser_raw_period.json을 그룹별로
+    단순 합산(정확함). 매핑에 없는 값은 classify_source()로 자동 분류해서 포함한다."""
     totals = {k: 0 for k in GROUP_KEYS}
     rows = _read_rows(indir, 'firstuser_raw_period.json')
     unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
-    if unknown:
-        raise SafetyError(f'firstuser_raw_period.json: 알 수 없는 첫 사용자 소스 값 {unknown}')
+    label_warnings = [
+        f"신규 firstUserSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장)"
+        for lbl in unknown
+    ]
     for r in rows:
-        gkey = FIRST_USER_LABEL_TO_GROUP[r['source']]
+        gkey = FIRST_USER_LABEL_TO_GROUP.get(r['source']) or classify_source(r['source'])
         totals[gkey] += r['activeUsers'] or 0
-    return totals
+    return totals, label_warnings
 
 
 # ---------------------------------------------------------------------------
@@ -385,11 +424,12 @@ def render_totals_block(name, totals):
     return '\n'.join(lines)
 
 
-def render_etc_block(etc_breakdown):
+def render_etc_block(etc_breakdown, etc_order):
     lines = ['  const ETC_BREAKDOWN = [']
-    for key in ETC_ITEM_ORDER:
+    for key in etc_order:
         v = etc_breakdown[key]
-        lines.append(f"    {{ label: '{ETC_ITEM_LABELS[key]}', users: {v['users']}, sessions: {v['sessions']} }},")
+        esc_label = v['label'].replace("\\", "\\\\").replace("'", "\\'")
+        lines.append(f"    {{ label: '{esc_label}', users: {v['users']}, sessions: {v['sessions']} }},")
     lines.append('  ];')
     return '\n'.join(lines)
 
@@ -443,8 +483,8 @@ def main():
         old_fu_daily.setdefault(k, {})
     old_total_daily = json.loads(total_daily_body.strip())
 
-    incr_daily, incr_total_daily, incoming_dates = load_incremental(args.indir)
-    incr_fu_daily, fu_incoming_dates = load_firstuser_incremental(args.indir)
+    incr_daily, incr_total_daily, incoming_dates, incr_label_warnings = load_incremental(args.indir)
+    incr_fu_daily, fu_incoming_dates, fu_incr_label_warnings = load_firstuser_incremental(args.indir)
 
     new_to = max(incoming_dates)
     new_from_date = date.fromisoformat(new_to) - timedelta(days=WINDOW_DAYS - 1)
@@ -465,10 +505,11 @@ def main():
     new_total_daily = merge_and_slide({}, dict(old_total_daily, **incr_total_daily), new_from, new_to)
     new_fu_daily = {k: merge_and_slide(old_fu_daily.get(k, {}), incr_fu_daily.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
 
-    new_totals, new_etc, new_total_period = load_period(args.indir)
-    new_fu_totals = load_firstuser_period(args.indir)
+    new_totals, new_etc, new_etc_order, new_total_period, period_label_warnings = load_period(args.indir)
+    new_fu_totals, fu_period_label_warnings = load_firstuser_period(args.indir)
 
     warnings = extra_warnings
+    warnings += incr_label_warnings + period_label_warnings + fu_incr_label_warnings + fu_period_label_warnings
     warnings += validate_group_series('REFERRER', new_daily, new_totals, new_from, new_to)
     warnings += validate_total_daily(new_total_daily, new_total_period, new_from, new_to)
     warnings += validate_group_series('FIRST_USER', new_fu_daily, new_fu_totals, new_from, new_to)
@@ -483,7 +524,7 @@ def main():
     new_src = replace_block_text(new_src, t_start, t_end, render_totals_block('REFERRER_TOTALS', new_totals))
 
     e_start, e_end, _ = extract_block(new_src, 'ETC_BREAKDOWN', '  ', open_ch='[', close_ch=']')
-    new_src = replace_block_text(new_src, e_start, e_end, render_etc_block(new_etc))
+    new_src = replace_block_text(new_src, e_start, e_end, render_etc_block(new_etc, new_etc_order))
 
     td_start, td_end, _ = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
     new_src = replace_block_text(new_src, td_start, td_end, render_total_daily(new_total_daily))
@@ -505,6 +546,9 @@ def main():
     assert parse_daily_block(chk_fu_daily_body) == new_fu_daily
     chk_range = parse_scalars(new_src)
     assert chk_range == {'from': new_from, 'to': new_to}
+
+    seen_warnings = set()
+    warnings = [w for w in warnings if not (w in seen_warnings or seen_warnings.add(w))]
 
     print('=== update_ga4_channel_unsedang.py 요약 ===')
     print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (14일 유지, 롤링)')
