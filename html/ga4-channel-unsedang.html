@@ -374,9 +374,9 @@
       </div>`;
   }
 
-  // --- 첫 사용자 소스 섹션(간단 버전 — 상담수/전환율 없음, 합계 열은 위 섹션과 동일한
-  // 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 재사용: 어느 기준으로 쪼개든 사이트 전체
-  // 활성사용자 수 자체는 같기 때문) ---
+  // --- 첫 사용자 소스 섹션. 합계 열은 위 섹션과 동일한 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를
+  // 재사용(어느 기준으로 쪼개든 사이트 전체 활성사용자 수 자체는 같기 때문). 상담수/전환율도
+  // 위 섹션과 동일하게 CONSULT_DAILY(실시간 fetch)/TOTAL_DAILY 기준으로 계산한다. ---
   function firstUserDailyUsers(g, date) { const v = FIRST_USER_DAILY[g.key][date]; return v ? v[0] : 0; }
   function firstUserTotal(g) { return FIRST_USER_TOTALS[g.key]; }
 
@@ -387,33 +387,52 @@
   }
 
   function renderFirstUserSummary() {
+    const dates = rangeDates();
     const items = FIRST_USER_GROUPS.map((g) => `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(firstUserTotal(g))}</div></div>`);
     items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(TOTAL_PERIOD)}</div></div>`);
+    if (CONSULT_STATE === 'ok') {
+      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${fmtCount(consultSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">전환율(2주 합계)</div><div class="value">${fmtPercent((consultSum / TOTAL_PERIOD) * 100)}</div></div>`);
+    } else {
+      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
+    }
     return `<div class="summary-grid">${items.join('')}</div>`;
   }
 
   function renderFirstUserTable() {
     const dates = rangeDates();
-    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th>`;
+    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>전환율</th>`;
     const bodyRows = [...dates]
       .reverse()
       .map((date) => {
         const cells = FIRST_USER_GROUPS
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
           .join('');
-        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td></tr>`;
+        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
       })
       .join('');
     const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
+    let consultFoot = '–';
+    let convFoot = '–';
+    if (CONSULT_STATE === 'ok') {
+      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      consultFoot = fmtCount(consultSum);
+      convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
+    } else if (CONSULT_STATE === 'error') {
+      consultFoot = '로드 실패';
+    } else {
+      consultFoot = '로딩 중…';
+    }
     return `<div class="table-scroll"><table>
       <thead><tr>${headRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td></tr></tfoot>
+      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${convFoot}</td></tr></tfoot>
     </table></div>`;
   }
 
   function renderFirstUserFootnote() {
-    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다(위 "레퍼러 도메인 그룹" 섹션의 sessionSource와는 이 점이 다릅니다 — 그쪽은 세션마다 값이 바뀔 수 있어 그룹 합계를 GA4에 별도 병합 재조회했습니다). "합계" 열은 위 섹션과 동일한 사이트 전체 값입니다.</div>`;
+    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다(위 "레퍼러 도메인 그룹" 섹션의 sessionSource와는 이 점이 다릅니다 — 그쪽은 세션마다 값이 바뀔 수 있어 그룹 합계를 GA4에 별도 병합 재조회했습니다). "합계" 열은 위 섹션과 동일한 사이트 전체 값이고, "상담수"/"전환율"도 위 섹션과 동일한 실시간 DB API 값을 사용합니다.</div>`;
   }
 
   function renderFirstUserSectionCard() {
@@ -425,6 +444,7 @@
         ${renderFirstUserLegend()}
         ${renderFirstUserTable()}
         ${renderFirstUserFootnote()}
+        ${renderConsultFootnote()}
       </div>`;
   }
 
