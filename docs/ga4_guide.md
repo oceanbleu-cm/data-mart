@@ -84,16 +84,10 @@ Claude Code에서 같은 작업을 이어갈 때 참고하세요.
 ### unsedang.com (운세당)
 - `/view/home`: 홈메인
 - `/view/csl`: 상담사 목록
-- `/view/csl/cslInfo?cslKey=N`: 상담사 상세 (N = 상담사 ID). `pagePathWithoutQueryString`으로 조회하면 쿼리스트링 없이 `/view/csl/cslInfo`로 정확히 합쳐짐(끝 슬래시 없음, 2026-09-21 실측 확인) — 이 페이지 자체가 "상세페이지 진입" 이벤트 역할
-- `/view/free`, `/view/free/registrationStart`, `/registrationForm`, `/registrationEnd`: 쪽지상담 4단계 (끝 슬래시 없는 형태로 실측 확인)
+- `/view/csl/cslInfo?cslKey=N`: 상담사 상세 (N = 상담사 ID)
+- `/view/free`, `/view/free/registrationStart`, `/registrationForm`, `/registrationEnd`: 쪽지상담 4단계
 - `/view/content`, `/view/fortune/unseYear` 등: 운세 콘텐츠
-- **전화클릭/클릭 이벤트 체계 (2026-09-21 실측 및 사용자 확인으로 정정)**:
-  - `pre_tel_click`: **선불상담** 전화클릭. `_mobile`/`_pc`/`_res_false` 변형 존재, 전부 `/view/csl/cslInfo`에서 발생. **2026-06부터 신규 집계 시작** (그 이전 데이터 없음)
-  - `post_tel_click`: **후불상담** 전화클릭. 동일한 변형 존재, `/view/csl/cslInfo`와 `/view/home` 양쪽에서 발생(2026-09 기준 최근 30일 사이 `/view/home` 비중이 더 큼 — 홈에도 별도 전화 진입 경로가 있는 것으로 추정). 2026-01부터 집계됨. **6월 이후 건수 급감은 실사용 감소가 아니라 선불/후불 버튼 분리 도입으로 인한 집계 방식 변경 가능성이 높음** — 월별 비교 시 반드시 감안할 것
-  - `coach_mark_main_click`: **홈 화면에서 상담사 선생님(코치마크) 클릭**. 거의 전량 `/view/home`에서 발생. **2026-03부터 신규 집계 시작**
-  - `main_banner_click`: **홈 히어로 섹션 배너 클릭**. `/view/home`에서 발생. 2026-01부터 집계됨
-  - ⚠️ 과거 "pre_(구)/post_(신) 교체" 가설은 틀림 — 실제로는 선불/후불이라는 서로 다른 결제방식을 가리키는 별개 이벤트이며, 오히려 `pre_`가 `post_`보다 나중(6월)에 도입됨
-  - `activeUsers`를 이벤트별로 합산 집계할 때는 `_mobile`/`_pc`/`_res_false` 변형을 전부 포함하되, `eventName` dimension 없이(예: `eventName =@ 'pre_tel_click' AND pagePathWithoutQueryString == '/view/csl/cslInfo'`) 재조회해야 정확한 순사용자 수가 나옴 — dimension 포함 상태로 나온 변형별 값을 사람이 더하면 안 됨(§2-4 원칙과 동일)
+- 이벤트: `pre_tel_click`(구), `post_tel_click`(신) — 상담 전화 연결 클릭. 두 이벤트 혼재 가능성 있음, 확인 필요
 - GTM 컨테이너: `GTM-5KCGHNWV` (계정 "운세당", 컨테이너 ID `232663874`)
 
 ### MINDCARE
