@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>LGU+ 투데이 리포트 — 운세당</title>
+<title>투데이 리포트 — 운세당</title>
 <style>
   :root {
     --bg: #f7f7f8;
@@ -160,6 +160,27 @@
   }
   .reload-btn:hover { color: var(--accent); border-color: var(--accent); }
   .reload-btn:disabled { opacity: 0.5; cursor: default; }
+  .carrier-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 16px;
+  }
+  .carrier-tab-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .carrier-tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
   .card {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -278,12 +299,12 @@
       <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
       <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="db-data-mindcare.html">마인드케어 리포트</a>
-      <a href="db-data-lg-today.html" class="active">LGU+ 투데이 리포트</a>
-      <a href="db-data-kt-today.html">KT 투데이 리포트</a>
+      <a href="db-data-today.html" class="active">투데이 리포트</a>
     </nav>
-    <h1>LGU+ 투데이 리포트</h1>
+    <h1>투데이 리포트</h1>
 
     <div class="tabs" id="tabs"></div>
+    <div class="carrier-tabs" id="carrierTabs"></div>
 
     <div id="content"></div>
 
@@ -292,8 +313,12 @@
 
 <script>
 (function () {
-  const API_TEMPLATE = "https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={month}&telCd=LGU";
+  const API_BASE = "https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={month}&telCd={telCd}";
   const FETCH_TIMEOUT_MS = 15000;
+  const CARRIERS = [
+    { telCd: 'KT', label: 'KT' },
+    { telCd: 'LGU', label: 'LGU+' },
+  ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const num = (n) => numFmt.format(n);
@@ -319,14 +344,22 @@
     return [...monthlyData.dailyStats].sort((a, b) => b.date.localeCompare(a.date));
   }
 
-  // --- 실시간 fetch + 캐시 ---
-  const monthCache = new Map(); // monthKey -> { data, fetchedAt }
+  // --- 통신사 선택 상태 (기본값 KT) ---
+  let selectedCarrier = 'KT';
+
+  // --- 실시간 fetch + 캐시 (통신사별로 분리, 동시 호출 없이 선택된 통신사만 조회) ---
+  const monthCache = new Map(); // "telCd|monthKey" -> { data, fetchedAt }
   let lastFetchedAt = null;
 
-  async function fetchMonth(monthKey, { force = false } = {}) {
-    if (!force && monthCache.has(monthKey)) return monthCache.get(monthKey).data;
+  function cacheKey(telCd, monthKey) {
+    return `${telCd}|${monthKey}`;
+  }
 
-    const url = API_TEMPLATE.replace('{month}', monthKey);
+  async function fetchMonth(telCd, monthKey, { force = false } = {}) {
+    const key = cacheKey(telCd, monthKey);
+    if (!force && monthCache.has(key)) return monthCache.get(key).data;
+
+    const url = API_BASE.replace('{month}', monthKey).replace('{telCd}', telCd);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
@@ -334,7 +367,7 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const fetchedAt = new Date();
-      monthCache.set(monthKey, { data, fetchedAt });
+      monthCache.set(key, { data, fetchedAt });
       lastFetchedAt = fetchedAt;
       updateFooter();
       return data;
@@ -453,7 +486,7 @@
     renderLoadingCard(`${monthKey} 데이터 불러오는 중...`);
     let data;
     try {
-      data = await fetchMonth(monthKey, opts);
+      data = await fetchMonth(selectedCarrier, monthKey, opts);
     } catch (e) {
       renderErrorCard(`${monthKey} 조회 실패 (${e.message})`, () => renderMonth(monthKey, { force: true }));
       setReloadEnabled(true);
@@ -531,7 +564,7 @@
     for (let i = 0; i < monthKeys.length; i++) {
       renderLoadingCard(`${year}년 데이터 불러오는 중 (${i}/${monthKeys.length})...`);
       try {
-        const data = await fetchMonth(monthKeys[i], opts);
+        const data = await fetchMonth(selectedCarrier, monthKeys[i], opts);
         monthsData.push(data);
       } catch (e) {
         renderErrorCard(`${monthKeys[i]} 조회 실패 (${e.message})`, () => renderYear(year, { force: true }));
@@ -594,6 +627,26 @@
     content.appendChild(card);
   }
 
+  // --- 통신사 탭 (전환 시에만 해당 통신사 데이터를 조회 — 동시 호출 없음) ---
+  function renderCarrierTabs() {
+    const wrap = document.getElementById('carrierTabs');
+    wrap.innerHTML = '';
+    CARRIERS.forEach((c) => {
+      const btn = document.createElement('button');
+      btn.className = 'carrier-tab-btn' + (c.telCd === selectedCarrier ? ' active' : '');
+      btn.textContent = c.label;
+      btn.onclick = () => {
+        if (selectedCarrier === c.telCd) return;
+        selectedCarrier = c.telCd;
+        wrap.querySelectorAll('.carrier-tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        updateFooter();
+        renderCurrentView();
+      };
+      wrap.appendChild(btn);
+    });
+  }
+
   // --- 탭/새로고침 UI ---
   let currentView = null; // { type: 'year'|'month', key }
 
@@ -611,12 +664,14 @@
   function updateFooter() {
     const footer = document.getElementById('footer');
     const ts = lastFetchedAt ? lastFetchedAt.toLocaleTimeString('ko-KR') : '-';
+    const url = API_BASE.replace('{telCd}', selectedCarrier);
     footer.innerHTML =
-      `데이터는 carrier-subscription-stats API에서 실시간으로 조회됩니다 · 마지막 조회: ${ts}<br>` +
-      `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
+      `데이터는 carrier-subscription-stats API에서 실시간으로 조회됩니다 (${selectedCarrier}) · 마지막 조회: ${ts}<br>` +
+      `출처: <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
   }
 
   function init() {
+    renderCarrierTabs();
     const tabsEl = document.getElementById('tabs');
     const months = getMonthOrder();
     const year = months[0].split('-')[0];

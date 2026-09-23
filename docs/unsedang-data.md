@@ -18,7 +18,10 @@
 3-4: /view/free/registrationEnd
 ## 운세
 4-1: /view/content
-4-2: /view/fortune/unseYear
+4-2: /view/fortune/unseZodiac (띠별운세)
+4-3: /view/fortune/unseToday (오늘의 운세)
+4-4: /view/fortune/unseMonth (월별운세)
+4-5: /view/fortune/unseYear (신년운세)
 
 
 # 매출 json 데이터 기준

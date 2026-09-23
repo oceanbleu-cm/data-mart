@@ -1,10 +1,19 @@
-## 호출 정보 (2026-09-18 기준 갱신)
+## 호출 정보
 
-- KT (`html/db-data-kt-today.html`): `https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={YYYY-MM}`
+⚠️ 아래 "호출 정보" 절(2026-09-18 작성)과 실제 라이브 코드(`html/db-data-today.html`,
+2026-09-23 기준)가 서로 다르다 — 미해결 상태로 남겨둠, 실제 API 스펙 재확인 필요:
+- 이 문서: 호스트로 통신사 구분(KT는 `admin.wisetoday.kr`, LGU+는 내부IP `34.64.151.91:9202`),
+  `telCd` 파라미터는 폐기됨이라고 기술.
+- 라이브 코드: 동일 호스트(`admin.wisetoday.kr`)에 `telCd=KT`/`telCd=LGU` 쿼리 파라미터로
+  구분 — 2026-09-23 세션에서 브라우저 실호출로 정상 동작(200 응답, 통신사별 다른 값) 확인됨.
+- `html/db-data-lg-today.html`이 2026-09-21 세션 중 "외부에서" 변경된 이력이 있음
+  (daylog 2026-09-21 참고) — 이 문서와 라이브 코드 간 불일치가 그 변경과 관련된 것으로 추정되나 미확인.
+
+- KT/LGU+ (`html/db-data-today.html`, 통신사 탭으로 통합·기본값 KT): `https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={YYYY-MM}`
   - `carrierStats` 배열에 KT, LGU+ 두 통신사가 모두 포함되어 반환됨 (순서: KT가 index 0) → 프론트에서는 `carrierStats[0]`만 사용
-- LGU+ (`html/db-data-lg-today.html`): `http://34.64.151.91:9202/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={YYYY-MM}`
-  - KT와 다른 호스트(내부 IP:9202)이며, `carrierStats` 배열에 LGU+ 단일 통신사만 반환됨 → 프론트에서는 `carrierStats[0]`만 사용
-- 과거 사용되던 `telCd=KT` / `telCd=LGU` 쿼리 파라미터는 더 이상 쓰이지 않음 — 통신사는 호출 호스트 자체로 구분됨
+  - (문서상 구식 정보, 라이브 코드와 불일치 — 위 경고 참고) LGU+: `http://34.64.151.91:9202/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth={YYYY-MM}`
+    - KT와 다른 호스트(내부 IP:9202)이며, `carrierStats` 배열에 LGU+ 단일 통신사만 반환됨 → 프론트에서는 `carrierStats[0]`만 사용
+  - (문서상 구식 정보) 과거 사용되던 `telCd=KT` / `telCd=LGU` 쿼리 파라미터는 더 이상 쓰이지 않음 — 통신사는 호출 호스트 자체로 구분됨
 
 ## 응답 바디 예시 (스키마는 두 엔드포인트 공통, `carrierStats` 배열 길이만 다름)
 

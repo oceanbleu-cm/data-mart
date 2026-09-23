@@ -45,6 +45,9 @@ PAGE_PATH_TO_KEY = {
     '/view/free/registrationForm': 'regForm',
     '/view/free/registrationEnd': 'regEnd',
     '/view/content': 'content',
+    '/view/fortune/unseZodiac': 'unseZodiac',
+    '/view/fortune/unseToday': 'unseToday',
+    '/view/fortune/unseMonth': 'unseMonth',
     '/view/fortune/unseYear': 'unseYear',
 }
 PAGE_KEYS = list(PAGE_PATH_TO_KEY.values())
@@ -203,7 +206,8 @@ def load_new_users(indir):
 
     missing_yearly = [k for k in PAGE_KEYS + EVENT_KEYS if k not in new_yearly]
     if missing_yearly:
-        raise SafetyError(f'연간 활성사용자 값이 누락된 키: {missing_yearly} — 13개 시리즈 전부 필요합니다.')
+        total = len(PAGE_KEYS) + len(EVENT_KEYS)
+        raise SafetyError(f'연간 활성사용자 값이 누락된 키: {missing_yearly} — {total}개 시리즈 전부 필요합니다.')
 
     return new_monthly, new_yearly
 
@@ -451,7 +455,8 @@ def main():
     print('=== update_ga4_unsedang.py 요약 ===')
     print(f'기간: {date_range["from"]} ~ {date_range["to"]} -> {date_range["from"]} ~ {new_date_range_to} (신규 {len(new_dates)}일)')
     print(f'추가된 날짜 키: DAILY_PAGES +{added_page_dates}개, DAILY_EVENTS +{added_event_dates}개')
-    print(f'재조회 반영: monthly {touched_months} (13시리즈), yearly (13시리즈)')
+    total_series = len(PAGE_KEYS) + len(EVENT_KEYS)
+    print(f'재조회 반영: monthly {touched_months} ({total_series}시리즈), yearly ({total_series}시리즈)')
     unaffected = sorted(set(months) - set(touched_months))
     print(f'미변경: {unaffected} monthly 전부')
     if warnings:

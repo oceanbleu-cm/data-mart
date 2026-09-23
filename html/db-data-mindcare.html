@@ -281,6 +281,27 @@
     padding-top: 4px;
   }
   .carrier-heading:first-of-type { margin-top: 4px; }
+  .carrier-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0 12px;
+  }
+  .carrier-tab-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 0.84rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .carrier-tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
   footer {
     color: var(--text-dim);
     font-size: 0.72rem;
@@ -297,8 +318,7 @@
       <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
       <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="db-data-mindcare.html" class="active">마인드케어 리포트</a>
-      <a href="db-data-lg-today.html">LGU+ 투데이 리포트</a>
-      <a href="db-data-kt-today.html">KT 투데이 리포트</a>
+      <a href="db-data-today.html">투데이 리포트</a>
     </nav>
     <h1>마인드케어 리포트</h1>
 
@@ -473,6 +493,37 @@
       <div class="check-row">출처 — 유료·프리미엄·무료 누적: 와이즈모니터</div>`;
   }
 
+  // --- 통신사 서브탭 ---
+  let selectedCarrier = null; // 월/연 전환 시에도 선택 유지
+
+  function renderCarrierTabs(content, carrierHtmlMap, carrierNames) {
+    if (carrierNames.length === 0) return;
+    if (!selectedCarrier || !carrierNames.includes(selectedCarrier)) selectedCarrier = carrierNames[0];
+
+    const tabsWrap = document.createElement('div');
+    tabsWrap.className = 'carrier-tabs';
+
+    const pane = document.createElement('div');
+    pane.className = 'card';
+
+    carrierNames.forEach((name) => {
+      const btn = document.createElement('button');
+      btn.className = 'carrier-tab-btn' + (name === selectedCarrier ? ' active' : '');
+      btn.textContent = name;
+      btn.onclick = () => {
+        selectedCarrier = name;
+        tabsWrap.querySelectorAll('.carrier-tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        pane.innerHTML = carrierHtmlMap[name];
+      };
+      tabsWrap.appendChild(btn);
+    });
+
+    content.appendChild(tabsWrap);
+    pane.innerHTML = carrierHtmlMap[selectedCarrier];
+    content.appendChild(pane);
+  }
+
   function carrierLatest(c) {
     const days = sortedDays(c.monthly);
     return { paid: days[0].paidCumulative, premium: days[0].premiumCumulative, free: days[0].freeCumulative };
@@ -533,6 +584,7 @@
     );
     content.appendChild(overallCard);
 
+    const carrierHtmlMap = {};
     carriers.forEach((c) => {
       const days = sortedDays(c.monthly);
       const latestPaid = days[0].paidCumulative;
@@ -560,14 +612,7 @@
       );
       const medMatches = medSum.participants === medAgg.participants && medSum.points === medAgg.points;
 
-      const heading = document.createElement('h3');
-      heading.className = 'carrier-heading';
-      heading.textContent = c.carrier;
-      content.appendChild(heading);
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML =
+      carrierHtmlMap[c.carrier] =
         summaryCardHtml(
           `${c.carrier} ${data.baseMonth} 월 요약 <span class="hint">${data.dateRange.from} ~ ${data.dateRange.to}</span>`,
           latestPaid,
@@ -585,8 +630,9 @@
             ${medMatches ? '일별 필사명상 합계가 월 API 합계와 일치합니다.' : '일별 필사명상 합계가 월 API 합계와 다릅니다 — 데이터 확인 필요.'}
           </div>`,
         });
-      content.appendChild(card);
     });
+
+    renderCarrierTabs(content, carrierHtmlMap, carriers.map((c) => c.carrier));
   }
 
   // --- 연간 요약 뷰 (마감된 전월까지만 집계) ---
@@ -642,6 +688,8 @@
     );
     content.appendChild(overallCard);
 
+    const carrierHtmlMap = {};
+    const carrierNames = [];
     CARRIER_ORDER.forEach((carrierName) => {
       const rows = [];
       let carrierYearAgg = { participants: 0, points: 0 };
@@ -664,14 +712,8 @@
       }
       if (rows.length === 0) return;
 
-      const heading = document.createElement('h3');
-      heading.className = 'carrier-heading';
-      heading.textContent = carrierName;
-      content.appendChild(heading);
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML =
+      carrierNames.push(carrierName);
+      carrierHtmlMap[carrierName] =
         summaryCardHtml(
           `${carrierName} ${year}년 요약 <span class="hint">${first.dateRange.from} ~ ${last.dateRange.to} · 마감월 기준</span>`,
           lastCarrierLatest.paid,
@@ -686,8 +728,9 @@
           sumAgg: carrierYearAgg,
           hintHtml: `${year}년 월별 상세 내역 (누적가입자는 월말 기준)`,
         });
-      content.appendChild(card);
     });
+
+    renderCarrierTabs(content, carrierHtmlMap, carrierNames);
   }
 
   // --- 탭/새로고침 UI ---

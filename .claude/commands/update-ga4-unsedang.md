@@ -49,11 +49,11 @@ argument-hint: "[--to YYYY-MM-DD] [--refresh-tail N] [--dry-run]"
 `ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
 `start_date=new_from`, `end_date=new_to`로 아래 5개 쿼리를 실행한다.
 
-**쿼리 1 — 페이지 9종 (한 번에)**
+**쿼리 1 — 페이지 12종 (한 번에)**
 - fields: `date,pagePathWithoutQueryString,activeUsers,sessions`
 - filter (연산자 양쪽 공백 필수, 문자 그대로 복사):
   ```
-  pagePathWithoutQueryString == '/view/home' OR pagePathWithoutQueryString == '/view/csl' OR pagePathWithoutQueryString == '/view/csl/cslInfo' OR pagePathWithoutQueryString == '/view/free' OR pagePathWithoutQueryString == '/view/free/registrationStart' OR pagePathWithoutQueryString == '/view/free/registrationForm' OR pagePathWithoutQueryString == '/view/free/registrationEnd' OR pagePathWithoutQueryString == '/view/content' OR pagePathWithoutQueryString == '/view/fortune/unseYear'
+  pagePathWithoutQueryString == '/view/home' OR pagePathWithoutQueryString == '/view/csl' OR pagePathWithoutQueryString == '/view/csl/cslInfo' OR pagePathWithoutQueryString == '/view/free' OR pagePathWithoutQueryString == '/view/free/registrationStart' OR pagePathWithoutQueryString == '/view/free/registrationForm' OR pagePathWithoutQueryString == '/view/free/registrationEnd' OR pagePathWithoutQueryString == '/view/content' OR pagePathWithoutQueryString == '/view/fortune/unseZodiac' OR pagePathWithoutQueryString == '/view/fortune/unseToday' OR pagePathWithoutQueryString == '/view/fortune/unseMonth' OR pagePathWithoutQueryString == '/view/fortune/unseYear'
   ```
 
 **쿼리 2 — 후불상담(postTel)**
@@ -116,7 +116,7 @@ affected_months = { d[:7] for d in (new_from ~ new_to 사이의 모든 날짜) }
 - `daily_events.json`: `{"rows":[{"event","date","activeUsers","eventCount"}, ...]}`
   (`event` ∈ `preTel`|`postTel`|`coachMark`|`banner`, §2 쿼리2~5 결과를 이 스키마로 합쳐서 저장)
 - `users_monthly.json`: `{"pages":[{"yearMonth","path","activeUsers"}, ...], "events":[{"yearMonth","event","activeUsers"}, ...]}` (§4 결과, `yearMonth`는 `2026-09`든 `2026|09`든 상관없음)
-- `users_yearly.json`: `{"pages":[{"path","activeUsers"}, ...], "events":[{"event","activeUsers"}, ...]}` (§5 결과, **13개 시리즈 전부 포함 필수**)
+- `users_yearly.json`: `{"pages":[{"path","activeUsers"}, ...], "events":[{"event","activeUsers"}, ...]}` (§5 결과, **16개 시리즈(페이지 12 + 이벤트 4) 전부 포함 필수**)
 
 값이 0이거나 GA4 응답에 아예 없던 날짜/이벤트는 행을 만들지 않는다(원본도 희소 저장 방식).
 
