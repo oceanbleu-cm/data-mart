@@ -1,31 +1,41 @@
 #!/usr/bin/env python3
 """
-운세당 GA4 퍼널 리포트(html/ga4-funnel-unsedang.html) 증분 업데이트 스크립트.
+운세당 GA4 퍼널 리포트(html/ga4-funnel-unsedang.html) 롤링-윈도우 업데이트 스크립트.
 
-핵심 원칙: 기존에 임베드된 날짜/월은 절대 재조회·재계산하지 않는다. 신규 날짜만
-DAILY_PAGES/DAILY_EVENTS에 추가하고, 비집계 지표인 PAGE_USERS/EVENT_USERS의
-월별·연간 활성사용자는 입력 JSON에 실제로 들어있는 (경로/이벤트, 달) 조합만 덮어쓴다.
+이 리포트는 2026-09-30에 구조가 완전히 바뀌었다 — 예전에는 연초부터 날짜를 영구
+누적하는 방식이었지만, 지금은 `html/ga4-channel-unsedang.html`과 같은 철학의
+**롤링(sliding) 윈도우(최근 90일)**다. 그래서 매 실행마다:
+  1) 새로 확정된 날짜(들)를 DAILY_PAGES/DAILY_CALL에 추가하고
+  2) 윈도우 밖으로 밀려난 오래된 날짜를 제거하고(윈도우 항상 90일 유지)
+  3) 기간 합계(PAGE_TOTALS, CALL_TOTAL)는 "새 날짜만 반영"이 아니라 **매번 새 윈도우
+     전체를 재조회한 값으로 통째로 교체**한다 — activeUsers는 비집계 지표라 날짜를
+     밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
 이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
 `.claude/commands/update-ga4-unsedang.md`가 미리 4개의 임시 JSON 파일을 만들어두면
-이 스크립트가 그것을 읽어 HTML에 병합한다.
+이 스크립트가 그것을 읽어 HTML에 반영한다.
+
+퍼널 단계(STEPS, 화면 표시 순서)는 홈메인 → 상담사 목록 → AI 상담목록 → AI 상담보기 →
+상담사 상세 → 운세 → 후기 → 상담하기다. 앞의 6단계는 페이지(PAGE_KEYS), 마지막
+"상담하기"는 pre_tel_click(선불)과 post_tel_click(후불) 두 이벤트를 하나의 필터로 묶어
+activeUsers를 재조회한 값(DAILY_CALL/CALL_TOTAL, 페이지와 무관한 별도 시리즈)이다.
 
 사용법:
     python3 update_ga4_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                     [--generated-at STR] [--no-backup]
-                                    [--allow-tail-overwrite]
 
 입력 디렉터리(--indir) 안의 4개 파일 스키마:
-    daily_pages.json  : {"rows": [{"date","path","activeUsers","sessions"}, ...]}
-    daily_events.json : {"rows": [{"event","date","activeUsers","eventCount"}, ...]}
-                         event ∈ preTel|postTel|coachMark|banner
-    users_monthly.json: {"pages":  [{"yearMonth","path","activeUsers"}, ...],
-                          "events": [{"yearMonth","event","activeUsers"}, ...]}
-    users_yearly.json : {"pages":  [{"path","activeUsers"}, ...],
-                          "events": [{"event","activeUsers"}, ...]}
-
-    yearMonth는 '2026|09' 또는 '2026-09' 둘 다 허용(정규화함).
-    존재하지 않는 (path/event, 달) 조합은 그냥 생략하면 된다 — 넣은 것만 갱신된다.
+    pages_incremental.json : {"rows": [{"date","path","activeUsers","sessions"}, ...]}
+                              (증분 구간: 마지막 수록일 다음날 ~ 새 to. path는 PAGE_PATH_TO_KEY의
+                               7개 값 중 하나여야 한다 — 오타/신규 경로는 SafetyError.)
+    pages_period.json      : {"rows": [{"path","activeUsers"}, ...]}
+                              (새 윈도우 전체, dimension에서 date를 뺀 경로별 재조회 — 비집계
+                               지표 순사용자 수. 값이 0인 경로는 행을 만들지 않아도 된다.)
+    call_incremental.json  : {"rows": [{"date","activeUsers","eventCount"}, ...]}
+                              (eventName IN (pre_tel_click, post_tel_click) 필터, dimension은
+                               date만 — eventName을 dimension에 넣지 말 것(중복 집계 방지).)
+    call_period.json       : {"rows": [{"activeUsers","eventCount"}]}  (한 행, 새 윈도우 전체,
+                              dimension 없이 같은 필터로 재조회.)
 """
 import argparse
 import json
@@ -33,25 +43,20 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
-# --- 알려진 키 (오타·경로 변경 조기 탐지용) ---
+WINDOW_DAYS = 90
+
 PAGE_PATH_TO_KEY = {
     '/view/home': 'home',
     '/view/csl': 'csl',
+    '/view/ai-note': 'aiNote',
+    '/view/ai-note/noteInfo': 'aiNoteInfo',
     '/view/csl/cslInfo': 'cslInfo',
-    '/view/free': 'free',
-    '/view/free/registrationStart': 'regStart',
-    '/view/free/registrationForm': 'regForm',
-    '/view/free/registrationEnd': 'regEnd',
     '/view/content': 'content',
-    '/view/fortune/unseZodiac': 'unseZodiac',
-    '/view/fortune/unseToday': 'unseToday',
-    '/view/fortune/unseMonth': 'unseMonth',
-    '/view/fortune/unseYear': 'unseYear',
+    '/view/csl/totalRatingComment': 'totalRatingComment',
 }
-PAGE_KEYS = list(PAGE_PATH_TO_KEY.values())
-EVENT_KEYS = ['preTel', 'postTel', 'coachMark', 'banner']
+PAGE_KEYS = ['home', 'csl', 'aiNote', 'aiNoteInfo', 'cslInfo', 'content', 'totalRatingComment']
 
 GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
 
@@ -61,51 +66,36 @@ class SafetyError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# 1. 기존 HTML 파싱
+# 1. 기존 HTML 파싱 — DAILY_PAGES/DAILY_CALL/PAGE_TOTALS/CALL_TOTAL/DATE_RANGE 전부
+#    `  const NAME = {...};` 형태의 단일 줄 블록이다.
 # ---------------------------------------------------------------------------
 
-def extract_block(src, name, indent):
-    """`{indent}const {name} = {{\n...\n{indent}}};` 블록을 찾아 (start, end, body) 반환.
-    start/end는 src 안에서 이 블록 전체(마커 포함)의 문자 오프셋. body는 안쪽 내용(줄 단위)."""
-    pattern = re.compile(
-        r'^' + re.escape(indent) + r'const ' + re.escape(name) + r' = \{\n(.*?)\n'
-        + re.escape(indent) + r'\};$',
-        re.M | re.S,
-    )
+def extract_single_line_block(src, name, indent='  '):
+    pattern = re.compile(r'^' + re.escape(indent) + r'const ' + re.escape(name) + r' = (\{.*?\});$', re.M)
     m = pattern.search(src)
     if not m:
         raise SafetyError(f'{name} 블록을 찾지 못했습니다 — HTML 구조가 바뀐 것 같습니다. 수동 확인 필요.')
     return m.start(), m.end(), m.group(1)
 
 
-def parse_daily_block(body):
-    """`  key: {json},` 줄들을 파싱. 안쪽 {json}은 순수 JSON이라 그대로 loads."""
+def parse_daily_pages(body):
+    """`{"home":{...},"csl":{...},...}` — 페이지 7개 키의 {date:[u,s]} 딕셔너리."""
+    data = json.loads(body)
+    for key in PAGE_KEYS:
+        data.setdefault(key, {})
+    return data
+
+
+def parse_daily_call(body):
+    """`{"2026-07-02":[u,c], ...}` — 날짜 플랫 딕셔너리(페이지처럼 key로 한 번 더 감싸지 않음)."""
+    return json.loads(body)
+
+
+def parse_js_number_object(body):
+    """`{ home: 11130, csl: 1998, ... }` 같은 JS 리터럴(키 따옴표 없음)을 파싱."""
     out = {}
-    line_re = re.compile(r'^  (\w+): (\{.*\}),$')
-    for line in body.split('\n'):
-        m = line_re.match(line)
-        if not m:
-            raise SafetyError(f'DAILY 블록의 줄을 파싱하지 못했습니다: {line[:80]}...')
-        key, json_str = m.group(1), m.group(2)
-        out[key] = json.loads(json_str)
-    return out
-
-
-USERS_LINE_RE = re.compile(
-    r"^    (\w+):\s+\{ monthly: (\{.*?\}), yearly: (\d+)(?:, startDate: '([\d-]+)')? \},$"
-)
-
-
-def parse_users_block(body):
-    """`    key:  { monthly: {...}, yearly: N[, startDate: 'D'] },` 줄들을 파싱."""
-    out = {}
-    for line in body.split('\n'):
-        m = USERS_LINE_RE.match(line)
-        if not m:
-            raise SafetyError(f'USERS 블록의 줄을 파싱하지 못했습니다: {line[:80]}...')
-        key, monthly_str, yearly_str, start_date = m.groups()
-        monthly = json.loads(monthly_str.replace("'", '"'))
-        out[key] = {'monthly': monthly, 'yearly': int(yearly_str), 'startDate': start_date}
+    for m in re.finditer(r'(\w+):\s*(-?\d+)', body):
+        out[m.group(1)] = int(m.group(2))
     return out
 
 
@@ -113,258 +103,180 @@ def parse_scalars(src):
     m = re.search(r"const DATE_RANGE = \{ from: '([\d-]+)', to: '([\d-]+)' \};", src)
     if not m:
         raise SafetyError('DATE_RANGE 상수를 찾지 못했습니다.')
-    date_from, date_to = m.groups()
-
-    m = re.search(r"const MONTHS = \[(.*?)\];", src)
-    if not m:
-        raise SafetyError('MONTHS 상수를 찾지 못했습니다.')
-    months = re.findall(r"'([\d-]+)'", m.group(1))
-
-    return {'from': date_from, 'to': date_to}, months
+    return {'from': m.group(1), 'to': m.group(2)}
 
 
 # ---------------------------------------------------------------------------
-# 2. 신규 데이터 로드 (에이전트가 --indir에 써둔 임시 JSON)
+# 2. 신규 데이터 로드
 # ---------------------------------------------------------------------------
 
-def _norm_ym(ym):
-    """'2026|09' 또는 '2026-09' -> '2026-09'"""
-    return ym.replace('|', '-')
+def _read_rows(indir, fname):
+    path = os.path.join(indir, fname)
+    if not os.path.exists(path):
+        raise SafetyError(f'{indir}에 {fname}이 없습니다.')
+    with open(path, encoding='utf-8') as f:
+        return json.load(f).get('rows', [])
 
 
-def load_new_daily(indir):
-    """범위 유효성(기존 날짜와 안 겹치는지)은 여기서 검사하지 않는다 — merge_daily()가
-    키 단위로 더 정확하게 검사한다. 여기서는 형식/오타만 잡는다."""
-    pages_path = os.path.join(indir, 'daily_pages.json')
-    events_path = os.path.join(indir, 'daily_events.json')
-    if not os.path.exists(pages_path) or not os.path.exists(events_path):
-        raise SafetyError(f'{indir}에 daily_pages.json / daily_events.json이 없습니다.')
-
-    with open(pages_path, encoding='utf-8') as f:
-        pages_raw = json.load(f)
-    with open(events_path, encoding='utf-8') as f:
-        events_raw = json.load(f)
-
-    new_pages = {k: {} for k in PAGE_KEYS}
-    for row in pages_raw.get('rows', []):
-        path, date = row['path'], row['date']
-        key = PAGE_PATH_TO_KEY.get(path)
+def load_pages_incremental(indir):
+    """반환: ({key: {date: [u,s]}}, all_dates)."""
+    incr = {k: {} for k in PAGE_KEYS}
+    rows = _read_rows(indir, 'pages_incremental.json')
+    for r in rows:
+        key = PAGE_PATH_TO_KEY.get(r['path'])
         if key is None:
-            raise SafetyError(f'알 수 없는 페이지 경로: {path!r} — 오타이거나 리포트에 없던 신규 경로입니다.')
-        new_pages[key][date] = [row['activeUsers'], row['sessions']]
-
-    new_events = {k: {} for k in EVENT_KEYS}
-    for row in events_raw.get('rows', []):
-        event, date = row['event'], row['date']
-        if event not in EVENT_KEYS:
-            raise SafetyError(f'알 수 없는 이벤트 키: {event!r} (허용: {EVENT_KEYS})')
-        new_events[event][date] = [row['activeUsers'], row['eventCount']]
-
-    total_rows = sum(len(v) for v in new_pages.values()) + sum(len(v) for v in new_events.values())
-    if total_rows == 0:
-        raise SafetyError('신규 일별 데이터가 0건입니다 — GA4 쿼리가 실패했거나 범위가 잘못됐을 가능성이 있습니다.')
-
-    return new_pages, new_events
+            raise SafetyError(
+                f"알 수 없는 페이지 경로: {r['path']!r} — 오타이거나 STEPS에 없는 신규 경로입니다. "
+                f'의도적인 신규 단계 추가라면 PAGE_PATH_TO_KEY/PAGE_KEYS와 HTML의 STEPS/DAILY_PAGES를 '
+                f'먼저 함께 갱신하세요(이 스크립트만으로는 새 단계를 추가할 수 없습니다).'
+            )
+        incr[key][r['date']] = [r['activeUsers'] or 0, r['sessions']]
+    all_dates = sorted({d for series in incr.values() for d in series})
+    return incr, all_dates
 
 
-def load_new_users(indir):
-    monthly_path = os.path.join(indir, 'users_monthly.json')
-    yearly_path = os.path.join(indir, 'users_yearly.json')
-    if not os.path.exists(monthly_path) or not os.path.exists(yearly_path):
-        raise SafetyError(f'{indir}에 users_monthly.json / users_yearly.json이 없습니다.')
-
-    with open(monthly_path, encoding='utf-8') as f:
-        monthly_raw = json.load(f)
-    with open(yearly_path, encoding='utf-8') as f:
-        yearly_raw = json.load(f)
-
-    # {key: {yearMonth: activeUsers}}
-    new_monthly = {k: {} for k in PAGE_KEYS + EVENT_KEYS}
-    for row in monthly_raw.get('pages', []):
-        key = PAGE_PATH_TO_KEY.get(row['path'])
+def load_pages_period(indir):
+    """반환: {key: activeUsers}. 값이 없는 경로는 0으로 채운다(트래픽 0인 것이 정상 — 예: AI 상담)."""
+    totals = {k: 0 for k in PAGE_KEYS}
+    rows = _read_rows(indir, 'pages_period.json')
+    for r in rows:
+        key = PAGE_PATH_TO_KEY.get(r['path'])
         if key is None:
-            raise SafetyError(f'users_monthly.json: 알 수 없는 페이지 경로 {row["path"]!r}')
-        new_monthly[key][_norm_ym(row['yearMonth'])] = row['activeUsers']
-    for row in monthly_raw.get('events', []):
-        key = row['event']
-        if key not in EVENT_KEYS:
-            raise SafetyError(f'users_monthly.json: 알 수 없는 이벤트 키 {key!r}')
-        new_monthly[key][_norm_ym(row['yearMonth'])] = row['activeUsers']
+            raise SafetyError(f"pages_period.json: 알 수 없는 페이지 경로 {r['path']!r}")
+        totals[key] = r['activeUsers'] or 0
+    return totals
 
-    # {key: activeUsers}
-    new_yearly = {}
-    for row in yearly_raw.get('pages', []):
-        key = PAGE_PATH_TO_KEY.get(row['path'])
-        if key is None:
-            raise SafetyError(f'users_yearly.json: 알 수 없는 페이지 경로 {row["path"]!r}')
-        new_yearly[key] = row['activeUsers']
-    for row in yearly_raw.get('events', []):
-        key = row['event']
-        if key not in EVENT_KEYS:
-            raise SafetyError(f'users_yearly.json: 알 수 없는 이벤트 키 {key!r}')
-        new_yearly[key] = row['activeUsers']
 
-    missing_yearly = [k for k in PAGE_KEYS + EVENT_KEYS if k not in new_yearly]
-    if missing_yearly:
-        total = len(PAGE_KEYS) + len(EVENT_KEYS)
-        raise SafetyError(f'연간 활성사용자 값이 누락된 키: {missing_yearly} — {total}개 시리즈 전부 필요합니다.')
+def load_call_incremental(indir):
+    """반환: ({date: [u,c]}, all_dates)."""
+    daily = {}
+    rows = _read_rows(indir, 'call_incremental.json')
+    for r in rows:
+        daily[r['date']] = [r['activeUsers'] or 0, r['eventCount']]
+    return daily, sorted(daily)
 
-    return new_monthly, new_yearly
+
+def load_call_period(indir):
+    rows = _read_rows(indir, 'call_period.json')
+    if not rows:
+        raise SafetyError('call_period.json에 결과 행이 없습니다 — GA4 쿼리가 비정상일 가능성이 있습니다.')
+    r = rows[0]
+    return {'activeUsers': r['activeUsers'] or 0, 'eventCount': r['eventCount']}
 
 
 # ---------------------------------------------------------------------------
-# 3. 병합
+# 3. 병합 + 윈도우 슬라이딩
 # ---------------------------------------------------------------------------
 
-def merge_daily(old, new, allow_tail_overwrite):
-    """old, new: {key: {date: [a,b]}}. 반환: 병합된 새 dict(날짜 오름차순 정렬)."""
-    merged = {}
-    for key in old:
-        old_series = old[key]
-        new_series = new.get(key, {})
-        combined = dict(old_series)
-        for date, vals in new_series.items():
-            if date in old_series and not allow_tail_overwrite:
-                raise SafetyError(
-                    f'{key} {date}는 이미 존재합니다 — 기존 데이터 재조회/덮어쓰기는 금지입니다. '
-                    f'의도적인 정정이라면 --allow-tail-overwrite를 쓰세요.'
-                )
-            combined[date] = vals
-        if len(combined) < len(old_series):
-            raise SafetyError(f'{key}: 병합 후 날짜 개수가 줄었습니다({len(old_series)} -> {len(combined)}) — 데이터 유실 의심.')
-        merged[key] = dict(sorted(combined.items()))
-    return merged
+def merge_and_slide(old_series, incr_series, new_from, new_to):
+    """old_series: {date: [...]}. incr_series 값으로 덮어쓰기 허용(최근 며칠은 GA4 처리 지연으로
+    재확정되며 값이 바뀔 수 있다). 그 다음 [new_from, new_to] 밖 날짜는 전부 제거해 윈도우를
+    정확히 WINDOW_DAYS일로 유지한다."""
+    combined = dict(old_series)
+    combined.update(incr_series)
+    return dict(sorted((d, v) for d, v in combined.items() if new_from <= d <= new_to))
 
 
-def merge_users(old_users, new_monthly):
-    """old_users: {key: {monthly, yearly, startDate}}. new_monthly에 들어있는
-    (key, yearMonth) 조합만 덮어쓴다. 그 외 달과 startDate는 절대 변경하지 않는다."""
-    merged = {}
-    for key, data in old_users.items():
-        monthly = dict(data['monthly'])
-        for ym, val in new_monthly.get(key, {}).items():
-            monthly[ym] = val
-        merged[key] = {
-            'monthly': dict(sorted(monthly.items())),
-            'yearly': data['yearly'],  # yearly는 별도로 apply_yearly()에서 갱신
-            'startDate': data['startDate'],
-        }
-    return merged
-
-
-def apply_yearly(users, new_yearly):
-    for key in users:
-        users[key]['yearly'] = new_yearly[key]
-    return users
+def window_dates(new_from, new_to):
+    d0 = date.fromisoformat(new_from)
+    d1 = date.fromisoformat(new_to)
+    return [(d0 + timedelta(days=i)).isoformat() for i in range((d1 - d0).days + 1)]
 
 
 # ---------------------------------------------------------------------------
 # 4. 검증
 # ---------------------------------------------------------------------------
 
-def validate(old_daily, merged_daily, old_users, merged_users):
+def validate(new_daily_pages, new_page_totals, new_daily_call, new_call_total, new_from, new_to):
     warnings = []
 
-    # G1/G2: 기존 날짜 키 불변 + 개수 비감소
-    for key, old_series in old_daily.items():
-        merged_series = merged_daily[key]
-        if len(merged_series) < len(old_series):
-            raise SafetyError(f'G1 위반: {key} 날짜 개수 감소')
-        for date, old_vals in old_series.items():
-            if merged_series.get(date) != old_vals:
-                raise SafetyError(f'G2 위반: {key} {date}의 기존 값이 변경됨 ({old_vals} -> {merged_series.get(date)})')
+    for key, series in new_daily_pages.items():
+        for d, (u, s) in series.items():
+            if d < new_from or d > new_to:
+                raise SafetyError(f'G-WINDOW 위반: DAILY_PAGES.{key} {d}가 윈도우({new_from}~{new_to}) 밖에 남아있습니다.')
+            if u < 0 or s < 0:
+                raise SafetyError(f'G6 위반: DAILY_PAGES.{key} {d} 값에 음수 포함 ({u}, {s})')
 
-    # G3/G4: 영향받은 달의 monthly dedup 값이 [max(일별), sum(일별)] 범위 안인지
-    for key in PAGE_KEYS + EVENT_KEYS:
-        old_monthly = old_users[key]['monthly']
-        new_monthly = merged_users[key]['monthly']
-        daily = merged_daily[key]
-        for ym, val in new_monthly.items():
-            if old_monthly.get(ym) == val:
-                continue  # 안 바뀐 달은 굳이 재검증 안 함
-            day_vals = [v[0] for date, v in daily.items() if date.startswith(ym)]
-            if not day_vals:
-                continue  # 이 달에 대한 일별 데이터가 아예 없음(정상 — 이벤트 시작 전 등)
+    for d, (u, c) in new_daily_call.items():
+        if d < new_from or d > new_to:
+            raise SafetyError(f'G-WINDOW 위반: DAILY_CALL {d}가 윈도우 밖에 남아있습니다.')
+        if u < 0 or c < 0:
+            raise SafetyError(f'G6 위반: DAILY_CALL {d} 값에 음수 포함 ({u}, {c})')
+
+    for key in PAGE_KEYS:
+        day_vals = [v[0] for v in new_daily_pages[key].values()]
+        period_val = new_page_totals[key]
+        if period_val < 0:
+            raise SafetyError(f'G6 위반: PAGE_TOTALS.{key}가 음수입니다.')
+        if day_vals:
             day_sum, day_max = sum(day_vals), max(day_vals)
-            if not (day_max <= val <= day_sum):
-                raise SafetyError(
-                    f'G3/G4 위반: {key} {ym} 월별 dedup={val}가 일별 활성사용자 범위'
-                    f' [{day_max}, {day_sum}] 밖입니다. 재조회 결과를 다시 확인하세요.'
+            if not (day_max <= period_val <= day_sum):
+                warnings.append(
+                    f'PAGE_TOTALS.{key}: 기간 합계(dedup)={period_val}가 일별 활성사용자 범위 '
+                    f'[{day_max}, {day_sum}] 밖입니다 — 재조회 결과를 확인하세요(경고만, 중단하지 않음).'
                 )
-            prev_val = old_monthly.get(ym)
-            if prev_val:
-                ratio_before = prev_val
-                ratio_after = val
-                if ratio_before and abs(ratio_after - ratio_before) / ratio_before > 0.5:
-                    warnings.append(f'{key} {ym}: 월별 활성사용자가 {ratio_before} -> {ratio_after}로 50% 이상 변동')
 
-    # G5: yearly는 [max(monthly), sum(monthly)] 범위 안
-    for key in PAGE_KEYS + EVENT_KEYS:
-        monthly_vals = list(merged_users[key]['monthly'].values())
-        yearly_val = merged_users[key]['yearly']
-        if monthly_vals and not (max(monthly_vals) <= yearly_val <= sum(monthly_vals)):
-            raise SafetyError(
-                f'G5 위반: {key} 연간 dedup={yearly_val}가 월별 합 범위'
-                f' [{max(monthly_vals)}, {sum(monthly_vals)}] 밖입니다.'
+    call_day_vals = [v[0] for v in new_daily_call.values()]
+    if new_call_total['activeUsers'] < 0 or new_call_total['eventCount'] < 0:
+        raise SafetyError('G6 위반: CALL_TOTAL에 음수가 있습니다.')
+    if call_day_vals:
+        day_sum, day_max = sum(call_day_vals), max(call_day_vals)
+        if not (day_max <= new_call_total['activeUsers'] <= day_sum):
+            warnings.append(
+                f"CALL_TOTAL.activeUsers={new_call_total['activeUsers']}가 일별 활성사용자 범위 "
+                f'[{day_max}, {day_sum}] 밖입니다 — 확인 권장(경고만, 중단하지 않음).'
+            )
+        event_day_sum = sum(v[1] for v in new_daily_call.values())
+        if event_day_sum != new_call_total['eventCount']:
+            warnings.append(
+                f"CALL_TOTAL.eventCount={new_call_total['eventCount']}가 일별 합계({event_day_sum})와 "
+                f'다릅니다 — eventCount는 집계 가능 지표라 원래 일치해야 합니다(경고만, 중단하지 않음).'
             )
 
-    # G6: 음수 금지
-    for key, series in merged_daily.items():
-        for date, (a, b) in series.items():
-            if a < 0 or b < 0:
-                raise SafetyError(f'G6 위반: {key} {date} 값에 음수 포함 ({a}, {b})')
+    expected_dates = set(window_dates(new_from, new_to))
+    missing_call_dates = expected_dates - set(new_daily_call)
+    if missing_call_dates:
+        warnings.append(f'DAILY_CALL에 누락된 날짜: {sorted(missing_call_dates)[:5]}... (GA4가 0으로 응답했거나 쿼리 범위 확인 필요)')
 
     return warnings
 
 
-def check_year_boundary(new_dates, date_from):
-    base_year = date_from[:4]
-    bad = [d for d in new_dates if d[:4] != base_year]
-    if bad:
-        raise SafetyError(
-            f'G7 위반: 신규 날짜 중 연도 경계를 넘는 것이 있습니다({bad[:3]}...). '
-            f'이 스크립트는 단일 연도({base_year}) 리포트 구조를 가정합니다 — '
-            f'연도가 바뀌는 갱신은 리포트 구조(탭 라벨/연간 집계) 재설계가 먼저 필요합니다.'
-        )
-
-
 # ---------------------------------------------------------------------------
-# 5. 재직렬화
+# 5. 재직렬화 — 전부 한 줄짜리 `  const NAME = {...};` 블록
 # ---------------------------------------------------------------------------
 
-def render_daily_block(name, data):
-    lines = [f'const {name} = {{']
-    for key, series in data.items():
-        json_str = json.dumps(series, separators=(',', ':'))
-        lines.append(f'  {key}: {json_str},')
-    lines.append('};')
-    return '\n'.join(lines)
+def render_daily_pages(data):
+    ordered = {k: dict(sorted(data[k].items())) for k in PAGE_KEYS}
+    json_str = json.dumps(ordered, separators=(',', ':'))
+    return f'  const DAILY_PAGES = {json_str};'
 
 
-def render_users_block(name, data):
-    keys = list(data.keys())
-    brace_col = max(len(k) for k in keys) + 2  # 콜론(1) + 공백(1)
-    lines = [f'  const {name} = {{']
-    for key in keys:
-        d = data[key]
-        monthly_str = json.dumps(d['monthly'], separators=(',', ':')).replace('"', "'")
-        prefix = (key + ':').ljust(brace_col)
-        extra = f", startDate: '{d['startDate']}'" if d['startDate'] else ''
-        lines.append(f"    {prefix}{{ monthly: {monthly_str}, yearly: {d['yearly']}{extra} }},")
-    lines.append('  };')
-    return '\n'.join(lines)
+def render_daily_call(data):
+    json_str = json.dumps(dict(sorted(data.items())), separators=(',', ':'))
+    return f'  const DAILY_CALL = {json_str};'
 
 
-def patch_scalars(src, new_to, months, generated_at):
+def render_page_totals(totals):
+    body = ', '.join(f'{k}: {totals[k]}' for k in PAGE_KEYS)
+    return f'  const PAGE_TOTALS = {{ {body} }};'
+
+
+def render_call_total(total):
+    return f"  const CALL_TOTAL = {{ activeUsers: {total['activeUsers']}, eventCount: {total['eventCount']} }};"
+
+
+def patch_scalars(src, new_from, new_to, generated_at):
     src = re.sub(
         r"const DATE_RANGE = \{ from: '[\d-]+', to: '[\d-]+' \};",
-        lambda m: re.sub(r"to: '[\d-]+'", f"to: '{new_to}'", m.group(0)),
+        f"const DATE_RANGE = {{ from: '{new_from}', to: '{new_to}' }};",
         src,
     )
-    months_str = ','.join(f"'{m}'" for m in months)
-    src = re.sub(r"const MONTHS = \[.*?\];", f"const MONTHS = [{months_str}];", src)
     src = re.sub(r"const GENERATED_AT = '.*?';", f"const GENERATED_AT = '{generated_at}';", src)
     return src
+
+
+def replace_block_text(src, old_start, old_end, new_text):
+    return src[:old_start] + new_text + src[old_end:]
 
 
 # ---------------------------------------------------------------------------
@@ -378,87 +290,66 @@ def main():
     ap.add_argument('--generated-at', default=None)
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--no-backup', action='store_true')
-    ap.add_argument('--allow-tail-overwrite', action='store_true')
     args = ap.parse_args()
 
     with open(args.html, encoding='utf-8') as f:
         src = f.read()
 
-    date_range, months = parse_scalars(src)
+    date_range = parse_scalars(src)
 
-    _, _, daily_pages_body = extract_block(src, 'DAILY_PAGES', '')
-    _, _, daily_events_body = extract_block(src, 'DAILY_EVENTS', '')
-    _, _, page_users_body = extract_block(src, 'PAGE_USERS', '  ')
-    _, _, event_users_body = extract_block(src, 'EVENT_USERS', '  ')
+    _, _, daily_pages_body = extract_single_line_block(src, 'DAILY_PAGES')
+    _, _, daily_call_body = extract_single_line_block(src, 'DAILY_CALL')
+    _, _, page_totals_body = extract_single_line_block(src, 'PAGE_TOTALS')
+    _, _, call_total_body = extract_single_line_block(src, 'CALL_TOTAL')
 
-    old_daily_pages = parse_daily_block(daily_pages_body)
-    old_daily_events = parse_daily_block(daily_events_body)
-    old_page_users = parse_users_block(page_users_body)
-    old_event_users = parse_users_block(event_users_body)
-    old_daily = dict(old_daily_pages, **old_daily_events)
-    old_users = dict(old_page_users, **old_event_users)
+    old_daily_pages = parse_daily_pages(daily_pages_body)
+    old_daily_call = parse_daily_call(daily_call_body)
 
-    new_pages, new_events = load_new_daily(args.indir)
-    new_dates = sorted({d for series in {**new_pages, **new_events}.values() for d in series})
-    if not new_dates:
+    incr_pages, incoming_page_dates = load_pages_incremental(args.indir)
+    incr_call, incoming_call_dates = load_call_incremental(args.indir)
+    incoming_dates = sorted(set(incoming_page_dates) | set(incoming_call_dates))
+
+    if not incoming_dates:
         raise SafetyError('신규 데이터가 없습니다.')
-    new_to = new_dates[-1]
 
-    check_year_boundary(new_dates, date_range['from'])
+    new_to = max(incoming_dates)
+    new_from = (date.fromisoformat(new_to) - timedelta(days=WINDOW_DAYS - 1)).isoformat()
 
-    new_monthly, new_yearly = load_new_users(args.indir)
+    new_daily_pages = {k: merge_and_slide(old_daily_pages.get(k, {}), incr_pages.get(k, {}), new_from, new_to) for k in PAGE_KEYS}
+    new_daily_call = merge_and_slide(old_daily_call, incr_call, new_from, new_to)
 
-    merged_daily_pages = merge_daily(old_daily_pages, new_pages, args.allow_tail_overwrite)
-    merged_daily_events = merge_daily(old_daily_events, new_events, args.allow_tail_overwrite)
-    merged_daily = dict(merged_daily_pages, **merged_daily_events)
+    new_page_totals = load_pages_period(args.indir)
+    new_call_total = load_call_period(args.indir)
 
-    merged_page_users = merge_users(old_page_users, new_monthly)
-    merged_event_users = merge_users(old_event_users, new_monthly)
-    apply_yearly(merged_page_users, new_yearly)
-    apply_yearly(merged_event_users, new_yearly)
-    merged_users = dict(merged_page_users, **merged_event_users)
-
-    warnings = validate(old_daily, merged_daily, old_users, merged_users)
-
-    new_date_range_to = max(date_range['to'], new_to)
-    new_months = sorted(set(months) | {d[:7] for d in new_dates})
+    warnings = validate(new_daily_pages, new_page_totals, new_daily_call, new_call_total, new_from, new_to)
 
     generated_at = args.generated_at or datetime.now(timezone.utc).strftime(GENERATED_AT_FMT)
 
-    # --- 재작성: 블록 치환은 원본 문자열에서 위치를 다시 찾아서 바꾼다 ---
     new_src = src
-
-    def replace_block(text, name, indent, new_body_str):
-        start, end, _ = extract_block(text, name, indent)
-        return text[:start] + new_body_str + text[end:]
-
-    new_src = replace_block(new_src, 'DAILY_PAGES', '', render_daily_block('DAILY_PAGES', merged_daily_pages))
-    new_src = replace_block(new_src, 'DAILY_EVENTS', '', render_daily_block('DAILY_EVENTS', merged_daily_events))
-    new_src = replace_block(new_src, 'PAGE_USERS', '  ', render_users_block('PAGE_USERS', merged_page_users))
-    new_src = replace_block(new_src, 'EVENT_USERS', '  ', render_users_block('EVENT_USERS', merged_event_users))
-    new_src = patch_scalars(new_src, new_date_range_to, new_months, generated_at)
+    s, e, _ = extract_single_line_block(new_src, 'DAILY_PAGES')
+    new_src = replace_block_text(new_src, s, e, render_daily_pages(new_daily_pages))
+    s, e, _ = extract_single_line_block(new_src, 'DAILY_CALL')
+    new_src = replace_block_text(new_src, s, e, render_daily_call(new_daily_call))
+    s, e, _ = extract_single_line_block(new_src, 'PAGE_TOTALS')
+    new_src = replace_block_text(new_src, s, e, render_page_totals(new_page_totals))
+    s, e, _ = extract_single_line_block(new_src, 'CALL_TOTAL')
+    new_src = replace_block_text(new_src, s, e, render_call_total(new_call_total))
+    new_src = patch_scalars(new_src, new_from, new_to, generated_at)
 
     # --- 스모크 테스트: 재작성한 소스를 다시 파싱해 라운드트립 일치 확인 ---
-    _, _, chk_pages_body = extract_block(new_src, 'DAILY_PAGES', '')
-    _, _, chk_events_body = extract_block(new_src, 'DAILY_EVENTS', '')
-    _, _, chk_page_users_body = extract_block(new_src, 'PAGE_USERS', '  ')
-    _, _, chk_event_users_body = extract_block(new_src, 'EVENT_USERS', '  ')
-    assert parse_daily_block(chk_pages_body) == merged_daily_pages
-    assert parse_daily_block(chk_events_body) == merged_daily_events
-    assert parse_users_block(chk_page_users_body) == merged_page_users
-    assert parse_users_block(chk_event_users_body) == merged_event_users
-
-    added_page_dates = sum(len(merged_daily_pages[k]) - len(old_daily_pages[k]) for k in old_daily_pages)
-    added_event_dates = sum(len(merged_daily_events[k]) - len(old_daily_events[k]) for k in old_daily_events)
-    touched_months = sorted({ym for m in new_monthly.values() for ym in m})
+    _, _, chk = extract_single_line_block(new_src, 'DAILY_PAGES')
+    assert parse_daily_pages(chk) == new_daily_pages
+    _, _, chk = extract_single_line_block(new_src, 'DAILY_CALL')
+    assert parse_daily_call(chk) == new_daily_call
+    _, _, chk = extract_single_line_block(new_src, 'PAGE_TOTALS')
+    assert parse_js_number_object(chk) == new_page_totals
+    chk_range = parse_scalars(new_src)
+    assert chk_range == {'from': new_from, 'to': new_to}
 
     print('=== update_ga4_unsedang.py 요약 ===')
-    print(f'기간: {date_range["from"]} ~ {date_range["to"]} -> {date_range["from"]} ~ {new_date_range_to} (신규 {len(new_dates)}일)')
-    print(f'추가된 날짜 키: DAILY_PAGES +{added_page_dates}개, DAILY_EVENTS +{added_event_dates}개')
-    total_series = len(PAGE_KEYS) + len(EVENT_KEYS)
-    print(f'재조회 반영: monthly {touched_months} ({total_series}시리즈), yearly ({total_series}시리즈)')
-    unaffected = sorted(set(months) - set(touched_months))
-    print(f'미변경: {unaffected} monthly 전부')
+    print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} ({WINDOW_DAYS}일 유지, 롤링)')
+    print(f'PAGE_TOTALS(기간 합계, 활성사용자): {new_page_totals}')
+    print(f'CALL_TOTAL(기간 합계): {new_call_total}')
     if warnings:
         print('경고:')
         for w in warnings:

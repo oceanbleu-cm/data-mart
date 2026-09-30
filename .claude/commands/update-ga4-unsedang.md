@@ -1,163 +1,147 @@
 ---
-description: 운세당 GA4 퍼널 리포트(html/ga4-funnel-unsedang.html)를 마지막 수록일 이후 신규 날짜만 증분 갱신한다. 기존 데이터는 절대 재조회하지 않는다.
-argument-hint: "[--to YYYY-MM-DD] [--refresh-tail N] [--dry-run]"
+description: 운세당 GA4 퍼널 리포트(html/ga4-funnel-unsedang.html)를 "최근 90일" 롤링 윈도우로 매일 갱신한다(오래된 날짜는 밀려나고 최신 날짜가 추가됨). 매체별 유입 리포트와 같은 롤링형이며, 예전의 연초 누적형 방식이 아니다.
+argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 ---
 
-# GA4 퍼널 리포트 증분 업데이트 (운세당)
+# GA4 퍼널 리포트 롤링 업데이트 (운세당)
 
 인자: `$ARGUMENTS`
 
 ## §0 목적과 절대 원칙 (반드시 지킬 것)
 
-이 커맨드는 `html/ga4-funnel-unsedang.html`의 `DAILY_PAGES`/`DAILY_EVENTS`에 **마지막
-수록일 다음 날부터의 신규 날짜만** 추가한다.
+**2026-09-30에 리포트 구조가 바뀌었다.** 예전에는 연초부터 날짜를 영구 누적하는
+방식이었지만, 지금은 `html/ga4-channel-unsedang.html`(`/update-ga4-channel-unsedang`)과
+같은 철학의 **롤링(sliding) 윈도우(최근 90일)**다. 매 실행마다:
 
-> **기존 날짜는 절대 재조회하지 않습니다.** `DAILY_PAGES`/`DAILY_EVENTS`에 이미 있는
-> 날짜의 세션·이벤트수·활성사용자 값은 손대지 않고, 마지막 수록일 다음 날부터의 신규
-> 날짜만 추가합니다. 딱 하나 예외가 있습니다 — `PAGE_USERS`/`EVENT_USERS`의 월별·연간
-> 활성사용자는 "중복 제거된 순사용자 수"(비집계 지표)라서 날짜를 더 붙인다고 기존 값에
-> 더할 수 없습니다(같은 사람이 여러 날 방문하면 이중 계산됨). 그래서 새 날짜가 걸치는
-> 달과 연간 합계만 GA4에 다시 물어봅니다. 영향받지 않는 과거 달의 값은 그대로 둡니다.
+1. 새로 확정된 날짜(들)를 `DAILY_PAGES`/`DAILY_CALL`에 추가하고
+2. 윈도우 밖으로 밀려난 오래된 날짜를 제거하고(항상 90일 유지)
+3. **기간 합계(`PAGE_TOTALS`, `CALL_TOTAL`)는 새 윈도우 전체를 다시 조회한 값으로
+   통째로 교체**한다 — activeUsers는 비집계 지표라 오래된 값을 재사용할 수 없기 때문이다.
 
-이 문구는 §9에서 사용자에게 그대로 전달한다.
+이 문구는 §8에서 사용자에게 그대로 전달한다.
 
-**배열 순서 — 절대 헷갈리지 말 것**: `DAILY_PAGES`의 `[a,b]` = `[활성사용자, 세션]`.
-`DAILY_EVENTS`의 `[a,b]` = `[활성사용자, 이벤트수]`. 둘 다 index 0이 활성사용자다
-(화면 표시 순서는 반대라서 헷갈리기 쉽다).
+**퍼널 단계(화면 표시 순서, 8단계)**: 홈메인 → 상담사 목록 → AI 상담목록 → AI 상담보기 →
+상담사 상세 → 운세 → 후기 → 상담하기. 앞의 6단계는 페이지 조회수 기반(`PAGE_PATH_TO_KEY`
+참고), 마지막 "상담하기"는 `pre_tel_click`(선불)과 `post_tel_click`(후불) 두 이벤트를
+**하나의 필터**(`eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`)로 묶어
+`activeUsers`를 재조회한 값(`DAILY_CALL`/`CALL_TOTAL`, 페이지와는 별개의 독립 시리즈)이다.
+`eventName`을 dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 사용자가 중복
+집계되지 않는다.
+
+**배열 순서**: `DAILY_PAGES`의 `[a,b]` = `[활성사용자, 세션]`. `DAILY_CALL`의 `[a,b]` =
+`[활성사용자, 이벤트수(eventCount)]`.
+
+**새 페이지 경로/이벤트가 필요해지면(예: 신규 기능 추가) 이 커맨드/스크립트만으로는
+처리할 수 없다** — `scripts/update_ga4_unsedang.py`의 `PAGE_PATH_TO_KEY`/`PAGE_KEYS`와
+HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. 알 수 없는 경로가
+쿼리 결과에 섞여 있으면 스크립트가 `SafetyError`로 중단한다(자동 분류하지 않음 —
+`update-ga4-channel-unsedang`의 sessionSource와 달리 페이지 목록은 고정된 소수 집합이라
+조용히 넘어가면 안 된다).
 
 이 커맨드가 실제로 Supermetrics를 호출하는 건 여기(에이전트)뿐이다.
-`scripts/update_ga4_unsedang.py`는 병합/재작성만 담당하며 MCP를 호출하지 않는다.
-
----
+`scripts/update_ga4_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 MCP를
+호출하지 않는다.
 
 ## §1 사전 확인
 
-1. `get_today` 툴을 호출해 오늘 날짜를 확정한다(상대 날짜 계산 전 필수).
-2. `grep -n "const DATE_RANGE\|const MONTHS" html/ga4-funnel-unsedang.html`로 현재
-   마지막 수록일(`DATE_RANGE.to`)과 `MONTHS` 배열을 읽는다.
+1. `get_today` 툴을 호출해 오늘 날짜를 확정한다.
+2. `grep -n "const DATE_RANGE" html/ga4-funnel-unsedang.html`로 현재 창(`DATE_RANGE.from`
+   ~ `DATE_RANGE.to`)을 읽는다.
 3. 종료일 결정: `$ARGUMENTS`에 `--to YYYY-MM-DD`가 있으면 그 값, 없으면 **어제**
-   (GA4 당일 데이터는 아직 불완전할 수 있음).
-4. `new_from = (기존 DATE_RANGE.to) + 1일`. `new_from > new_to`이면 **"이미 최신
+   (`new_to`, GA4 당일 데이터는 아직 불완전할 수 있음). `new_from = new_to - 89일`.
+4. `incr_from = (기존 DATE_RANGE.to) + 1일`. `incr_from > new_to`이면 **"이미 최신
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
-5. `new_from`의 연도가 `DATE_RANGE.from`의 연도와 다르면 중단하고 사용자에게 보고한다
-   (연도 경계를 넘는 갱신은 이 리포트 구조에서 지원하지 않음 — 탭 라벨/연간 집계
-   재설계가 먼저 필요).
-6. `$ARGUMENTS`에 `--dry-run`이 있으면 §7에서 스크립트를 `--dry-run`으로만 실행한다.
+5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
-## §2 일별 쿼리 5건
+## §2 증분 쿼리 2건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
 `ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
-`start_date=new_from`, `end_date=new_to`로 아래 5개 쿼리를 실행한다.
+`start_date=incr_from`, `end_date=new_to`.
 
-**쿼리 1 — 페이지 12종 (한 번에)**
+**쿼리 1 — 페이지 7종 (한 번에)**
 - fields: `date,pagePathWithoutQueryString,activeUsers,sessions`
 - filter (연산자 양쪽 공백 필수, 문자 그대로 복사):
   ```
-  pagePathWithoutQueryString == '/view/home' OR pagePathWithoutQueryString == '/view/csl' OR pagePathWithoutQueryString == '/view/csl/cslInfo' OR pagePathWithoutQueryString == '/view/free' OR pagePathWithoutQueryString == '/view/free/registrationStart' OR pagePathWithoutQueryString == '/view/free/registrationForm' OR pagePathWithoutQueryString == '/view/free/registrationEnd' OR pagePathWithoutQueryString == '/view/content' OR pagePathWithoutQueryString == '/view/fortune/unseZodiac' OR pagePathWithoutQueryString == '/view/fortune/unseToday' OR pagePathWithoutQueryString == '/view/fortune/unseMonth' OR pagePathWithoutQueryString == '/view/fortune/unseYear'
+  pagePathWithoutQueryString == '/view/home' OR pagePathWithoutQueryString == '/view/csl' OR pagePathWithoutQueryString == '/view/ai-note' OR pagePathWithoutQueryString == '/view/ai-note/noteInfo' OR pagePathWithoutQueryString == '/view/csl/cslInfo' OR pagePathWithoutQueryString == '/view/content' OR pagePathWithoutQueryString == '/view/csl/totalRatingComment'
   ```
 
-**쿼리 2 — 후불상담(postTel)**
+**쿼리 2 — 상담하기(선불+후불 합산)**
 - fields: `date,activeUsers,eventCount`
-- filter: `eventName =@ 'post_tel_click' AND pagePathWithoutQueryString == '/view/csl/cslInfo'`
-
-**쿼리 3 — 선불상담(preTel)**
-- fields: `date,activeUsers,eventCount`
-- filter: `eventName =@ 'pre_tel_click' AND pagePathWithoutQueryString == '/view/csl/cslInfo'`
-
-**쿼리 4 — 홈 상담사 클릭(coachMark)**
-- fields: `date,activeUsers,eventCount`
-- filter: `eventName == 'coach_mark_main_click' AND pagePathWithoutQueryString == '/view/home'`
-
-**쿼리 5 — 홈 배너 클릭(banner)**
-- fields: `date,activeUsers,eventCount`
-- filter: `eventName == 'main_banner_click' AND pagePathWithoutQueryString == '/view/home'`
-
-⚠️ **쿼리 2의 필터를 `/view/home`까지 포함하도록 바꾸지 말 것.** `docs/ga4_guide.md` §4에
-따르면 `post_tel_click`은 `/view/home`에서도 발생하지만, 이 리포트는 처음부터
-`/view/csl/cslInfo`로만 필터링해 시계열을 쌓아왔다. 필터를 바꾸면 과거 데이터와
-단절되어 전체 시계열이 깨진다.
+- filter: `eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`
 
 응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
-`eventName =@`는 `_mobile`/`_pc`/`_res_false` 변형을 모두 포함하기 위한 것이므로
-`eventName`을 dimension에 넣지 않는다(넣으면 변형별로 쪼개져 활성사용자 dedup이 깨짐).
 
-## §3 영향받는 달 판별
+## §3 기간 전체 쿼리 2건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
 
-```
-affected_months = { d[:7] for d in (new_from ~ new_to 사이의 모든 날짜) }
-```
-쿼리 결과에 실제로 나온 날짜들의 연-월을 그대로 집합으로 만들면 된다. 별도 로직 불필요
-— 이전 `MONTHS`의 마지막 달은 신규 날짜가 실제로 그 달에 걸칠 때만 자동으로 포함된다.
+`date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
+`date`를 뺀다.**
 
-## §4 월별 재조회 5건 (비집계 지표라 필수 — 생략 금지)
+**쿼리 3 — 페이지별 기간 합계**
+- fields: `pagePathWithoutQueryString,activeUsers`
+- filter: 쿼리 1과 동일
 
-`date_range_type='custom'`, `start_date = affected_months 중 가장 이른 달의 1일`,
-`end_date = new_to`. metric은 **`activeUsers`만**(세션/이벤트수는 일별 합산으로 충분).
+**쿼리 4 — 상담하기 기간 합계**
+- fields: `activeUsers,eventCount` (**dimension 없음** — 페이지/이벤트 구분 없이 이 필터에
+  해당하는 값 전체)
+- filter: 쿼리 2와 동일
 
-- 페이지: fields `yearMonth,pagePathWithoutQueryString,activeUsers`, filter = §2 쿼리1과 동일
-- postTel/preTel/coachMark/banner: fields `yearMonth,activeUsers`, filter = §2의 각 필터와 동일
+> 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
+> 실제보다 부풀려진다(`docs/ga4_guide.md` §2-4). 이 리포트는 누적이 아니라 "최근 90일"
+> 롤링 윈도우이므로, 창이 하루 밀릴 때마다 페이지별·상담하기 순사용자 수를 처음부터
+> 다시 계산해야 정확하다.
 
-## §5 연간 재조회 5건 (비집계 지표라 필수 — 생략 금지)
-
-`date_range_type='custom'`, `start_date='2026-01-01'`(=`DATE_RANGE.from`), `end_date=new_to`.
-
-- 페이지: fields `pagePathWithoutQueryString,activeUsers`, filter = §2 쿼리1과 동일
-- postTel/preTel/coachMark/banner: fields `activeUsers` (**dimension 없음**), filter = §2의 각 필터와 동일
-
-> 왜 dimension 없이? `activeUsers`는 비집계 지표라 월별 값을 사람이 더하면 실제보다
-> 부풀려진다(`docs/ga4_guide.md` §2-4). 페이지에 `pagePathWithoutQueryString`만 남기는
-> 건 경로별로 독립된 dedup 값을 한 번에 받기 위함이며, 이 결과를 서로 더하지 않는다.
-
-## §6 임시 JSON 저장
+## §4 임시 JSON 저장
 
 `mkdir -p /tmp/ga4-funnel-update/<YYYYMMDD-HHMMSS>/` 후 아래 4개 파일을 Write:
 
-- `daily_pages.json`: `{"rows":[{"date","path","activeUsers","sessions"}, ...]}` (§2 쿼리1 결과)
-- `daily_events.json`: `{"rows":[{"event","date","activeUsers","eventCount"}, ...]}`
-  (`event` ∈ `preTel`|`postTel`|`coachMark`|`banner`, §2 쿼리2~5 결과를 이 스키마로 합쳐서 저장)
-- `users_monthly.json`: `{"pages":[{"yearMonth","path","activeUsers"}, ...], "events":[{"yearMonth","event","activeUsers"}, ...]}` (§4 결과, `yearMonth`는 `2026-09`든 `2026|09`든 상관없음)
-- `users_yearly.json`: `{"pages":[{"path","activeUsers"}, ...], "events":[{"event","activeUsers"}, ...]}` (§5 결과, **16개 시리즈(페이지 12 + 이벤트 4) 전부 포함 필수**)
+- `pages_incremental.json`: `{"rows":[{"date","path","activeUsers","sessions"}, ...]}` (쿼리1)
+- `pages_period.json`: `{"rows":[{"path","activeUsers"}, ...]}` (쿼리3)
+- `call_incremental.json`: `{"rows":[{"date","activeUsers","eventCount"}, ...]}` (쿼리2)
+- `call_period.json`: `{"rows":[{"activeUsers","eventCount"}]}` (쿼리4, **한 행만**)
 
-값이 0이거나 GA4 응답에 아예 없던 날짜/이벤트는 행을 만들지 않는다(원본도 희소 저장 방식).
+`path` 필드는 `pagePathWithoutQueryString` 응답값 그대로 쓴다(예: `/view/home`,
+`/view/csl/cslInfo`). 값이 0이거나 GA4 응답에 없던 날짜/경로는 행을 만들지 않아도 된다
+(원본도 희소 저장 방식 — 특히 "AI 상담목록"/"AI 상담보기"는 트래픽이 매우 적어 대부분의
+날짜에 행이 없는 것이 정상이다).
 
-## §7 스크립트 실행
+## §5 스크립트 실행
 
 먼저 진단만:
 ```
 python3 scripts/update_ga4_unsedang.py --html html/ga4-funnel-unsedang.html --indir <tmpdir> --dry-run
 ```
-출력된 요약(추가된 날짜 수, 재조회 반영 범위, 경고)을 확인한 뒤 `--dry-run`을 떼고 재실행한다.
+출력된 요약(새 윈도우 범위, 페이지별/상담하기 기간 합계, 경고)을 확인한 뒤 `--dry-run`을
+떼고 재실행한다.
 
-`[SafetyError]`로 중단되면 **절대 우회 플래그를 임의로 붙이지 말고** 에러 메시지를
-그대로 사용자에게 보고하고 원인을 파악한다(오타·범위 오류·비집계 지표 검증 실패 등).
+`[SafetyError]`로 중단되면 **절대 우회하지 말고** 에러 메시지를 그대로 사용자에게
+보고하고 원인을 파악한다 — HTML 블록을 못 찾음, 윈도우 밖 날짜 잔존, 음수 값, 신규
+데이터 0건, 알 수 없는 페이지 경로(§0 참고) 등 실제 데이터 무결성 문제다.
 
-`$ARGUMENTS`에 `--refresh-tail N`이 있으면 §10을 따른다.
+## §6 렌더 검증 — 기본 생략
 
-## §8 렌더 검증 — 기본 생략
+이 커맨드는 기본적으로 데이터 갱신까지만 하고 브라우저 렌더 확인은 생략한다. 사용자가
+명시적으로 요청할 때만 Playwright로 확인하고, `.playwright-mcp/` 산출물은 확인 직후 삭제한다.
 
-이 커맨드는 기본적으로 데이터 갱신까지만 하고 브라우저 렌더 확인은 생략한다(빠른 반복
-실행을 위해). 사용자가 명시적으로 요청할 때만 Playwright로 `html/ga4-funnel-unsedang.html`을
-열어 최신 월 탭에 신규 날짜가 보이는지 확인하고, `.playwright-mcp/` 산출물은 확인 직후
-삭제한다.
+## §7 무인 스케줄 실행 시 (routine으로 호출된 경우)
 
-## §9 보고 + daylog
+사용자 확인을 기다리지 말고 끝까지 자동으로 진행한다:
+- 이미 최신이면(§1-4) 아무 파일도 건드리지 말고 그대로 종료한다.
+- 갱신됐다면 `git add html/ga4-funnel-unsedang.html daylog/<오늘 날짜>.md` / commit
+  (메시지: `"GA4 퍼널 리포트 자동 업데이트: <이전 창> -> <새 창>"`) / push까지 반드시
+  완료한다. 저장소는 `origin/main`에 이미 연결돼 있다.
+- `[SafetyError]`로 중단되면 우회 플래그 없이, 무엇이 왜 실패했는지 세션 결과에 명확히
+  남기고 커밋 없이 종료한다.
 
-1. 스크립트 출력 요약(기간 변화, 추가된 키 개수, 재조회 반영 범위, 미변경 범위, 경고)을
-   사용자에게 전달한다.
-2. §0의 원칙 문구를 함께 안내한다(특히 이번에 어떤 달이 재조회됐는지, 왜인지).
-3. **이 커맨드는 실행할 때마다** `daylog/<오늘 날짜>.md`에 append한다(CLAUDE.md의
-   "세션 종료 시 1회"보다 좁혀, 매 실행마다 기록하도록 명시적으로 지시받았다):
+## §8 보고 + daylog
+
+1. 스크립트 출력 요약(이전 창 → 새 창, 페이지별/상담하기 기간 합계, 경고)을 사용자에게
+   전달한다.
+2. §0의 원칙 문구를 함께 안내한다.
+3. **이 커맨드는 실행할 때마다** `daylog/<오늘 날짜>.md`에 append한다:
    ```markdown
-   ## <오늘 날짜> 핸드오프 — GA4 퍼널 증분 업데이트
-   - 한 일: /update-ga4-unsedang 실행, {이전 to} ~ {새 to} 신규 반영 (일별 +N개, 재조회 월 {affected_months})
+   ## <오늘 날짜> 핸드오프 — GA4 퍼널 리포트 롤링 업데이트
+   - 한 일: /update-ga4-unsedang 실행, {이전 창} -> {새 창} 갱신
    - 변경 파일: html/ga4-funnel-unsedang.html
    - 다음: 특이사항 없음 (또는 스크립트 경고 내용 요약)
    ```
    파일이 없으면 CLAUDE.md 규약대로 머리말을 붙여 새로 만든다.
-
-## §10 `--refresh-tail N` (옵션, 기본 꺼짐)
-
-GA4 최근 1~2일 데이터는 처리 지연으로 확정되지 않을 수 있다. 사용자가 `$ARGUMENTS`에
-`--refresh-tail N`을 명시했을 때만: 기존 마지막 N일도 §2~§5 쿼리 범위에 포함시키고,
-§7에서 스크립트에 `--allow-tail-overwrite`를 추가로 전달한다. 기본은 꺼져 있다 —
-"기존 데이터 재조회 금지" 원칙을 지키기 위함이다.

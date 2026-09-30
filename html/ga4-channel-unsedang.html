@@ -150,40 +150,6 @@
   </div>
 
 <script>
-  const REFERRER_DAILY = {
-    lg: {"2026-09-09":[175,224],"2026-09-10":[163,197],"2026-09-11":[124,171],"2026-09-12":[244,301],"2026-09-13":[188,249],"2026-09-14":[474,563],"2026-09-15":[343,469],"2026-09-16":[422,531],"2026-09-17":[281,385],"2026-09-18":[276,389],"2026-09-19":[521,684],"2026-09-20":[318,465],"2026-09-21":[467,604],"2026-09-22":[214,331]},
-    notSet: {"2026-09-09":[195,230],"2026-09-10":[183,211],"2026-09-11":[177,220],"2026-09-12":[182,214],"2026-09-13":[223,251],"2026-09-14":[199,229],"2026-09-15":[231,268],"2026-09-16":[193,230],"2026-09-17":[230,258],"2026-09-18":[204,241],"2026-09-19":[185,201],"2026-09-20":[200,225],"2026-09-21":[244,284],"2026-09-22":[230,288]},
-    direct: {"2026-09-09":[45,70],"2026-09-10":[80,124],"2026-09-11":[57,80],"2026-09-12":[64,95],"2026-09-13":[52,78],"2026-09-14":[51,85],"2026-09-15":[54,85],"2026-09-16":[64,114],"2026-09-17":[58,88],"2026-09-18":[55,98],"2026-09-19":[52,83],"2026-09-20":[49,70],"2026-09-21":[70,105],"2026-09-22":[57,102]},
-    naverGrp: {"2026-09-09":[1,1],"2026-09-10":[1,1],"2026-09-11":[3,4],"2026-09-12":[4,7],"2026-09-13":[1,1],"2026-09-14":[6,9],"2026-09-15":[3,3],"2026-09-16":[10,12],"2026-09-17":[1,1],"2026-09-18":[6,7],"2026-09-19":[4,6],"2026-09-20":[4,4],"2026-09-21":[2,2],"2026-09-22":[2,3]},
-    googleGrp: {"2026-09-09":[10,23],"2026-09-10":[18,40],"2026-09-11":[11,28],"2026-09-12":[13,24],"2026-09-13":[15,28],"2026-09-14":[11,22],"2026-09-15":[7,15],"2026-09-16":[15,34],"2026-09-17":[14,26],"2026-09-18":[17,28],"2026-09-19":[10,18],"2026-09-20":[11,21],"2026-09-21":[16,27],"2026-09-22":[10,25]},
-    etcGrp: {"2026-09-09":[3,3],"2026-09-10":[7,18],"2026-09-11":[3,9],"2026-09-12":[2,2],"2026-09-13":[1,1],"2026-09-14":[7,20],"2026-09-15":[2,7],"2026-09-16":[2,2],"2026-09-17":[4,6],"2026-09-18":[6,9],"2026-09-19":[0,1],"2026-09-20":[2,2],"2026-09-21":[3,6],"2026-09-22":[3,4]},
-  };
-  const REFERRER_TOTALS = {
-    lg: 3330,
-    notSet: 2602,
-    direct: 362,
-    naverGrp: 43,
-    googleGrp: 65,
-    etcGrp: 26,
-  };
-  const REFERRER_GROUPS = [
-    { key: 'lg', label: 'LG(투데이배너)' },
-    { key: 'notSet', label: '미확인' },
-    { key: 'direct', label: '다이렉트' },
-    { key: 'naverGrp', label: '네이버' },
-    { key: 'googleGrp', label: '구글' },
-    { key: 'etcGrp', label: '기타' },
-  ];
-  // "기타" 그룹 각주용 — 개별 재조회 값(그룹 합계 28명과는 별개, 단순 합산 시 29명으로
-  // 중복 집계되니 섞어 쓰지 말 것). sessions는 집계 가능 지표라 그대로 더해도 정확함.
-  const ETC_BREAKDOWN = [
-    { label: '결제(payments.danalpay.com)', users: 9, sessions: 27 },
-    { label: '카카오 로그인(kauth.kakao.com)', users: 6, sessions: 25 },
-    { label: '카카오 계정(accounts.kakao.com)', users: 2, sessions: 6 },
-    { label: '자체 캠페인(unsedang_portal)', users: 9, sessions: 29 },
-    { label: '배너(banner_01)', users: 0, sessions: 0 },
-    { label: 'AI(chatgpt.com)', users: 1, sessions: 3 },
-  ];
   // 일자별 "합계" 열 — 그룹 6개를 단순히 더한 값이 아니라, 소스 필터 없이 사이트 전체를
   // 별도로 재조회한 진짜 활성사용자(중복 없음). 그룹 합산치와는 소폭 다를 수 있다(동일인이
   // 같은 날 여러 소스를 통해 방문한 경우).
@@ -261,9 +227,6 @@
     return dates;
   }
 
-  function dailyUsers(g, date) { const v = REFERRER_DAILY[g.key][date]; return v ? v[0] : 0; }
-  function totalUsers(g) { return REFERRER_TOTALS[g.key]; }
-
   async function loadConsultStats() {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -286,29 +249,9 @@
       console.error('상담 데이터 로드 실패', e);
     } finally {
       clearTimeout(timer);
-      document.getElementById('content').innerHTML = renderSectionCard() + renderFirstUserSectionCard();
+      document.getElementById('content').innerHTML = renderFirstUserSectionCard();
       updateFooter();
     }
-  }
-
-  function renderLegend() {
-    return `<div class="legend">${REFERRER_GROUPS
-      .map((g, i) => `<span><span class="swatch s${i}"></span>${g.label}</span>`)
-      .join('')}</div>`;
-  }
-
-  function renderSummary() {
-    const dates = rangeDates();
-    const items = REFERRER_GROUPS.map((g) => `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(totalUsers(g))}</div></div>`);
-    items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(TOTAL_PERIOD)}</div></div>`);
-    if (CONSULT_STATE === 'ok') {
-      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
-      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${fmtCount(consultSum)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">전환율(2주 합계)</div><div class="value">${fmtPercent((consultSum / TOTAL_PERIOD) * 100)}</div></div>`);
-    } else {
-      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
-    }
-    return `<div class="summary-grid">${items.join('')}</div>`;
   }
 
   function consultCell(date) {
@@ -331,51 +274,6 @@
     return fmtPercent((v / total) * 100);
   }
 
-  function renderTable() {
-    const dates = rangeDates();
-    const headRow = `<th>일자</th>` + REFERRER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th>`;
-    const bodyRows = [...dates]
-      .reverse()
-      .map((date) => {
-        const cells = REFERRER_GROUPS
-          .map((g, i) => `<td class="col-s${i}">${fmtUsers(dailyUsers(g, date))}</td>`)
-          .join('');
-        return `<tr><td>${fmtDateLabel(date)}</td>${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
-      })
-      .join('');
-    const footCells = REFERRER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(totalUsers(g))}</td>`).join('');
-    let consultFoot = '–';
-    let consultUserFoot = '–';
-    let convFoot = '–';
-    if (CONSULT_STATE === 'ok') {
-      const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
-      const consultUserSum = dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
-      consultFoot = fmtCount(consultSum);
-      consultUserFoot = fmtUsers(consultUserSum);
-      convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
-    } else if (CONSULT_STATE === 'error') {
-      consultFoot = '로드 실패';
-      consultUserFoot = '로드 실패';
-    } else {
-      consultFoot = '로딩 중…';
-      consultUserFoot = '로딩 중…';
-    }
-    return `<div class="table-scroll"><table>
-      <thead><tr>${headRow}</tr></thead>
-      <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td></tr></tfoot>
-    </table></div>`;
-  }
-
-  function renderEtcFootnote() {
-    const items = ETC_BREAKDOWN.map((it) => `${it.label} ${fmtUsers(it.users)}·${fmtCount(it.sessions)}`).join(' · ');
-    return `<div class="note">ℹ "기타" 세부 항목(2주 합계, 개별 재조회 값 — 그룹 합계 ${fmtUsers(totalUsers({ key: 'etcGrp' }))}과 다름, 단순 합산 금지): ${items}</div>`;
-  }
-
-  function renderTotalFootnote() {
-    return `<div class="note">ℹ "합계" 열은 6개 그룹을 단순히 더한 값이 아니라, 소스 구분 없이 사이트 전체를 별도로 재조회한 활성사용자입니다 — 같은 날 여러 경로로 방문한 사람이 있으면 그룹 합산치보다 작을 수 있습니다.</div>`;
-  }
-
   function renderConsultFootnote() {
     const statusText = CONSULT_STATE === 'error'
       ? ` (로드 실패: ${CONSULT_ERROR_MSG} — 페이지를 새로고침하면 재시도됩니다)`
@@ -389,23 +287,9 @@
       보는 참고 지표입니다.${statusText}</div>`;
   }
 
-  function renderSectionCard() {
-    return `
-      <div class="card">
-        <h2>매체별 유입 (레퍼러 도메인 그룹) <span class="hint">최근 2주 일별 활성사용자 (${DATE_RANGE.from} ~ ${DATE_RANGE.to})</span></h2>
-        <div class="path-hint">sessionSource</div>
-        ${renderSummary()}
-        ${renderLegend()}
-        ${renderTable()}
-        ${renderEtcFootnote()}
-        ${renderTotalFootnote()}
-        ${renderConsultFootnote()}
-      </div>`;
-  }
-
-  // --- 첫 사용자 소스 섹션. 합계 열은 위 섹션과 동일한 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를
-  // 재사용(어느 기준으로 쪼개든 사이트 전체 활성사용자 수 자체는 같기 때문). 상담수/전환율도
-  // 위 섹션과 동일하게 CONSULT_DAILY(실시간 fetch)/TOTAL_DAILY 기준으로 계산한다. ---
+  // --- 합계 열은 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 사용(어느 기준으로 쪼개든 사이트
+  // 전체 활성사용자 수 자체는 같기 때문). 상담수/전환율은 CONSULT_DAILY(실시간 fetch)/
+  // TOTAL_DAILY 기준으로 계산한다. ---
   function firstUserDailyUsers(g, date) { const v = FIRST_USER_DAILY[g.key][date]; return v ? v[0] : 0; }
   function firstUserTotal(g) { return FIRST_USER_TOTALS[g.key]; }
 
@@ -526,7 +410,7 @@
   }
 
   function renderFirstUserFootnote() {
-    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다(위 "레퍼러 도메인 그룹" 섹션의 sessionSource와는 이 점이 다릅니다 — 그쪽은 세션마다 값이 바뀔 수 있어 그룹 합계를 GA4에 별도 병합 재조회했습니다). "합계" 열은 위 섹션과 동일한 사이트 전체 값이고, "상담수"/"전환율"도 위 섹션과 동일한 실시간 DB API 값을 사용합니다.</div>`;
+    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다. "합계" 열은 소스 구분 없이 사이트 전체를 별도로 재조회한 활성사용자이며, 같은 날 여러 경로로 방문한 사람이 있으면 그룹 합산치보다 작을 수 있습니다.</div>`;
   }
 
   function renderFirstUserSectionCard() {
@@ -557,7 +441,7 @@
   }
 
   function init() {
-    document.getElementById('content').innerHTML = renderSectionCard() + renderFirstUserSectionCard();
+    document.getElementById('content').innerHTML = renderFirstUserSectionCard();
     updateFooter();
     loadConsultStats();
   }
