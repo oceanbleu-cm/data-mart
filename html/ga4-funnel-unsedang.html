@@ -90,6 +90,12 @@
   }
 
   /* --- 퍼널 --- */
+  .funnel-total {
+    display: flex; align-items: baseline; justify-content: space-between;
+    background: var(--accent-bg); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px;
+  }
+  .funnel-total-label { font-size: 0.8rem; color: var(--text); }
+  .funnel-total-value { font-size: 1.1rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
   .funnel { display: flex; flex-direction: column; gap: 4px; }
   .funnel-row { display: grid; grid-template-columns: 104px 1fr 168px; align-items: center; gap: 12px; padding: 7px 0; }
   .funnel-row + .funnel-row { border-top: 1px solid var(--border); }
@@ -100,6 +106,16 @@
   .funnel-figures .value { font-size: 0.92rem; font-weight: 600; color: var(--text); }
   .funnel-rates { grid-column: 2 / 4; display: flex; gap: 14px; font-size: 0.7rem; color: var(--text-dim); padding: 0 0 2px 2px; }
   .funnel-rates b { color: var(--text); font-weight: 600; }
+  .funnel-subgroup {
+    grid-column: 1 / -1;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+    margin: 4px 0 0;
+    padding: 7px 10px;
+    background: var(--stripe);
+    border-radius: 6px;
+  }
+  .funnel-subitem { display: flex; gap: 14px; font-size: 0.74rem; color: var(--text-dim); }
+  .funnel-subitem-value { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
 </style>
 <body>
   <div class="wrap">
@@ -118,14 +134,15 @@
       <ul>
         <li><b>각 단계는 독립적으로 측정된 값입니다.</b> 실제 순차 유입 흐름이 아니라, 서로 다른 페이지/이벤트를 발생시킨 활성사용자 수를 나열한 것입니다 — 예를 들어 "운세"나 "후기"는 "AI 상담" 단계를 거치지 않고도 도달할 수 있습니다. 단계 간 %는 실제 이탈률이 아니라 단순 크기 비교이며, 진짜 순차 퍼널(단계별 이탈률)은 GA4 UI의 탐색 분석 → 유입경로 탐색에서만 확인 가능합니다.</li>
         <li><b>"상담하기"는 pre_tel_click(선불)과 post_tel_click(후불) 두 이벤트를 합쳐 하나로 집계한 값입니다.</b> 같은 쿼리에 두 이벤트를 모두 걸고 activeUsers를 재조회했으므로, 같은 날 두 이벤트를 모두 발생시킨 사용자가 중복 집계되지 않은 정확한 값입니다.</li>
-        <li><b>"AI 상담목록"/"AI 상담보기"는 2026-09-21부터 신규 집계된 기능입니다.</b> 그 이전 날짜는 값이 없는 것이 아니라 기능 자체가 없었던 것이라 "0"으로 표시됩니다.</li>
-        <li>데이터는 2026-07-02 ~ 2026-09-29(최근 90일) 구간만 정적으로 내장되어 있습니다 — 이 범위 밖의 날짜는 조회할 수 없으며, 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.</li>
+        <li><b>"AI 상담목록"/"AI 상담보기"는 2026-09-30부터 신규 집계된 기능입니다.</b> 그 이전 날짜는 값이 없는 것이 아니라 기능 자체가 없었던 것이라 "0"으로 표시됩니다.</li>
+        <li><b>"전체 활성사용자수"는 페이지/이벤트 구분 없이 사이트 전체를 집계한 별도 지표입니다.</b> 퍼널 단계들의 값과 더하거나 비교할 수 없으며, 단지 그 기간의 전체 트래픽 규모를 참고하기 위한 값입니다.</li>
       </ul>
     </div>
 
     <div class="card">
       <h2>조회 기간</h2>
       <div class="filter-row" id="filterRow">
+        <button type="button" class="preset-btn" data-preset="1">어제</button>
         <button type="button" class="preset-btn" data-preset="7">최근 7일</button>
         <button type="button" class="preset-btn" data-preset="14">최근 14일</button>
         <button type="button" class="preset-btn" data-preset="30">최근 30일</button>
@@ -152,6 +169,28 @@
   const PAGE_TOTALS = { home: 11130, csl: 1998, aiNote: 9, aiNoteInfo: 7, cslInfo: 3055, content: 875, totalRatingComment: 1262 };
   const CALL_TOTAL = { activeUsers: 1851, eventCount: 16968 };
 
+  // 사이트 전체 활성사용자수(페이지/이벤트 dimension 없음) — 일별 값 + 90일 정확한 합계
+  const DAILY_SITE = {"2026-07-02":358,"2026-07-03":369,"2026-07-04":355,"2026-07-05":353,"2026-07-06":355,"2026-07-07":394,"2026-07-08":342,"2026-07-09":367,"2026-07-10":332,"2026-07-11":348,"2026-07-12":334,"2026-07-13":320,"2026-07-14":346,"2026-07-15":300,"2026-07-16":293,"2026-07-17":322,"2026-07-18":310,"2026-07-19":368,"2026-07-20":195,"2026-07-21":189,"2026-07-22":179,"2026-07-23":183,"2026-07-24":181,"2026-07-25":183,"2026-07-26":200,"2026-07-27":210,"2026-07-28":170,"2026-07-29":189,"2026-07-30":219,"2026-07-31":189,"2026-08-01":175,"2026-08-02":191,"2026-08-03":240,"2026-08-04":212,"2026-08-05":206,"2026-08-06":213,"2026-08-07":230,"2026-08-08":216,"2026-08-09":246,"2026-08-10":225,"2026-08-11":273,"2026-08-12":261,"2026-08-13":333,"2026-08-14":263,"2026-08-15":239,"2026-08-16":284,"2026-08-17":282,"2026-08-18":328,"2026-08-19":286,"2026-08-20":259,"2026-08-21":213,"2026-08-22":221,"2026-08-23":249,"2026-08-24":254,"2026-08-25":270,"2026-08-26":253,"2026-08-27":272,"2026-08-28":242,"2026-08-29":275,"2026-08-30":242,"2026-08-31":302,"2026-09-01":250,"2026-09-02":232,"2026-09-03":246,"2026-09-04":306,"2026-09-05":613,"2026-09-06":501,"2026-09-07":487,"2026-09-08":391,"2026-09-09":426,"2026-09-10":447,"2026-09-11":369,"2026-09-12":506,"2026-09-13":477,"2026-09-14":741,"2026-09-15":631,"2026-09-16":697,"2026-09-17":577,"2026-09-18":552,"2026-09-19":770,"2026-09-20":580,"2026-09-21":775,"2026-09-22":510,"2026-09-23":599,"2026-09-24":585,"2026-09-25":466,"2026-09-26":608,"2026-09-27":494,"2026-09-28":673,"2026-09-29":483};
+  const SITE_ACTIVE_USERS_TOTAL = 23345;
+
+  // 상담사 상세/AI 상담보기 하위그룹 이벤트 — eventName 기준 activeUsers.
+  // 전부 2026-09-30부터 신규 집계된 이벤트라 현재 내장 범위(~2026-09-29)엔 데이터가 없어 0으로 내장됨.
+  const DAILY_SUBEVENTS = {"ai-note-agree-pop":{},"ai-note-cancel-click":{},"ai-note-agree-click":{},"ai-note-review-skip":{},"ai-note-review-next":{},"ai-note-review-submit":{},"ai-note-councel-click":{}};
+  const SUBEVENT_TOTALS = {"ai-note-agree-pop":0,"ai-note-cancel-click":0,"ai-note-agree-click":0,"ai-note-review-skip":0,"ai-note-review-next":0,"ai-note-review-submit":0,"ai-note-councel-click":0};
+  const SUBGROUPS = {
+    cslInfo: [
+      { eventName: 'ai-note-agree-pop', label: '상담노트 약관 팝업' },
+      { eventName: 'ai-note-cancel-click', label: '상담노트 약관 취소' },
+      { eventName: 'ai-note-agree-click', label: '상담노트 약관 동의' },
+    ],
+    aiNoteInfo: [
+      { eventName: 'ai-note-review-skip', label: '후기 미작성' },
+      { eventName: 'ai-note-review-next', label: '후기 1/2' },
+      { eventName: 'ai-note-review-submit', label: '후기 작성 2/2' },
+      { eventName: 'ai-note-councel-click', label: '재상담' },
+    ],
+  };
+
   const DATE_RANGE = { from: '2026-07-02', to: '2026-09-29' };
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
@@ -160,12 +199,12 @@
   const STEPS = [
     { key: 'home', type: 'page', label: '홈메인' },
     { key: 'csl', type: 'page', label: '상담사 목록' },
+    { key: 'cslInfo', type: 'page', label: '상담사 상세' },
     { key: 'aiNote', type: 'page', label: 'AI 상담목록' },
     { key: 'aiNoteInfo', type: 'page', label: 'AI 상담보기' },
-    { key: 'cslInfo', type: 'page', label: '상담사 상세' },
+    { key: 'call', type: 'call', label: '상담하기' },
     { key: 'content', type: 'page', label: '운세' },
     { key: 'totalRatingComment', type: 'page', label: '후기' },
-    { key: 'call', type: 'call', label: '상담하기' },
   ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
@@ -222,15 +261,48 @@
     return { value: sum, exact: false };
   }
 
+  function siteTotalValue(from, to) {
+    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
+    if (isFullRange) return { value: SITE_ACTIVE_USERS_TOTAL, exact: true };
+    const dates = rangeDates(from, to);
+    const sum = dates.reduce((acc, d) => acc + (DAILY_SITE[d] || 0), 0);
+    return { value: sum, exact: false };
+  }
+
+  function subEventValue(eventName, from, to) {
+    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
+    if (isFullRange) return { value: SUBEVENT_TOTALS[eventName], exact: true };
+    const dates = rangeDates(from, to);
+    const sum = dates.reduce((acc, d) => acc + (DAILY_SUBEVENTS[eventName][d] || 0), 0);
+    return { value: sum, exact: false };
+  }
+
+  function renderSubRows(items, from, to) {
+    const itemsHtml = items
+      .map((it) => {
+        const v = subEventValue(it.eventName, from, to).value;
+        return `
+          <div class="funnel-subitem">
+            <span class="funnel-subitem-label">${it.label}</span>
+            <span class="funnel-subitem-value">${fmtUsers(v)}</span>
+          </div>`;
+      })
+      .join('');
+    return `<div class="funnel-subgroup">${itemsHtml}</div>`;
+  }
+
   function renderFunnel(from, to) {
     const results = STEPS.map((s) => ({ step: s, ...stepValue(s, from, to) }));
     const first = results[0].value || 1;
+    const siteTotal = siteTotalValue(from, to);
     const rows = results.map((r, i) => {
       const widthPct = Math.max((r.value / first) * 100, r.value > 0 ? 1.5 : 0);
       const vsFirst = i === 0 ? null : (r.value / first) * 100;
       const ratesLine = i === 0
         ? ''
         : `<div class="funnel-rates">홈 대비 <b>${fmtPct(vsFirst)}</b></div>`;
+      const subItems = SUBGROUPS[r.step.key];
+      const subRowsHtml = subItems ? renderSubRows(subItems, from, to) : '';
       return `
         <div class="funnel-row">
           <div class="funnel-label">${r.step.label}</div>
@@ -239,11 +311,16 @@
             <span class="value">${fmtUsers(r.value)}</span>
           </div>
           ${ratesLine}
+          ${subRowsHtml}
         </div>`;
     }).join('');
     return `
       <div class="card">
         <h2>매체 유입 → 상담 전환 퍼널 <span class="hint">활성사용자 기준, ${from} ~ ${to}</span></h2>
+        <div class="funnel-total">
+          <div class="funnel-total-label">전체 활성사용자수 <span class="hint">페이지/이벤트 구분 없는 사이트 전체 값</span></div>
+          <div class="funnel-total-value">${fmtUsers(siteTotal.value)}</div>
+        </div>
         <div class="funnel">${rows}</div>
         <div class="note">ℹ 위 유의사항 참고 — 단계 간 비율은 순차 이탈률이 아니라 서로 독립적으로 측정된 값의 단순 크기 비교입니다.</div>
       </div>`;
@@ -291,7 +368,7 @@
     document.getElementById('customFrom').addEventListener('change', onCustomChange);
     document.getElementById('customTo').addEventListener('change', onCustomChange);
 
-    applyRange(clamp(addDays(DATE_RANGE.to, -(14 - 1))), DATE_RANGE.to, 14);
+    applyRange(DATE_RANGE.to, DATE_RANGE.to, 1);
 
     document.getElementById('footer').innerHTML =
       `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 90일)<br>` +
