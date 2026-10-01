@@ -7,43 +7,28 @@
 명시된 **롤링(sliding) 윈도우**다. 그래서 매 실행마다:
   1) 새로 확정된 날짜(들)를 각 일별 시리즈에 추가하고
   2) 윈도우 밖으로 밀려난 오래된 날짜를 제거하고(윈도우 항상 14일 유지)
-  3) 그룹별/기간 합계(REFERRER_TOTALS, ETC_BREAKDOWN, TOTAL_PERIOD)는 "새 날짜만 반영"이 아니라
+  3) 그룹별/기간 합계(FIRST_USER_TOTALS, TOTAL_PERIOD)는 "새 날짜만 반영"이 아니라
      **매번 새 윈도우 전체를 재조회한 값으로 통째로 교체**한다 — activeUsers는 비집계 지표라
      날짜를 밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
 이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
-`.claude/commands/update-ga4-channel-unsedang.md`가 미리 14개의 임시 JSON 파일을 만들어두면
+`.claude/commands/update-ga4-channel-unsedang.md`가 미리 4개의 임시 JSON 파일을 만들어두면
 이 스크립트가 그것을 읽어 HTML에 반영한다.
 
-이 페이지에는 두 개의 독립 섹션이 있다 — ①"레퍼러 도메인 그룹"(`REFERRER_DAILY`/
-`REFERRER_TOTALS`/`ETC_BREAKDOWN`, GA4 `sessionSource` 기준), ②"첫 사용자 소스 그룹"
-(`FIRST_USER_DAILY`/`FIRST_USER_TOTALS`, GA4 `firstUserSource` 기준). 둘 다 같은 `TOTAL_DAILY`/
-`TOTAL_PERIOD`(사이트 전체, attribution 기준과 무관하게 동일)를 공유한다. 계산 방식이 서로
-다르다: ①은 세션마다 소스가 바뀔 수 있어 그룹 합계를 GA4에 필터 병합 재조회해야 하지만,
-②는 firstUserSource가 사용자당 평생 하나뿐인 값이라 원본 값을 단순 합산해도 정확하다(GA4도
-①방식 필터 재조회를 firstUserSource에는 거부한다 — "summing deduplicated values" 에러).
+2026-09-30 리디자인(커밋 110c44a)으로 이 페이지의 "레퍼러 도메인 그룹"(sessionSource 기준,
+REFERRER_DAILY/REFERRER_TOTALS/ETC_BREAKDOWN) 섹션이 삭제되고 "첫 사용자 소스 그룹"
+(FIRST_USER_DAILY/FIRST_USER_TOTALS, GA4 firstUserSource 기준) 섹션만 남았다. 이 스크립트는
+2026-10-01에 그 변경에 맞춰 레퍼러 섹션 관련 로직을 전부 제거했다(이전 버전은 git history
+참고). firstUserSource는 사용자당 평생 하나뿐인 값이라 원본 값을 단순 합산해도 정확하다
+(GA4도 이 dimension에는 필터 병합 재조회를 거부한다 — "summing deduplicated values" 에러).
+TOTAL_DAILY/TOTAL_PERIOD(사이트 전체, attribution 기준과 무관)는 소스 필터 없이 별도로
+재조회한 값이다.
 
 사용법:
     python3 update_ga4_channel_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                             [--generated-at STR] [--no-backup]
 
-입력 디렉터리(--indir) 안의 14개 파일 스키마:
-    raw_incremental.json : {"rows": [{"date","channel","activeUsers","sessions"}, ...]}
-                            (마지막 수록일 다음날 ~ 새 to. channel은 GA4 원본 표시값 그대로.
-                             이 중 LG/(direct) 2개만 실제로 사용되고 나머지는 "알려진 값인지"
-                             검증용으로만 쓰인다 — '(not set)'/''(빈 문자열)도 raw로는 오지만
-                             notset_daily.json의 병합값을 대신 쓴다.)
-    raw_period.json      : {"rows": [{"channel","activeUsers","sessions"}, ...]}
-                            (새 윈도우 전체 재조회, dimension 없이 channel만. LG/(direct)
-                             기간 합계 + "기타" 6개 항목의 기간 합계를 여기서 뽑는다.)
-    naver_daily.json / google_daily.json / etc_daily.json / notset_daily.json
-                          : {"rows": [{"date","activeUsers","sessions"}, ...]}
-                            (각 그룹 필터 병합, 마지막 수록일 다음날 ~ 새 to. notset은
-                             sessionSource == '(not set)' OR sessionSource == '' 필터 —
-                             두 raw 라벨을 그냥 더하면 같은 세션이 이중 계산될 수 있어
-                             naver/google/etc와 동일하게 병합 재조회가 필요하다.)
-    naver_period.json / google_period.json / etc_period.json / notset_period.json
-                          : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우 전체 필터 병합)
+입력 디렉터리(--indir) 안의 4개 파일 스키마:
     total_daily.json     : {"rows": [{"date","activeUsers"}, ...]}
                             (소스 필터 없음, 마지막 수록일 다음날 ~ 새 to)
     total_period.json    : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우 전체, 소스 필터 없음)
@@ -55,16 +40,12 @@
                             (firstUserSource 기준, dimension 포함, 새 윈도우 전체. 그룹별
                              기간 합계도 마찬가지로 단순 합산해서 만든다.)
 
-    알려진 매핑 테이블(GROUP_DAILY_KEYS/ETC_ITEM_KEYS/NAVER_SUB_LABELS/GOOGLE_SUB_LABELS/
-    NOTSET_SUB_LABELS/FIRST_USER_LABEL_TO_GROUP)에 없는 새 sessionSource/firstUserSource
-    값이 나타나면 더 이상 SafetyError로 중단하지 않는다 — classify_source()가 자동으로
-    분류한다: 'naver' 포함(대소문자 무시) → naverGrp, 'google' 포함 → googleGrp,
-    '(not set)'/''(빈 문자열) → notSet, 그 외 전부 → etcGrp(레퍼러 도메인 그룹의 경우
-    ETC_BREAKDOWN에 원본 라벨 그대로 새 항목이 자동 추가된다). 자동 분류된 값은
-    "경고" 목록에 남아 사람이 사후 확인할 수 있게 한다. sessionSource 그룹 합계는
-    여전히 병합 필터 재조회 값(naver/google/etc/notset_*.json)에서 오므로, 새 값이
-    나타났을 때 그 값이 속한 그룹의 병합 쿼리 필터에도 포함되도록 커맨드 문서(§2/§3)의
-    동적 필터 구성 절차를 따라야 정확하다 — 이 스크립트만으로는 보장할 수 없다.
+    알려진 매핑 테이블(FIRST_USER_LABEL_TO_GROUP)에 없는 새 firstUserSource 값이 나타나면
+    더 이상 SafetyError로 중단하지 않는다 — classify_source()가 자동으로 분류한다:
+    'naver' 포함(대소문자 무시) → naverGrp, 'google' 포함 → googleGrp, '(not set)'/''(빈 문자열)
+    → notSet, 그 외 전부 → etcGrp. 자동 분류된 값은 "경고" 목록에 남아 사람이 사후 확인할 수
+    있게 한다 — firstUserSource는 단순 합산이라 이 자동 분류만으로 즉시 정확하다(sessionSource
+    처럼 병합 쿼리 필터에 별도로 포함시켜야 할 필요가 없다).
 """
 import argparse
 import json
@@ -76,40 +57,9 @@ from datetime import date, datetime, timedelta, timezone
 
 WINDOW_DAYS = 14
 
-# --- 알려진 GA4 원본 sessionSource 값 (오타·신규 소스 조기 탐지용) ---
-# GROUP_DAILY_KEYS는 "원본 라벨 1개 = 그룹 전체"라 병합 재조회 없이 그대로 쓸 수 있는 값만
-# 담는다. '(not set)'은 ''(빈 문자열)이라는 두 번째 raw 라벨이 생기면서(GA4가 소스를 확인
-# 못해 내려주는 또 다른 표기) 더 이상 이 조건을 만족하지 않으므로 NOTSET_SUB_LABELS로 옮기고
-# naver/google/etc와 동일하게 병합 필터 재조회(notset_daily.json/notset_period.json)로
-# 처리한다 — 두 raw 라벨을 그냥 더하면 같은 세션이 이중 계산될 수 있다(실측: 기간 합계
-# 병합조회 2550명 vs 단순합산 2577명, 27명 차이).
-GROUP_DAILY_KEYS = {'LG': 'lg', '(direct)': 'direct'}
-NOTSET_SUB_LABELS = {'(not set)', ''}
-ETC_ITEM_KEYS = {
-    'payments.danalpay.com': 'danalpay',
-    'kauth.kakao.com': 'kauthKakao',
-    'accounts.kakao.com': 'accountsKakao',
-    'unsedang_portal': 'unsedangPortal',
-    'banner_01': 'banner01',
-    'chatgpt.com': 'chatgpt',
-}
-NAVER_SUB_LABELS = {'m.search.naver.com', 'naver', 'navercafe', 'm.naver.com', 'nid.naver.com'}
-GOOGLE_SUB_LABELS = {'google-play', 'google'}
-KNOWN_RAW_LABELS = set(GROUP_DAILY_KEYS) | set(ETC_ITEM_KEYS) | NAVER_SUB_LABELS | GOOGLE_SUB_LABELS | NOTSET_SUB_LABELS
-
-ETC_ITEM_LABELS = {
-    'danalpay': '결제(payments.danalpay.com)',
-    'kauthKakao': '카카오 로그인(kauth.kakao.com)',
-    'accountsKakao': '카카오 계정(accounts.kakao.com)',
-    'unsedangPortal': '자체 캠페인(unsedang_portal)',
-    'banner01': '배너(banner_01)',
-    'chatgpt': 'AI(chatgpt.com)',
-}
-ETC_ITEM_ORDER = ['danalpay', 'kauthKakao', 'accountsKakao', 'unsedangPortal', 'banner01', 'chatgpt']
-
 GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'etcGrp']
 
-# --- 알려진 GA4 원본 firstUserSource 값 (sessionSource와는 별개 값 집합) ---
+# --- 알려진 GA4 원본 firstUserSource 값 ---
 # ''(빈 문자열)은 GA4가 소스를 확인하지 못해 내려준 값 — '(not set)'과 동일하게 취급.
 FIRST_USER_LABEL_TO_GROUP = {
     'LG': 'lg',
@@ -127,10 +77,9 @@ FIRST_USER_LABEL_TO_GROUP = {
 }
 
 def classify_source(raw):
-    """알려진 매핑 테이블에 없는 새 sessionSource/firstUserSource 원본 값을 자동 분류한다.
+    """알려진 매핑 테이블에 없는 새 firstUserSource 원본 값을 자동 분류한다.
     'naver'가 포함되면(대소문자 무시) naverGrp, 'google'이 포함되면 googleGrp,
-    '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp — LG/(direct)는 이 함수를
-    거치지 않고 항상 정확히 일치할 때만 별도 처리된다."""
+    '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp."""
     if raw in ('(not set)', ''):
         return 'notSet'
     low = raw.lower()
@@ -208,79 +157,14 @@ def _read_single_value(indir, fname, field='activeUsers'):
     return rows[0][field]
 
 
-def load_incremental(indir):
-    """반환: (incr, total_daily_incr, all_dates, label_warnings).
-    incr: {group_key: {date: [u, s]}} — lg/notSet/direct/naverGrp/googleGrp/etcGrp 6개 키."""
-    incr = {k: {} for k in GROUP_KEYS}
-
-    raw_rows = _read_rows(indir, 'raw_incremental.json')
-    new_labels = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
-    label_warnings = [
-        f"신규 sessionSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장 — "
-        f'해당 그룹의 병합 쿼리 필터에 포함되지 않았다면 그룹 합계가 과소집계될 수 있습니다)'
-        for lbl in new_labels
-    ]
-    for r in raw_rows:
-        gkey = GROUP_DAILY_KEYS.get(r['channel'])
-        if gkey is None:
-            continue  # naver/google/etc/notset 서브소스는 raw_incremental에서 무시(병합 쿼리로 별도 처리)
-        incr[gkey][r['date']] = [r['activeUsers'] or 0, r['sessions']]
-
-    for fname, gkey in (('naver_daily.json', 'naverGrp'), ('google_daily.json', 'googleGrp'), ('etc_daily.json', 'etcGrp'), ('notset_daily.json', 'notSet')):
-        for r in _read_rows(indir, fname):
-            incr[gkey][r['date']] = [r['activeUsers'] or 0, r['sessions']]
-
-    total_daily_incr = {r['date']: (r['activeUsers'] or 0) for r in _read_rows(indir, 'total_daily.json')}
-
-    all_dates = sorted({d for series in incr.values() for d in series} | set(total_daily_incr))
+def load_total_incremental(indir):
+    """반환: ({date: activeUsers}, all_dates) — total_daily.json(소스 필터 없음)."""
+    rows = _read_rows(indir, 'total_daily.json')
+    total_daily_incr = {r['date']: (r['activeUsers'] or 0) for r in rows}
+    all_dates = sorted(total_daily_incr)
     if not all_dates:
         raise SafetyError('신규 일별 데이터가 0건입니다 — GA4 쿼리가 실패했거나 범위가 잘못됐을 가능성이 있습니다.')
-
-    return incr, total_daily_incr, all_dates, label_warnings
-
-
-def load_period(indir):
-    """반환: (referrer_totals: {group_key: int}, etc_breakdown: {item_key: {label,users,sessions}},
-    etc_order: [item_key, ...], total_period: int, label_warnings: [str, ...]).
-    etc_breakdown/etc_order는 ETC_ITEM_ORDER의 알려진 항목에 더해, raw_period.json에서
-    classify_source()로 'etcGrp'로 자동 분류된 새 원본 값을 원본 라벨 그대로 추가한다."""
-    raw_rows = _read_rows(indir, 'raw_period.json')
-    new_labels = sorted({r['channel'] for r in raw_rows if r['channel'] not in KNOWN_RAW_LABELS})
-    label_warnings = [
-        f"신규 sessionSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장 — "
-        f'해당 그룹의 병합 쿼리 필터에 포함되지 않았다면 그룹 합계가 과소집계될 수 있습니다)'
-        for lbl in new_labels
-    ]
-
-    referrer_totals = {}
-    etc_breakdown = {k: {'label': ETC_ITEM_LABELS[k], 'users': 0, 'sessions': 0} for k in ETC_ITEM_ORDER}
-    etc_order = list(ETC_ITEM_ORDER)
-    for r in raw_rows:
-        gkey = GROUP_DAILY_KEYS.get(r['channel'])
-        if gkey is not None:
-            referrer_totals[gkey] = r['activeUsers'] or 0
-            continue
-        ikey = ETC_ITEM_KEYS.get(r['channel'])
-        if ikey is not None:
-            etc_breakdown[ikey] = {'label': ETC_ITEM_LABELS[ikey], 'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
-        elif classify_source(r['channel']) == 'etcGrp':
-            key = r['channel']
-            label = f'기타({key})' if key else '기타(빈 값)'
-            etc_breakdown[key] = {'label': label, 'users': r['activeUsers'] or 0, 'sessions': r['sessions']}
-            if key not in etc_order:
-                etc_order.append(key)
-
-    for gkey in ('lg', 'direct'):
-        referrer_totals.setdefault(gkey, 0)  # 해당 기간에 0건이면 행 자체가 없을 수 있음(정상)
-
-    referrer_totals['naverGrp'] = _read_single_value(indir, 'naver_period.json')
-    referrer_totals['googleGrp'] = _read_single_value(indir, 'google_period.json')
-    referrer_totals['etcGrp'] = _read_single_value(indir, 'etc_period.json')
-    referrer_totals['notSet'] = _read_single_value(indir, 'notset_period.json')
-
-    total_period = _read_single_value(indir, 'total_period.json')
-
-    return referrer_totals, etc_breakdown, etc_order, total_period, label_warnings
+    return total_daily_incr, all_dates
 
 
 def load_firstuser_incremental(indir):
@@ -288,7 +172,7 @@ def load_firstuser_incremental(indir):
     firstuser_raw_incremental.json을 FIRST_USER_LABEL_TO_GROUP으로 단순 합산(정확함 —
     firstUserSource는 사용자당 평생 1개). 매핑에 없는 값은 classify_source()로 자동
     분류해서 그대로 합산에 포함한다(단순 합산이 정확하므로 병합 쿼리가 필요 없어
-    sessionSource와 달리 즉시 정확하다)."""
+    즉시 정확하다)."""
     incr = {k: {} for k in GROUP_KEYS}
     rows = _read_rows(indir, 'firstuser_raw_incremental.json')
     unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
@@ -327,9 +211,9 @@ def load_firstuser_period(indir):
 # ---------------------------------------------------------------------------
 
 def merge_and_slide(old_series, incr_series, new_from, new_to):
-    """old_series: {date:[u,s]}. incr_series의 값으로 덮어쓰기 허용(최근 며칠은 재확정되며 값이
-    바뀔 수 있음 — 퍼널 리포트와 달리 이 리포트는 덮어쓰기를 막지 않는다). 그 다음 new_from~new_to
-    범위 밖 날짜는 전부 제거해 윈도우를 정확히 14일로 유지한다."""
+    """old_series: {date:[u,s]} 또는 {date:u}. incr_series의 값으로 덮어쓰기 허용(최근 며칠은
+    재확정되며 값이 바뀔 수 있음 — 퍼널 리포트와 달리 이 리포트는 덮어쓰기를 막지 않는다).
+    그 다음 new_from~new_to 범위 밖 날짜는 전부 제거해 윈도우를 정확히 14일로 유지한다."""
     combined = dict(old_series)
     combined.update(incr_series)
     return {d: v for d, v in combined.items() if new_from <= d <= new_to}
@@ -340,7 +224,7 @@ def merge_and_slide(old_series, incr_series, new_from, new_to):
 # ---------------------------------------------------------------------------
 
 def validate_group_series(label, new_daily, new_totals, new_from, new_to):
-    """REFERRER_*/FIRST_USER_* 공통 — 6개 그룹 일별/기간 값 검증. label은 에러 메시지 접두사."""
+    """FIRST_USER_* 6개 그룹 일별/기간 값 검증. label은 에러 메시지 접두사."""
     warnings = []
 
     for gkey, series in new_daily.items():
@@ -424,16 +308,6 @@ def render_totals_block(name, totals):
     return '\n'.join(lines)
 
 
-def render_etc_block(etc_breakdown, etc_order):
-    lines = ['  const ETC_BREAKDOWN = [']
-    for key in etc_order:
-        v = etc_breakdown[key]
-        esc_label = v['label'].replace("\\", "\\\\").replace("'", "\\'")
-        lines.append(f"    {{ label: '{esc_label}', users: {v['users']}, sessions: {v['sessions']} }},")
-    lines.append('  ];')
-    return '\n'.join(lines)
-
-
 def render_total_daily(total_daily):
     json_str = json.dumps(dict(sorted(total_daily.items())), separators=(',', ':'))
     return f'  const TOTAL_DAILY = {json_str};'
@@ -472,18 +346,15 @@ def main():
 
     date_range = parse_scalars(src)
 
-    daily_start, daily_end, daily_body = extract_block(src, 'REFERRER_DAILY', '  ')
     _, _, total_daily_body = extract_single_line_block(src, 'TOTAL_DAILY', '  ')
     _, _, fu_daily_body = extract_block(src, 'FIRST_USER_DAILY', '  ')
 
-    old_daily = parse_daily_block(daily_body)
     old_fu_daily = parse_daily_block(fu_daily_body)
     for k in GROUP_KEYS:
-        old_daily.setdefault(k, {})
         old_fu_daily.setdefault(k, {})
     old_total_daily = json.loads(total_daily_body.strip())
 
-    incr_daily, incr_total_daily, incoming_dates, incr_label_warnings = load_incremental(args.indir)
+    incr_total_daily, incoming_dates = load_total_incremental(args.indir)
     incr_fu_daily, fu_incoming_dates, fu_incr_label_warnings = load_firstuser_incremental(args.indir)
 
     new_to = max(incoming_dates)
@@ -498,34 +369,23 @@ def main():
     if not fu_incoming_dates or max(fu_incoming_dates) < new_to:
         extra_warnings.append(
             f'firstuser_raw_incremental.json에 {new_to}까지의 데이터가 없습니다 — '
-            f'FIRST_USER_DAILY가 REFERRER_DAILY보다 최신성이 뒤처질 수 있습니다.'
+            f'FIRST_USER_DAILY가 TOTAL_DAILY보다 최신성이 뒤처질 수 있습니다.'
         )
 
-    new_daily = {k: merge_and_slide(old_daily.get(k, {}), incr_daily.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
     new_total_daily = merge_and_slide({}, dict(old_total_daily, **incr_total_daily), new_from, new_to)
     new_fu_daily = {k: merge_and_slide(old_fu_daily.get(k, {}), incr_fu_daily.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
 
-    new_totals, new_etc, new_etc_order, new_total_period, period_label_warnings = load_period(args.indir)
     new_fu_totals, fu_period_label_warnings = load_firstuser_period(args.indir)
+    new_total_period = _read_single_value(args.indir, 'total_period.json')
 
     warnings = extra_warnings
-    warnings += incr_label_warnings + period_label_warnings + fu_incr_label_warnings + fu_period_label_warnings
-    warnings += validate_group_series('REFERRER', new_daily, new_totals, new_from, new_to)
+    warnings += fu_incr_label_warnings + fu_period_label_warnings
     warnings += validate_total_daily(new_total_daily, new_total_period, new_from, new_to)
     warnings += validate_group_series('FIRST_USER', new_fu_daily, new_fu_totals, new_from, new_to)
 
     generated_at = args.generated_at or datetime.now(timezone.utc).strftime(GENERATED_AT_FMT)
 
     new_src = src
-    d_start, d_end, _ = extract_block(new_src, 'REFERRER_DAILY', '  ')
-    new_src = replace_block_text(new_src, d_start, d_end, render_daily_block('REFERRER_DAILY', new_daily))
-
-    t_start, t_end, _ = extract_block(new_src, 'REFERRER_TOTALS', '  ')
-    new_src = replace_block_text(new_src, t_start, t_end, render_totals_block('REFERRER_TOTALS', new_totals))
-
-    e_start, e_end, _ = extract_block(new_src, 'ETC_BREAKDOWN', '  ', open_ch='[', close_ch=']')
-    new_src = replace_block_text(new_src, e_start, e_end, render_etc_block(new_etc, new_etc_order))
-
     td_start, td_end, _ = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
     new_src = replace_block_text(new_src, td_start, td_end, render_total_daily(new_total_daily))
 
@@ -538,10 +398,8 @@ def main():
     new_src = patch_scalars(new_src, new_from, new_to, new_total_period, generated_at)
 
     # --- 스모크 테스트: 재작성한 소스를 다시 파싱해 라운드트립 일치 확인 ---
-    _, _, chk_daily_body = extract_block(new_src, 'REFERRER_DAILY', '  ')
     _, _, chk_total_daily_body = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
     _, _, chk_fu_daily_body = extract_block(new_src, 'FIRST_USER_DAILY', '  ')
-    assert parse_daily_block(chk_daily_body) == new_daily
     assert json.loads(chk_total_daily_body.strip()) == new_total_daily
     assert parse_daily_block(chk_fu_daily_body) == new_fu_daily
     chk_range = parse_scalars(new_src)
@@ -552,7 +410,6 @@ def main():
 
     print('=== update_ga4_channel_unsedang.py 요약 ===')
     print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (14일 유지, 롤링)')
-    print(f'[레퍼러 도메인] 그룹별 기간 합계(활성사용자): {new_totals}')
     print(f'[첫 사용자 소스] 그룹별 기간 합계(활성사용자): {new_fu_totals}')
     print(f'전체 기간 합계(활성사용자): {new_total_period}')
     if warnings:
