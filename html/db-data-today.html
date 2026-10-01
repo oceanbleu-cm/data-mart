@@ -670,11 +670,29 @@
       `출처: <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
   }
 
-  function init() {
+  // D-1 기준으로 데이터가 적재되는 구조라, 당월 첫날(예: 10/1)엔 전날(9/30)이 아직
+  // 당월에 속하지 않아 당월 dailyStats가 비어 있다. 이 경우 당월 탭 자체를 숨기고,
+  // 실제로 하루치라도 쌓이는 날(예: 10/2, 10/1 데이터 노출)부터 탭이 나타나게 한다.
+  async function init() {
     renderCarrierTabs();
+    renderLoadingCard('데이터 불러오는 중...');
     const tabsEl = document.getElementById('tabs');
-    const months = getMonthOrder();
+    let months = getMonthOrder();
     const year = months[0].split('-')[0];
+
+    const lastMonthKey = months[months.length - 1];
+    let lastMonthData;
+    try {
+      lastMonthData = await fetchMonth(selectedCarrier, lastMonthKey);
+    } catch (e) {
+      lastMonthData = undefined; // 조회 실패 시엔 탭을 그대로 두고 월 뷰에서 재시도하게 둔다
+    }
+    const lastMonthDailyStats = lastMonthData && lastMonthData.carrierStats && lastMonthData.carrierStats[0] && lastMonthData.carrierStats[0].monthly
+      ? lastMonthData.carrierStats[0].monthly.dailyStats
+      : undefined;
+    if (lastMonthData && (!lastMonthDailyStats || lastMonthDailyStats.length === 0) && months.length > 1) {
+      months = months.slice(0, -1);
+    }
 
     const yearBtn = document.createElement('button');
     yearBtn.className = 'tab-btn tab-btn-summary';
@@ -708,8 +726,9 @@
     tabsEl.appendChild(reloadBtn);
 
     updateFooter();
-    currentView = { type: 'month', key: months[months.length - 1] };
-    renderMonth(months[months.length - 1]);
+    const defaultMonthKey = months[months.length - 1];
+    currentView = { type: 'month', key: defaultMonthKey };
+    renderMonth(defaultMonthKey);
   }
 
   init();

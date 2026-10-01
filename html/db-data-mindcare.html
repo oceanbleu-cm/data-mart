@@ -375,7 +375,18 @@
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       const res = await fetch(url, { mode: 'cors', signal: controller.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // 이 API는 해당 월 데이터가 아직 없으면(D-1 집계 전) 200이 아니라 에러 응답으로
+        // 알려준다(resCd '8888') — 진짜 장애와 구분해서 "데이터 없음"으로 처리한다.
+        let body = null;
+        try { body = await res.json(); } catch (_) {}
+        if (body && body.resCd === '8888') {
+          const err = new Error(body.resMsg || '집계된 데이터가 없는 월입니다.');
+          err.noData = true;
+          throw err;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data = await res.json();
       const fetchedAt = new Date();
       monthCache.set(monthKey, { data, fetchedAt });
@@ -755,10 +766,28 @@
       `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
   }
 
-  function init() {
+  // D-1 기준으로 데이터가 적재되는 구조라, 당월 첫날(예: 10/1)엔 전날(9/30)이 아직
+  // 당월에 속하지 않아 당월 dailyStats가 비어 있다. 이 경우 당월 탭 자체를 숨기고,
+  // 실제로 하루치라도 쌓이는 날(예: 10/2, 10/1 데이터 노출)부터 탭이 나타나게 한다.
+  async function init() {
+    renderLoadingCard('데이터 불러오는 중...');
     const tabsEl = document.getElementById('tabs');
-    const months = getMonthOrder();
+    let months = getMonthOrder();
     const year = months[0].split('-')[0];
+
+    const lastMonthKey = months[months.length - 1];
+    let lastMonthData;
+    let lastMonthNoData = false;
+    try {
+      lastMonthData = await fetchMonth(lastMonthKey);
+    } catch (e) {
+      lastMonthNoData = !!e.noData; // resCd 8888(해당 월 데이터 없음)이면 탭을 숨긴다
+      lastMonthData = undefined; // 그 외 진짜 조회 실패는 탭을 그대로 두고 월 뷰에서 재시도하게 둔다
+    }
+    const lastMonthEmpty = lastMonthData && (!lastMonthData.dailyStats || lastMonthData.dailyStats.length === 0);
+    if ((lastMonthNoData || lastMonthEmpty) && months.length > 1) {
+      months = months.slice(0, -1);
+    }
 
     const yearBtn = document.createElement('button');
     yearBtn.className = 'tab-btn tab-btn-summary';
@@ -792,8 +821,9 @@
     tabsEl.appendChild(reloadBtn);
 
     updateFooter();
-    currentView = { type: 'month', key: months[months.length - 1] };
-    renderMonth(months[months.length - 1]);
+    const defaultMonthKey = months[months.length - 1];
+    currentView = { type: 'month', key: defaultMonthKey };
+    renderMonth(defaultMonthKey);
   }
 
   init();
