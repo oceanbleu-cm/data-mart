@@ -208,7 +208,14 @@
   thead th:first-child { text-align: center; }
   thead tr:first-child > th:first-child { text-align: left; }
   tbody tr:nth-child(even) { background: var(--stripe); }
-  tfoot td { font-weight: 400; border-top: 2px solid var(--border); border-bottom: none; }
+  tbody tr.total-row td { border-top: 2px solid var(--total-text); }
+  tbody tr.avg-sub-row td, tfoot tr.avg-sub-row td {
+    color: var(--text-dim);
+    font-style: italic;
+    border-bottom: 2px solid var(--positive);
+  }
+  tfoot td { font-weight: 400; border-bottom: none; }
+  tfoot tr:first-child td { border-top: 2px solid var(--total-text); }
   th.col-m-amount { background: var(--prepaid-head-bg); color: var(--prepaid-text); }
   td.col-m-amount { background: var(--prepaid-bg); }
   th.col-total { background: var(--total-head-bg); color: var(--total-text); }
@@ -339,6 +346,13 @@
   function aggMatches(a, b) {
     return ['prepaid', 'postpaid'].every((k) => AGG_FIELDS.every((f) => a[k][f] === b[k][f]));
   }
+  function divideAgg(agg, divisor) {
+    const out = emptyAgg();
+    for (const k of ['prepaid', 'postpaid']) {
+      for (const f of AGG_FIELDS) out[k][f] = divisor > 0 ? Math.round(agg[k][f] / divisor) : 0;
+    }
+    return out;
+  }
 
   function buildDays(monthData) {
     return [...monthData.dailyStats]
@@ -354,13 +368,9 @@
     const revAll = revAgg.prepaid.total + revAgg.postpaid.total;
     const revNew = revAgg.prepaid.newConsultation + revAgg.postpaid.newConsultation;
     const revRepeat = revAgg.prepaid.repeatConsultation + revAgg.postpaid.repeatConsultation;
-    const revSameDay = revAgg.prepaid.sameDayRepeatConsultation + revAgg.postpaid.sameDayRepeatConsultation;
-    const revLater = revAgg.prepaid.laterRepeatConsultation + revAgg.postpaid.laterRepeatConsultation;
     const cntAll = cntAgg.prepaid.total + cntAgg.postpaid.total;
     const cntNew = cntAgg.prepaid.newConsultation + cntAgg.postpaid.newConsultation;
     const cntRepeat = cntAgg.prepaid.repeatConsultation + cntAgg.postpaid.repeatConsultation;
-    const cntSameDay = cntAgg.prepaid.sameDayRepeatConsultation + cntAgg.postpaid.sameDayRepeatConsultation;
-    const cntLater = cntAgg.prepaid.laterRepeatConsultation + cntAgg.postpaid.laterRepeatConsultation;
     return `
       <h2>${titleHtml}</h2>
       <div class="stat-group-title">매출</div>
@@ -369,7 +379,7 @@
         <div class="stat"><div class="label">선불</div><div class="value">${won(revAgg.prepaid.total)}</div></div>
         <div class="stat"><div class="label">후불</div><div class="value">${won(revAgg.postpaid.total)}</div></div>
         <div class="stat"><div class="label">신규</div><div class="value">${won(revNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${won(revRepeat)}</div><div class="sub">당일 ${won(revSameDay)} · 이후 ${won(revLater)}</div></div>
+        <div class="stat"><div class="label">재상담</div><div class="value">${won(revRepeat)}</div></div>
       </div>
       <div class="stat-group-title">상담 건수</div>
       <div class="summary-grid">
@@ -377,7 +387,7 @@
         <div class="stat"><div class="label">선불</div><div class="value">${cnt(cntAgg.prepaid.total)}${uc(userAgg && userAgg.prepaid.total)}</div></div>
         <div class="stat"><div class="label">후불</div><div class="value">${cnt(cntAgg.postpaid.total)}${uc(userAgg && userAgg.postpaid.total)}</div></div>
         <div class="stat"><div class="label">신규</div><div class="value">${cnt(cntNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div><div class="sub">당일 ${cnt(cntSameDay)} · 이후 ${cnt(cntLater)}</div></div>
+        <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div></div>
       </div>`;
   }
 
@@ -388,10 +398,10 @@
       <span><span class="swatch amount"></span>매출·건수 · 재상담(당일)</span>
     </div>`;
 
-  function revenueTableHtml({ headLabel, rows, sumRev, sumRevTotal, avgAll, hintHtml, checkHtml }) {
+  function revenueTableHtml({ headLabel, rows, sumRev, sumRevTotal, avgAll, avgDivisor, avgLabel, hintHtml, checkHtml }) {
     const bodyRows = rows
       .map(
-        (r) => `<tr>
+        (r) => `<tr${r.rowClass ? ` class="${r.rowClass}"` : ''}>
         <td>${r.label}</td>
         <td class="col-total">${won(r.revTotal)}</td>
         <td>${won(r.avg)}</td>
@@ -406,6 +416,24 @@
       </tr>`
       )
       .join('');
+    const showAvgFoot = avgDivisor > 0;
+    const avgRev = showAvgFoot ? divideAgg(sumRev, avgDivisor) : null;
+    const avgRevTotal = showAvgFoot ? Math.round(sumRevTotal / avgDivisor) : 0;
+    const avgFootRow = showAvgFoot
+      ? `<tr class="avg-sub-row">
+              <td>${avgLabel}</td>
+              <td class="col-total">${won(avgRevTotal)}</td>
+              <td>${won(avgAll)}</td>
+              <td class="col-m-amount grp-start">${won(avgRev.prepaid.total)}</td>
+              <td>${won(avgRev.prepaid.newConsultation)}</td>
+              <td class="col-m-amount">${won(avgRev.prepaid.sameDayRepeatConsultation)}</td>
+              <td>${won(avgRev.prepaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${won(avgRev.postpaid.total)}</td>
+              <td>${won(avgRev.postpaid.newConsultation)}</td>
+              <td class="col-m-amount">${won(avgRev.postpaid.sameDayRepeatConsultation)}</td>
+              <td>${won(avgRev.postpaid.laterRepeatConsultation)}</td>
+            </tr>`
+      : '';
     return `
       <h2>매출 <span class="hint">${hintHtml}</span></h2>
       ${GROUP_LEGEND_HTML}
@@ -439,6 +467,7 @@
               <td class="col-m-amount">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
               <td>${won(sumRev.postpaid.laterRepeatConsultation)}</td>
             </tr>
+            ${avgFootRow}
           </tfoot>
         </table>
       </div>
@@ -451,11 +480,11 @@
   // 유효한 합산값을 주지 않으므로 붙이지 않는다. footUserCount는 tfoot 합계 행 전용 —
   // 여러 행(일/월)을 합산한 값이라 API가 준 값이 있을 때만(월간 뷰) 넘기고, 연간 뷰처럼
   // 직접 합산한 값밖에 없을 때는 넘기지 않는다(합산 자체가 부정확하므로).
-  function countTableHtml({ headLabel, rows, sumCnt, sumCntTotal, hintHtml, checkHtml, footUserCount }) {
+  function countTableHtml({ headLabel, rows, sumCnt, sumCntTotal, avgDivisor, avgLabel, hintHtml, checkHtml, footUserCount }) {
     const bodyRows = rows
       .map((r) => {
         const u = r.userCount;
-        return `<tr>
+        return `<tr${r.rowClass ? ` class="${r.rowClass}"` : ''}>
         <td>${r.label}</td>
         <td class="col-total">${cnt(r.cntTotal)}${uc(u && u.prepaid.total + u.postpaid.total)}</td>
         <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}${uc(u && u.prepaid.total)}</td>
@@ -470,6 +499,23 @@
       })
       .join('');
     const fu = footUserCount;
+    const showAvgFoot = avgDivisor > 0;
+    const avgCnt = showAvgFoot ? divideAgg(sumCnt, avgDivisor) : null;
+    const avgCntTotal = showAvgFoot ? Math.round(sumCntTotal / avgDivisor) : 0;
+    const avgFootRow = showAvgFoot
+      ? `<tr class="avg-sub-row">
+              <td>${avgLabel}</td>
+              <td class="col-total">${cnt(avgCntTotal)}</td>
+              <td class="col-m-amount grp-start">${cnt(avgCnt.prepaid.total)}</td>
+              <td>${cnt(avgCnt.prepaid.newConsultation)}</td>
+              <td class="col-m-amount">${cnt(avgCnt.prepaid.sameDayRepeatConsultation)}</td>
+              <td>${cnt(avgCnt.prepaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount grp-start">${cnt(avgCnt.postpaid.total)}</td>
+              <td>${cnt(avgCnt.postpaid.newConsultation)}</td>
+              <td class="col-m-amount">${cnt(avgCnt.postpaid.sameDayRepeatConsultation)}</td>
+              <td>${cnt(avgCnt.postpaid.laterRepeatConsultation)}</td>
+            </tr>`
+      : '';
     return `
       <h2>상담 건수 <span class="hint">${hintHtml}</span></h2>
       ${GROUP_LEGEND_HTML}
@@ -501,6 +547,7 @@
               <td class="col-m-amount">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}${uc(fu && fu.postpaid.sameDayRepeatConsultation)}</td>
               <td>${cnt(sumCnt.postpaid.laterRepeatConsultation)}${uc(fu && fu.postpaid.laterRepeatConsultation)}</td>
             </tr>
+            ${avgFootRow}
           </tfoot>
         </table>
       </div>
@@ -614,6 +661,47 @@
         avg,
       };
     });
+
+    // 최근 7일 합계/평균 — 일별 테이블 중간(최근 7일 rows 바로 아래)에 삽입하는 두 행.
+    // 합계 행은 tfoot 합계 행과 동일하게 최근 7일 원본 데이터를 그대로 합산, 평균 행은
+    // 그 합계를 7로 나눈 일평균이다. 7일치가 안 차면(월초 등) 둘 다 삽입하지 않는다.
+    if (days.length >= 7) {
+      const last7 = days.slice(0, 7);
+      const last7Rev = emptyAgg();
+      const last7Cnt = emptyAgg();
+      for (const d of last7) {
+        addInto(last7Rev, d.revenue);
+        addInto(last7Cnt, d.consultationCount);
+      }
+      const last7RevTotal = last7Rev.prepaid.total + last7Rev.postpaid.total;
+      const last7CntTotal = last7Cnt.prepaid.total + last7Cnt.postpaid.total;
+      const last7AvgPerConsult = last7CntTotal > 0 ? Math.round(last7RevTotal / last7CntTotal) : 0;
+      dayRows.splice(
+        7,
+        0,
+        {
+          label: '최근 7일 합계',
+          revenue: last7Rev,
+          consultationCount: last7Cnt,
+          userCount: null,
+          revTotal: last7RevTotal,
+          cntTotal: last7CntTotal,
+          avg: last7AvgPerConsult,
+          rowClass: 'total-row',
+        },
+        {
+          label: '최근 7일 평균',
+          revenue: divideAgg(last7Rev, 7),
+          consultationCount: divideAgg(last7Cnt, 7),
+          userCount: null,
+          revTotal: Math.round(last7RevTotal / 7),
+          cntTotal: Math.round(last7CntTotal / 7),
+          avg: last7AvgPerConsult,
+          rowClass: 'avg-sub-row',
+        }
+      );
+    }
+
     const sumRevTotal = sumRev.prepaid.total + sumRev.postpaid.total;
     const sumCntTotal = sumCnt.prepaid.total + sumCnt.postpaid.total;
     const avgAll = sumCntTotal > 0 ? Math.round(sumRevTotal / sumCntTotal) : 0;
@@ -629,6 +717,8 @@
       sumRev,
       sumRevTotal,
       avgAll,
+      avgDivisor: days.length,
+      avgLabel: '일 평균',
       hintHtml: '해당 월 일별 매출 내역',
       checkHtml: `<div class="check-row ${revMatches ? 'ok' : 'bad'}">
         ${revMatches ? '일별 매출 합계가 월 API 합계와 일치합니다.' : '일별 매출 합계가 월 API 합계와 다릅니다 — 데이터 확인 필요.'}
@@ -643,6 +733,8 @@
       rows: dayRows,
       sumCnt,
       sumCntTotal,
+      avgDivisor: days.length,
+      avgLabel: '일 평균',
       footUserCount: m.userCount,
       hintHtml: '해당 월 일별 상담건수 내역',
       checkHtml: `<div class="check-row ${cntMatches ? 'ok' : 'bad'}">
@@ -752,6 +844,8 @@
       sumRev: yearRev,
       sumRevTotal: yearRevTotal,
       avgAll: yearAvg,
+      avgDivisor: monthRows.length,
+      avgLabel: '월 평균',
       hintHtml: `${year}년 월별 매출 내역`,
     });
     content.appendChild(revenueCard);
@@ -763,6 +857,8 @@
       rows: monthRows,
       sumCnt: yearCnt,
       sumCntTotal: yearCntTotal,
+      avgDivisor: monthRows.length,
+      avgLabel: '월 평균',
       hintHtml: `${year}년 월별 상담건수 내역`,
     });
     content.appendChild(countCard);
@@ -790,10 +886,25 @@
       `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
   }
 
-  function init() {
+  // D-1 기준으로 데이터가 적재되는 구조라, 당월 첫날(예: 10/1)엔 전날(9/30)이 아직
+  // 당월에 속하지 않아 당월 dailyStats가 비어 있다. 이 경우 당월 탭 자체를 숨기고,
+  // 실제로 하루치라도 쌓이는 날(예: 10/2, 10/1 데이터 노출)부터 탭이 나타나게 한다.
+  async function init() {
+    renderLoadingCard('데이터 불러오는 중...');
     const tabsEl = document.getElementById('tabs');
-    const months = getMonthOrder();
+    let months = getMonthOrder();
     const year = months[0].split('-')[0];
+
+    const lastMonthKey = months[months.length - 1];
+    let lastMonthData;
+    try {
+      lastMonthData = await fetchMonth(lastMonthKey);
+    } catch (e) {
+      lastMonthData = undefined; // 조회 실패 시엔 탭을 그대로 두고 월 뷰에서 재시도하게 둔다
+    }
+    if (lastMonthData && (!lastMonthData.dailyStats || lastMonthData.dailyStats.length === 0) && months.length > 1) {
+      months = months.slice(0, -1);
+    }
 
     const yearBtn = document.createElement('button');
     yearBtn.className = 'tab-btn tab-btn-summary';
@@ -827,8 +938,9 @@
     tabsEl.appendChild(reloadBtn);
 
     updateFooter();
-    currentView = { type: 'month', key: months[months.length - 1] };
-    renderMonth(months[months.length - 1]);
+    const defaultMonthKey = months[months.length - 1];
+    currentView = { type: 'month', key: defaultMonthKey };
+    renderMonth(defaultMonthKey);
   }
 
   init();
