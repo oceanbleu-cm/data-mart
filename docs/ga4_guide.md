@@ -84,9 +84,13 @@ Claude Code에서 같은 작업을 이어갈 때 참고하세요.
 ### unsedang.com (운세당)
 - `/view/home`: 홈메인
 - `/view/csl`: 상담사 목록
+- `/view/ai-note`: AI 상담목록
+- `/view/ai-note/noteInfo`: AI 상담보기
 - `/view/csl/cslInfo?cslKey=N`: 상담사 상세 (N = 상담사 ID)
-- `/view/free`, `/view/free/registrationStart`, `/registrationForm`, `/registrationEnd`: 쪽지상담 4단계
-- `/view/content`, `/view/fortune/unseYear` 등: 운세 콘텐츠
+- `/view/content`: 운세
+- `view/csl/totalRatingComment`: 후기
+- `pre_tel_click`, `post_tel_click`: 상담하기
+
 - 이벤트: `pre_tel_click`(구), `post_tel_click`(신) — 상담 전화 연결 클릭. 두 이벤트 혼재 가능성 있음, 확인 필요
 - GTM 컨테이너: `GTM-5KCGHNWV` (계정 "운세당", 컨테이너 ID `232663874`)
 

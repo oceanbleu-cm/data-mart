@@ -20,23 +20,34 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 
 이 문구는 §8에서 사용자에게 그대로 전달한다.
 
-**퍼널 단계(화면 표시 순서, 8단계)**: 홈메인 → 상담사 목록 → AI 상담목록 → AI 상담보기 →
-상담사 상세 → 운세 → 후기 → 상담하기. 앞의 6단계는 페이지 조회수 기반(`PAGE_PATH_TO_KEY`
-참고), 마지막 "상담하기"는 `pre_tel_click`(선불)과 `post_tel_click`(후불) 두 이벤트를
-**하나의 필터**(`eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`)로 묶어
-`activeUsers`를 재조회한 값(`DAILY_CALL`/`CALL_TOTAL`, 페이지와는 별개의 독립 시리즈)이다.
+**퍼널 단계(화면 표시 순서, 8단계)**: 홈메인 → 상담사 목록 → 상담사 상세 → AI 상담목록 →
+AI 상담보기 → 상담하기 → 운세 → 후기. 앞의 6단계(상담하기 제외)는 페이지 조회수 기반
+(`PAGE_PATH_TO_KEY` 참고), "상담하기"는 `pre_tel_click`(선불)과 `post_tel_click`(후불) 두
+이벤트를 **하나의 필터**(`eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`)로
+묶어 `activeUsers`를 재조회한 값(`DAILY_CALL`/`CALL_TOTAL`, 페이지와는 별개의 독립 시리즈)이다.
 `eventName`을 dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 사용자가 중복
 집계되지 않는다.
 
-**배열 순서**: `DAILY_PAGES`의 `[a,b]` = `[활성사용자, 세션]`. `DAILY_CALL`의 `[a,b]` =
-`[활성사용자, 이벤트수(eventCount)]`.
+**이 외에 두 지표가 더 있고, 이 커맨드가 매 실행마다 함께 롤링한다**:
+- **전체 활성사용자수**(홈메인 위에 표시, `DAILY_SITE`/`SITE_ACTIVE_USERS_TOTAL`): 페이지/
+  이벤트 dimension 없이 사이트 전체를 집계한 별도 시리즈.
+- **하위그룹**(`DAILY_SUBEVENTS`/`SUBEVENT_TOTALS`, "상담사 상세"/"AI 상담보기" 아래 표시):
+  `EVENT_KEYS` 7개 이벤트(`ai-note-agree-pop`, `ai-note-cancel-click`, `ai-note-agree-click`,
+  `ai-note-review-skip`, `ai-note-review-next`, `ai-note-review-submit`,
+  `ai-note-councel-click`) — 전부 2026-09-30부터 신규 집계된 이벤트라 그 이전 날짜는 0이
+  정상이다.
 
-**새 페이지 경로/이벤트가 필요해지면(예: 신규 기능 추가) 이 커맨드/스크립트만으로는
-처리할 수 없다** — `scripts/update_ga4_unsedang.py`의 `PAGE_PATH_TO_KEY`/`PAGE_KEYS`와
-HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. 알 수 없는 경로가
-쿼리 결과에 섞여 있으면 스크립트가 `SafetyError`로 중단한다(자동 분류하지 않음 —
-`update-ga4-channel-unsedang`의 sessionSource와 달리 페이지 목록은 고정된 소수 집합이라
-조용히 넘어가면 안 된다).
+**배열 순서**: `DAILY_PAGES`의 `[a,b]` = `[활성사용자, 세션]`. `DAILY_CALL`의 `[a,b]` =
+`[활성사용자, 이벤트수(eventCount)]`. `DAILY_SITE`는 `{date: 활성사용자}` (스칼라 하나).
+`DAILY_SUBEVENTS`는 `{eventName: {date: 활성사용자}}` (스칼라 하나).
+
+**새 페이지 경로/이벤트/하위그룹 이벤트가 필요해지면(예: 신규 기능 추가) 이 커맨드/
+스크립트만으로는 처리할 수 없다** — `scripts/update_ga4_unsedang.py`의
+`PAGE_PATH_TO_KEY`/`PAGE_KEYS`/`EVENT_KEYS`와 HTML의 `STEPS`/`SUBGROUPS`/`DAILY_PAGES`/
+`DAILY_SUBEVENTS`를 사람이 먼저 함께 갱신해야 한다. 알 수 없는 경로/eventName이 쿼리
+결과에 섞여 있으면 스크립트가 `SafetyError`로 중단한다(자동 분류하지 않음 —
+`update-ga4-channel-unsedang`의 sessionSource와 달리 페이지/이벤트 목록은 고정된 소수
+집합이라 조용히 넘어가면 안 된다).
 
 이 커맨드가 실제로 Supermetrics를 호출하는 건 여기(에이전트)뿐이다.
 `scripts/update_ga4_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 MCP를
@@ -53,7 +64,7 @@ HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. �
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
 5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
-## §2 증분 쿼리 2건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
+## §2 증분 쿼리 4건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
 `ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
 `start_date=incr_from`, `end_date=new_to`.
@@ -69,9 +80,20 @@ HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. �
 - fields: `date,activeUsers,eventCount`
 - filter: `eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`
 
+**쿼리 5 — 전체 활성사용자수(사이트 전체, dimension 없음)**
+- fields: `date,activeUsers`
+- filter: 없음
+
+**쿼리 6 — 하위그룹 7종 (한 번에)**
+- fields: `date,eventName,activeUsers`
+- filter (IN-list 연산자, 문자 그대로 복사):
+  ```
+  eventName [] ["ai-note-agree-pop","ai-note-cancel-click","ai-note-agree-click","ai-note-review-skip","ai-note-review-next","ai-note-review-submit","ai-note-councel-click"]
+  ```
+
 응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
 
-## §3 기간 전체 쿼리 2건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
+## §3 기간 전체 쿼리 4건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
 
 `date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
 `date`를 뺀다.**
@@ -85,24 +107,36 @@ HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. �
   해당하는 값 전체)
 - filter: 쿼리 2와 동일
 
+**쿼리 7 — 전체 활성사용자수 기간 합계**
+- fields: `activeUsers` (**dimension 없음**)
+- filter: 없음
+
+**쿼리 8 — 하위그룹 기간 합계**
+- fields: `eventName,activeUsers` (dimension은 `eventName`만, `date` 뺌)
+- filter: 쿼리 6과 동일
+
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다(`docs/ga4_guide.md` §2-4). 이 리포트는 누적이 아니라 "최근 90일"
-> 롤링 윈도우이므로, 창이 하루 밀릴 때마다 페이지별·상담하기 순사용자 수를 처음부터
-> 다시 계산해야 정확하다.
+> 롤링 윈도우이므로, 창이 하루 밀릴 때마다 페이지별·상담하기·전체·하위그룹 순사용자 수를
+> 처음부터 다시 계산해야 정확하다.
 
 ## §4 임시 JSON 저장
 
-`mkdir -p /tmp/ga4-funnel-update/<YYYYMMDD-HHMMSS>/` 후 아래 4개 파일을 Write:
+`mkdir -p /tmp/ga4-funnel-update/<YYYYMMDD-HHMMSS>/` 후 아래 8개 파일을 Write:
 
 - `pages_incremental.json`: `{"rows":[{"date","path","activeUsers","sessions"}, ...]}` (쿼리1)
 - `pages_period.json`: `{"rows":[{"path","activeUsers"}, ...]}` (쿼리3)
 - `call_incremental.json`: `{"rows":[{"date","activeUsers","eventCount"}, ...]}` (쿼리2)
 - `call_period.json`: `{"rows":[{"activeUsers","eventCount"}]}` (쿼리4, **한 행만**)
+- `site_incremental.json`: `{"rows":[{"date","activeUsers"}, ...]}` (쿼리5)
+- `site_period.json`: `{"rows":[{"activeUsers"}]}` (쿼리7, **한 행만**)
+- `subevents_incremental.json`: `{"rows":[{"date","eventName","activeUsers"}, ...]}` (쿼리6)
+- `subevents_period.json`: `{"rows":[{"eventName","activeUsers"}, ...]}` (쿼리8)
 
-`path` 필드는 `pagePathWithoutQueryString` 응답값 그대로 쓴다(예: `/view/home`,
-`/view/csl/cslInfo`). 값이 0이거나 GA4 응답에 없던 날짜/경로는 행을 만들지 않아도 된다
-(원본도 희소 저장 방식 — 특히 "AI 상담목록"/"AI 상담보기"는 트래픽이 매우 적어 대부분의
-날짜에 행이 없는 것이 정상이다).
+`path` 필드는 `pagePathWithoutQueryString` 응답값 그대로, `eventName` 필드는 응답값
+그대로(하이픈 포함, 예: `ai-note-agree-pop`) 쓴다. 값이 0이거나 GA4 응답에 없던
+날짜/경로/이벤트는 행을 만들지 않아도 된다(원본도 희소 저장 방식 — 특히 "AI 상담목록"/
+"AI 상담보기"/하위그룹 7종은 트래픽이 매우 적어 대부분의 날짜에 행이 없는 것이 정상이다).
 
 ## §5 스크립트 실행
 
@@ -110,8 +144,8 @@ HTML의 `STEPS`/`DAILY_PAGES`를 사람이 먼저 함께 갱신해야 한다. �
 ```
 python3 scripts/update_ga4_unsedang.py --html html/ga4-funnel-unsedang.html --indir <tmpdir> --dry-run
 ```
-출력된 요약(새 윈도우 범위, 페이지별/상담하기 기간 합계, 경고)을 확인한 뒤 `--dry-run`을
-떼고 재실행한다.
+출력된 요약(새 윈도우 범위, 페이지별/상담하기/전체 활성사용자/하위그룹 기간 합계, 경고)을
+확인한 뒤 `--dry-run`을 떼고 재실행한다.
 
 `[SafetyError]`로 중단되면 **절대 우회하지 말고** 에러 메시지를 그대로 사용자에게
 보고하고 원인을 파악한다 — HTML 블록을 못 찾음, 윈도우 밖 날짜 잔존, 음수 값, 신규
@@ -134,8 +168,8 @@ python3 scripts/update_ga4_unsedang.py --html html/ga4-funnel-unsedang.html --in
 
 ## §8 보고 + daylog
 
-1. 스크립트 출력 요약(이전 창 → 새 창, 페이지별/상담하기 기간 합계, 경고)을 사용자에게
-   전달한다.
+1. 스크립트 출력 요약(이전 창 → 새 창, 페이지별/상담하기/전체 활성사용자/하위그룹 기간
+   합계, 경고)을 사용자에게 전달한다.
 2. §0의 원칙 문구를 함께 안내한다.
 3. **이 커맨드는 실행할 때마다** `daylog/<오늘 날짜>.md`에 append한다:
    ```markdown
