@@ -38,8 +38,10 @@ firstUserSource는 사용자당 평생 하나뿐인 값이라 원본 값을 **�
 **새 firstUserSource 값은 자동으로 분류된다(SafetyError로 중단되지 않는다).**
 `scripts/update_ga4_channel_unsedang.py`의 `FIRST_USER_LABEL_TO_GROUP`에 없는 값이
 나오면 `classify_source()`가 다음 규칙으로 자동 분류한다: 원본 값에 `'naver'`가
-포함되면(대소문자 무시) `naverGrp`, `'google'`이 포함되면 `googleGrp`, `'(not set)'`이거나
-`''`(빈 문자열)이면 `notSet`, 그 외 전부 `etcGrp`. 분류 결과는 스크립트 출력의 "경고"
+포함되면(대소문자 무시) `naverGrp`, `'google'`이 포함되면 `googleGrp`, `'kakao'`가
+포함되면 `kakaoGrp`(2026-10-01 신설 — 카카오 로그인/알림톡 등을 더 이상 `etcGrp`에
+묻지 않고 별도 추적), `'(not set)'`이거나 `''`(빈 문자열)이면 `notSet`, 그 외 전부
+`etcGrp`. 분류 결과는 스크립트 출력의 "경고"
 목록에 남으므로 §8에서 사용자에게 그대로 전달해 사후 확인할 수 있게 한다(자동 분류가
 틀렸다고 판단되면 `FIRST_USER_LABEL_TO_GROUP`에 정식으로 추가해 다음부터 그 값이 "신규"로
 잡히지 않게 한다 — 급한 조치는 아니다). firstUserSource는 원본 값을 그냥 합산하므로
@@ -89,7 +91,7 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 **쿼리 4 — 첫 사용자 소스 전체 기간 합계(firstUserSource)**
 - fields: `firstUserSource,activeUsers,sessions`
 - filter: 없음
-- (병합 쿼리 없이 이 한 건으로 6개 그룹의 기간 합계를 전부 합산해서 만든다 —
+- (병합 쿼리 없이 이 한 건으로 전 그룹(GROUP_KEYS)의 기간 합계를 전부 합산해서 만든다 —
   `scripts/update_ga4_channel_unsedang.py`가 자동 분류까지 포함해 정확히 처리한다.)
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면

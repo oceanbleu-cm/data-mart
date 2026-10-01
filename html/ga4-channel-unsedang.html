@@ -20,6 +20,7 @@
     --s3-bg: #e8f7ee; --s3-head-bg: #cdedd9; --s3-text: #1f7a45;
     --s4-bg: #ffe8f0; --s4-head-bg: #ffd0e0; --s4-text: #b8236a;
     --s5-bg: #e0f7f7; --s5-head-bg: #c2eeee; --s5-text: #147a7a;
+    --s6-bg: #fffbe0; --s6-head-bg: #ffe066; --s6-text: #8a6d00;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -40,6 +41,7 @@
       --s3-bg: #123420; --s3-head-bg: #1a4a2d; --s3-text: #7fe3a8;
       --s4-bg: #3d1a28; --s4-head-bg: #4d2035; --s4-text: #ff9dc4;
       --s5-bg: #0f2e2e; --s5-head-bg: #164343; --s5-text: #6fe0e0;
+      --s6-bg: #3a3610; --s6-head-bg: #4a4515; --s6-text: #f0e074;
     }
   }
   :root[data-theme="dark"] {
@@ -60,6 +62,7 @@
     --s3-bg: #123420; --s3-head-bg: #1a4a2d; --s3-text: #7fe3a8;
     --s4-bg: #3d1a28; --s4-head-bg: #4d2035; --s4-text: #ff9dc4;
     --s5-bg: #0f2e2e; --s5-head-bg: #164343; --s5-text: #6fe0e0;
+    --s6-bg: #3a3610; --s6-head-bg: #4a4515; --s6-text: #f0e074;
   }
   * { box-sizing: border-box; }
   body {
@@ -108,12 +111,14 @@
   th.col-s3 { background: var(--s3-head-bg); color: var(--s3-text); }
   th.col-s4 { background: var(--s4-head-bg); color: var(--s4-text); }
   th.col-s5 { background: var(--s5-head-bg); color: var(--s5-text); }
+  th.col-s6 { background: var(--s6-head-bg); color: var(--s6-text); }
   td.col-s0 { background: color-mix(in srgb, var(--s0-bg) 55%, transparent); }
   td.col-s1 { background: color-mix(in srgb, var(--s1-bg) 55%, transparent); }
   td.col-s2 { background: color-mix(in srgb, var(--s2-bg) 55%, transparent); }
   td.col-s3 { background: color-mix(in srgb, var(--s3-bg) 55%, transparent); }
   td.col-s4 { background: color-mix(in srgb, var(--s4-bg) 55%, transparent); }
   td.col-s5 { background: color-mix(in srgb, var(--s5-bg) 55%, transparent); }
+  td.col-s6 { background: color-mix(in srgb, var(--s6-bg) 55%, transparent); }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; font-size: 0.7rem; color: var(--text-dim); }
   .legend .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
   .legend .swatch.s0 { background: var(--s0-head-bg); }
@@ -122,6 +127,7 @@
   .legend .swatch.s3 { background: var(--s3-head-bg); }
   .legend .swatch.s4 { background: var(--s4-head-bg); }
   .legend .swatch.s5 { background: var(--s5-head-bg); }
+  .legend .swatch.s6 { background: var(--s6-head-bg); }
   .note { margin-top: 8px; font-size: 0.74rem; color: var(--warn-text); background: var(--warn-bg); padding: 7px 10px; border-radius: 8px; }
   .path-hint { font-size: 0.68rem; color: var(--text-dim); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-bottom: 6px; }
   .copy-btn {
@@ -167,7 +173,8 @@
     direct: {"2026-09-17":[59,91],"2026-09-18":[54,102],"2026-09-19":[49,79],"2026-09-20":[46,67],"2026-09-21":[59,98],"2026-09-22":[54,105],"2026-09-23":[57,89],"2026-09-24":[51,71],"2026-09-25":[65,92],"2026-09-26":[68,93],"2026-09-27":[64,101],"2026-09-28":[65,116],"2026-09-29":[62,120],"2026-09-30":[62,102]},
     naverGrp: {"2026-09-17":[7,15],"2026-09-18":[14,26],"2026-09-19":[8,14],"2026-09-20":[8,12],"2026-09-21":[7,19],"2026-09-22":[5,6],"2026-09-23":[6,10],"2026-09-24":[7,9],"2026-09-25":[5,6],"2026-09-26":[7,12],"2026-09-27":[4,8],"2026-09-28":[7,16],"2026-09-29":[11,16],"2026-09-30":[7,19]},
     googleGrp: {"2026-09-17":[23,41],"2026-09-18":[25,39],"2026-09-19":[19,30],"2026-09-20":[16,28],"2026-09-21":[24,43],"2026-09-22":[23,52],"2026-09-23":[24,38],"2026-09-24":[18,26],"2026-09-25":[17,27],"2026-09-26":[18,29],"2026-09-27":[21,36],"2026-09-28":[34,64],"2026-09-29":[25,54],"2026-09-30":[25,41]},
-    etcGrp: {"2026-09-17":[1,2],"2026-09-20":[1,1],"2026-09-23":[2,2],"2026-09-24":[1,1],"2026-09-25":[1,1],"2026-09-27":[1,2],"2026-09-28":[2,3],"2026-09-29":[7,8],"2026-09-30":[3,3]},
+    kakaoGrp: {"2026-09-28":[1,1],"2026-09-29":[7,8],"2026-09-30":[3,3]},
+    etcGrp: {"2026-09-17":[1,2],"2026-09-20":[1,1],"2026-09-23":[2,2],"2026-09-24":[1,1],"2026-09-25":[1,1],"2026-09-27":[1,2],"2026-09-28":[1,2]},
   };
   const FIRST_USER_TOTALS = {
     lg: 3276,
@@ -175,7 +182,8 @@
     direct: 402,
     naverGrp: 67,
     googleGrp: 94,
-    etcGrp: 14,
+    kakaoGrp: 11,
+    etcGrp: 3,
   };
   const FIRST_USER_GROUPS = [
     { key: 'lg', label: 'LG' },
@@ -183,6 +191,7 @@
     { key: 'direct', label: '다이렉트' },
     { key: 'naverGrp', label: 'naver' },
     { key: 'googleGrp', label: 'google' },
+    { key: 'kakaoGrp', label: 'kakao' },
     { key: 'etcGrp', label: '기타' },
   ];
 </script>
@@ -190,7 +199,7 @@
 (function () {
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
-  const GENERATED_AT = '2026-10-01 06:47 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const GENERATED_AT = '2026-10-01 06:57 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
   const DATE_RANGE = { from: '2026-09-17', to: '2026-09-30' };
 
   const CONSULT_API = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=2026-09';

@@ -57,10 +57,12 @@ from datetime import date, datetime, timedelta, timezone
 
 WINDOW_DAYS = 14
 
-GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'etcGrp']
+GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'kakaoGrp', 'etcGrp']
 
 # --- 알려진 GA4 원본 firstUserSource 값 ---
 # ''(빈 문자열)은 GA4가 소스를 확인하지 못해 내려준 값 — '(not set)'과 동일하게 취급.
+# kakaoGrp는 2026-10-01에 사용자 요청으로 신설 — 'kakao'가 포함된 값(카카오 로그인,
+# 카카오 알림톡 등)을 더 이상 etcGrp에 묻지 않고 별도 그룹으로 추적한다.
 FIRST_USER_LABEL_TO_GROUP = {
     'LG': 'lg',
     '(not set)': 'notSet',
@@ -72,6 +74,8 @@ FIRST_USER_LABEL_TO_GROUP = {
     'm.ad.search.naver.com': 'naverGrp',
     'google': 'googleGrp',
     'google-play': 'googleGrp',
+    'kakao': 'kakaoGrp',
+    'kakao_alimtalk': 'kakaoGrp',
     'unsedang_portal': 'etcGrp',
     'banner_01': 'etcGrp',
 }
@@ -79,7 +83,7 @@ FIRST_USER_LABEL_TO_GROUP = {
 def classify_source(raw):
     """알려진 매핑 테이블에 없는 새 firstUserSource 원본 값을 자동 분류한다.
     'naver'가 포함되면(대소문자 무시) naverGrp, 'google'이 포함되면 googleGrp,
-    '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp."""
+    'kakao'가 포함되면 kakaoGrp, '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp."""
     if raw in ('(not set)', ''):
         return 'notSet'
     low = raw.lower()
@@ -87,6 +91,8 @@ def classify_source(raw):
         return 'naverGrp'
     if 'google' in low:
         return 'googleGrp'
+    if 'kakao' in low:
+        return 'kakaoGrp'
     return 'etcGrp'
 
 
@@ -224,7 +230,7 @@ def merge_and_slide(old_series, incr_series, new_from, new_to):
 # ---------------------------------------------------------------------------
 
 def validate_group_series(label, new_daily, new_totals, new_from, new_to):
-    """FIRST_USER_* 6개 그룹 일별/기간 값 검증. label은 에러 메시지 접두사."""
+    """FIRST_USER_* 그룹(GROUP_KEYS) 일별/기간 값 검증. label은 에러 메시지 접두사."""
     warnings = []
 
     for gkey, series in new_daily.items():
