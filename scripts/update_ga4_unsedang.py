@@ -20,12 +20,19 @@ AI 상담보기 → 상담하기 → 운세 → 후기다. 앞의 6단계(상담
 "상담하기"는 pre_tel_click(선불)과 post_tel_click(후불) 두 이벤트를 하나의 필터로 묶어
 activeUsers를 재조회한 값(DAILY_CALL/CALL_TOTAL, 페이지와 무관한 별도 시리즈)이다.
 
-이 외에 화면에는 두 가지 지표가 더 있다 — 둘 다 이 스크립트가 함께 롤링한다:
-  - DAILY_SITE/SITE_ACTIVE_USERS_TOTAL: "전체 활성사용자수"(홈메인 위에 표시). 페이지/이벤트
+이 외에 화면에는 세 가지 지표가 더 있다 — 전부 이 스크립트가 함께 롤링한다:
+  - DAILY_SITE/SITE_ACTIVE_USERS_TOTAL: "전체사용자"(최상단에 표시). 페이지/이벤트
     dimension 없이 사이트 전체를 집계한 별도 시리즈.
   - DAILY_SUBEVENTS/SUBEVENT_TOTALS: "상담사 상세"/"AI 상담보기" 아래 하위그룹 7개 이벤트
     (EVENT_KEYS, 전부 eventName 그대로가 키 — 예: ai-note-agree-pop). 2026-09-30부터
     신규 집계된 이벤트라 그 이전 날짜는 0이 정상이다.
+  - DAILY_FIRST_USER/FIRST_USER_TOTALS: "전체사용자" 아래 "매체별 유입" 하위그룹
+    (GROUP_KEYS 7개 — lg/notSet/direct/naverGrp/googleGrp/kakaoGrp/etcGrp). GA4
+    firstUserSource 원본 값을 FIRST_USER_LABEL_TO_GROUP(+ 모르는 값은 classify_source()
+    자동 분류)으로 그룹핑한 것으로, `html/ga4-channel-unsedang.html`
+    (`update_ga4_channel_unsedang.py`)의 매체별 유입 그룹과 같은 분류 기준이지만
+    이 리포트의 90일 전체 창을 대상으로 별도 롤링된다. firstUserSource는 사용자당
+    평생 하나뿐인 값이라 단순 합산이 정확하다 — 병합 쿼리 불필요.
 
 사용법:
     python3 update_ga4_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
@@ -53,6 +60,16 @@ activeUsers를 재조회한 값(DAILY_CALL/CALL_TOTAL, 페이지와 무관한 �
                               (새 윈도우 전체, dimension은 eventName만(date 뺌). 가장 최근 런칭된
                                이벤트라 거의 모든 값이 0 — 값이 0인 eventName은 행을 만들지
                                않아도 된다.)
+    firstuser_raw_incremental.json : {"rows": [{"date","source","activeUsers","sessions"}, ...]}
+                              (증분 구간, dimension은 date+firstUserSource, 필터 없음. source는
+                               GA4 원본 firstUserSource 값 그대로 — 그룹별 일별 값은 이 원본
+                               행들을 FIRST_USER_LABEL_TO_GROUP(+classify_source())으로 단순
+                               합산해서 만든다. 알려진 매핑 테이블에 없는 새 값이 나와도
+                               SafetyError로 중단하지 않고 classify_source()가 자동 분류한다
+                               (경고만 남김).)
+    firstuser_raw_period.json : {"rows": [{"source","activeUsers"}, ...]}
+                              (새 윈도우 전체, dimension은 firstUserSource만(date 뺌) — 그룹별
+                               기간 합계도 마찬가지로 단순 합산해서 만든다.)
 """
 import argparse
 import json
@@ -84,6 +101,49 @@ EVENT_KEYS = [
     'ai-note-review-submit',
     'ai-note-councel-click',
 ]
+
+# --- "전체사용자" 아래 "매체별 유입" 하위그룹 — ga4-channel-unsedang.html
+# (update_ga4_channel_unsedang.py)과 동일한 분류 기준. ''(빈 문자열)은 GA4가 소스를
+# 확인하지 못해 내려준 값 — '(not set)'과 동일하게 취급.
+GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'kakaoGrp', 'etcGrp']
+
+FIRST_USER_LABEL_TO_GROUP = {
+    'LG': 'lg',
+    '(not set)': 'notSet',
+    '(direct)': 'direct',
+    '': 'notSet',
+    'm.search.naver.com': 'naverGrp',
+    'naver': 'naverGrp',
+    'navercafe': 'naverGrp',
+    'm.ad.search.naver.com': 'naverGrp',
+    'google': 'googleGrp',
+    'google-play': 'googleGrp',
+    'kakao': 'kakaoGrp',
+    'kakao_alimtalk': 'kakaoGrp',
+    'unsedang_portal': 'etcGrp',
+    'banner_01': 'etcGrp',
+}
+
+
+def classify_source(raw):
+    """알려진 매핑 테이블에 없는 새 firstUserSource 원본 값을 자동 분류한다.
+    'naver'가 포함되면(대소문자 무시) naverGrp, 'google'이 포함되면 googleGrp,
+    'kakao'가 포함되면 kakaoGrp, '(not set)'/''(빈 문자열)이면 notSet, 그 외 전부 etcGrp."""
+    if raw in ('(not set)', ''):
+        return 'notSet'
+    low = raw.lower()
+    if 'naver' in low:
+        return 'naverGrp'
+    if 'google' in low:
+        return 'googleGrp'
+    if 'kakao' in low:
+        return 'kakaoGrp'
+    return 'etcGrp'
+
+
+def group_of(raw):
+    return FIRST_USER_LABEL_TO_GROUP.get(raw) or classify_source(raw)
+
 
 GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
 
@@ -136,6 +196,14 @@ def parse_subevent_totals(body):
     data = json.loads(body)
     for key in EVENT_KEYS:
         data.setdefault(key, 0)
+    return data
+
+
+def parse_daily_first_user(body):
+    """`{"lg":{...},"notSet":{...},...}` — GROUP_KEYS 7개 키의 {date:[u,s]} 딕셔너리."""
+    data = json.loads(body)
+    for key in GROUP_KEYS:
+        data.setdefault(key, {})
     return data
 
 
@@ -262,6 +330,42 @@ def load_subevents_period(indir):
     return totals
 
 
+def load_firstuser_incremental(indir):
+    """firstuser_raw_incremental.json을 FIRST_USER_LABEL_TO_GROUP으로 단순 합산(정확함 —
+    firstUserSource는 사용자당 평생 1개). 매핑에 없는 값은 classify_source()로 자동
+    분류해서 그대로 합산에 포함한다(SafetyError로 중단하지 않음 — 경고만 남김).
+    반환: ({group: {date: [u,s]}}, all_dates, warnings)."""
+    incr = {k: {} for k in GROUP_KEYS}
+    rows = _read_rows(indir, 'firstuser_raw_incremental.json')
+    unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
+    warnings = [
+        f"신규 firstUserSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장)"
+        for lbl in unknown
+    ]
+    for r in rows:
+        g = group_of(r['source'])
+        bucket = incr[g].setdefault(r['date'], [0, 0])
+        bucket[0] += r['activeUsers'] or 0
+        bucket[1] += r['sessions'] or 0
+    all_dates = sorted({d for series in incr.values() for d in series})
+    return incr, all_dates, warnings
+
+
+def load_firstuser_period(indir):
+    """firstuser_raw_period.json을 그룹별로 단순 합산해 기간 합계(activeUsers)를 만든다.
+    반환: ({group: activeUsers}, warnings)."""
+    totals = {k: 0 for k in GROUP_KEYS}
+    rows = _read_rows(indir, 'firstuser_raw_period.json')
+    unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
+    warnings = [
+        f"신규 firstUserSource 값(기간 합계) '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장)"
+        for lbl in unknown
+    ]
+    for r in rows:
+        totals[group_of(r['source'])] += r['activeUsers'] or 0
+    return totals, warnings
+
+
 # ---------------------------------------------------------------------------
 # 3. 병합 + 윈도우 슬라이딩
 # ---------------------------------------------------------------------------
@@ -287,6 +391,7 @@ def window_dates(new_from, new_to):
 
 def validate(new_daily_pages, new_page_totals, new_daily_call, new_call_total,
              new_daily_site, new_site_total, new_daily_subevents, new_subevent_totals,
+             new_daily_first_user, new_first_user_totals,
              new_from, new_to):
     warnings = []
 
@@ -375,6 +480,24 @@ def validate(new_daily_pages, new_page_totals, new_daily_call, new_call_total,
                     f'[{day_max}, {day_sum}] 밖입니다 — 재조회 결과를 확인하세요(경고만, 중단하지 않음).'
                 )
 
+    for key, series in new_daily_first_user.items():
+        for d, (u, s) in series.items():
+            if d < new_from or d > new_to:
+                raise SafetyError(f'G-WINDOW 위반: DAILY_FIRST_USER.{key} {d}가 윈도우 밖에 남아있습니다.')
+            if u < 0 or s < 0:
+                raise SafetyError(f'G6 위반: DAILY_FIRST_USER.{key} {d} 값에 음수 포함 ({u}, {s})')
+        period_val = new_first_user_totals[key]
+        if period_val < 0:
+            raise SafetyError(f'G6 위반: FIRST_USER_TOTALS.{key}가 음수입니다.')
+        day_vals = [v[0] for v in series.values()]
+        if day_vals:
+            day_sum, day_max = sum(day_vals), max(day_vals)
+            if not (day_max <= period_val <= day_sum):
+                warnings.append(
+                    f'FIRST_USER_TOTALS.{key}: 기간 합계={period_val}가 일별 활성사용자 범위 '
+                    f'[{day_max}, {day_sum}] 밖입니다 — 재조회 결과를 확인하세요(경고만, 중단하지 않음).'
+                )
+
     return warnings
 
 
@@ -417,6 +540,17 @@ def render_subevent_totals(totals):
     ordered = {k: totals[k] for k in EVENT_KEYS}
     json_str = json.dumps(ordered, separators=(',', ':'))
     return f'  const SUBEVENT_TOTALS = {json_str};'
+
+
+def render_daily_first_user(data):
+    ordered = {k: dict(sorted(data[k].items())) for k in GROUP_KEYS}
+    json_str = json.dumps(ordered, separators=(',', ':'))
+    return f'  const DAILY_FIRST_USER = {json_str};'
+
+
+def render_first_user_totals(totals):
+    body = ', '.join(f'{k}: {totals[k]}' for k in GROUP_KEYS)
+    return f'  const FIRST_USER_TOTALS = {{ {body} }};'
 
 
 def patch_scalars(src, new_from, new_to, generated_at, new_site_total):
@@ -463,11 +597,13 @@ def main():
     _, _, daily_site_body = extract_single_line_block(src, 'DAILY_SITE')
     _, _, daily_subevents_body = extract_single_line_block(src, 'DAILY_SUBEVENTS')
     _, _, subevent_totals_body = extract_single_line_block(src, 'SUBEVENT_TOTALS')
+    _, _, daily_first_user_body = extract_single_line_block(src, 'DAILY_FIRST_USER')
 
     old_daily_pages = parse_daily_pages(daily_pages_body)
     old_daily_call = parse_daily_call(daily_call_body)
     old_daily_site = parse_daily_site(daily_site_body)
     old_daily_subevents = parse_daily_subevents(daily_subevents_body)
+    old_daily_first_user = parse_daily_first_user(daily_first_user_body)
 
     incr_pages, incoming_page_dates = load_pages_incremental(args.indir)
     incr_call, incoming_call_dates = load_call_incremental(args.indir)
@@ -493,11 +629,17 @@ def main():
     new_daily_subevents = {k: merge_and_slide(old_daily_subevents.get(k, {}), incr_subevents.get(k, {}), new_from, new_to) for k in EVENT_KEYS}
     new_subevent_totals = load_subevents_period(args.indir)
 
+    incr_first_user, _, first_user_incr_warnings = load_firstuser_incremental(args.indir)
+    new_daily_first_user = {k: merge_and_slide(old_daily_first_user.get(k, {}), incr_first_user.get(k, {}), new_from, new_to) for k in GROUP_KEYS}
+    new_first_user_totals, first_user_period_warnings = load_firstuser_period(args.indir)
+
     warnings = validate(
         new_daily_pages, new_page_totals, new_daily_call, new_call_total,
         new_daily_site, new_site_total, new_daily_subevents, new_subevent_totals,
+        new_daily_first_user, new_first_user_totals,
         new_from, new_to,
     )
+    warnings = first_user_incr_warnings + first_user_period_warnings + warnings
 
     generated_at = args.generated_at or datetime.now(timezone.utc).strftime(GENERATED_AT_FMT)
 
@@ -516,6 +658,10 @@ def main():
     new_src = replace_block_text(new_src, s, e, render_daily_subevents(new_daily_subevents))
     s, e, _ = extract_single_line_block(new_src, 'SUBEVENT_TOTALS')
     new_src = replace_block_text(new_src, s, e, render_subevent_totals(new_subevent_totals))
+    s, e, _ = extract_single_line_block(new_src, 'DAILY_FIRST_USER')
+    new_src = replace_block_text(new_src, s, e, render_daily_first_user(new_daily_first_user))
+    s, e, _ = extract_single_line_block(new_src, 'FIRST_USER_TOTALS')
+    new_src = replace_block_text(new_src, s, e, render_first_user_totals(new_first_user_totals))
     new_src = patch_scalars(new_src, new_from, new_to, generated_at, new_site_total)
 
     # --- 스모크 테스트: 재작성한 소스를 다시 파싱해 라운드트립 일치 확인 ---
@@ -531,6 +677,10 @@ def main():
     assert parse_daily_subevents(chk) == new_daily_subevents
     _, _, chk = extract_single_line_block(new_src, 'SUBEVENT_TOTALS')
     assert parse_subevent_totals(chk) == new_subevent_totals
+    _, _, chk = extract_single_line_block(new_src, 'DAILY_FIRST_USER')
+    assert parse_daily_first_user(chk) == new_daily_first_user
+    _, _, chk = extract_single_line_block(new_src, 'FIRST_USER_TOTALS')
+    assert parse_js_number_object(chk) == new_first_user_totals
     assert parse_site_total(new_src) == new_site_total
     chk_range = parse_scalars(new_src)
     assert chk_range == {'from': new_from, 'to': new_to}
@@ -541,6 +691,7 @@ def main():
     print(f'CALL_TOTAL(기간 합계): {new_call_total}')
     print(f'SITE_ACTIVE_USERS_TOTAL(기간 합계): {new_site_total}')
     print(f'SUBEVENT_TOTALS(기간 합계): {new_subevent_totals}')
+    print(f'FIRST_USER_TOTALS(기간 합계): {new_first_user_totals}')
     if warnings:
         print('경고:')
         for w in warnings:
