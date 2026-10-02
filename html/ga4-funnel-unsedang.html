@@ -90,27 +90,19 @@
   }
 
   /* --- 퍼널 --- */
-  .funnel-total {
-    display: flex; align-items: baseline; justify-content: space-between;
-    background: var(--accent-bg); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px;
-  }
-  .funnel-total-label { font-size: 0.8rem; color: var(--text); }
-  .funnel-total-value { font-size: 1.1rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .funnel { display: flex; flex-direction: column; gap: 4px; }
-  .funnel-row { display: grid; grid-template-columns: 104px 1fr 168px; align-items: center; gap: 12px; padding: 7px 0; }
+  .funnel { display: flex; flex-direction: column; gap: 2px; }
+  .funnel-row { display: grid; grid-template-columns: 104px 1fr 168px; align-items: center; gap: 12px; padding: 3px 0; }
   .funnel-row + .funnel-row { border-top: 1px solid var(--border); }
   .funnel-label { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; }
-  .funnel-track { position: relative; height: 22px; background: var(--stripe); border-radius: 4px; }
+  .funnel-track { position: relative; height: 13px; background: var(--stripe); border-radius: 4px; }
   .funnel-bar { height: 100%; background: var(--accent); border-radius: 4px; min-width: 3px; }
   .funnel-figures { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
   .funnel-figures .value { font-size: 0.92rem; font-weight: 600; color: var(--text); }
-  .funnel-rates { grid-column: 2 / 4; display: flex; gap: 14px; font-size: 0.7rem; color: var(--text-dim); padding: 0 0 2px 2px; }
-  .funnel-rates b { color: var(--text); font-weight: 600; }
   .funnel-subgroup {
     grid-column: 1 / -1;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
-    margin: 4px 0 0;
-    padding: 7px 10px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    margin: 3px 0 0;
+    padding: 5px 10px;
     background: var(--stripe);
     border-radius: 6px;
   }
@@ -132,10 +124,12 @@
     <div class="card notice">
       <h2>⚠ 읽기 전 유의사항</h2>
       <ul>
-        <li><b>각 단계는 독립적으로 측정된 값입니다.</b> 실제 순차 유입 흐름이 아니라, 서로 다른 페이지/이벤트를 발생시킨 활성사용자 수를 나열한 것입니다 — 예를 들어 "운세"나 "후기"는 "AI 상담" 단계를 거치지 않고도 도달할 수 있습니다. 단계 간 %는 실제 이탈률이 아니라 단순 크기 비교이며, 진짜 순차 퍼널(단계별 이탈률)은 GA4 UI의 탐색 분석 → 유입경로 탐색에서만 확인 가능합니다.</li>
+        <li><b>각 단계는 독립적으로 측정된 값입니다.</b> 실제 순차 유입 흐름이 아니라, 서로 다른 페이지/이벤트를 발생시킨 활성사용자 수를 나열한 것입니다 — 예를 들어 "운세"나 "후기"는 "AI 상담" 단계를 거치지 않고도 도달할 수 있습니다. 막대 길이는 실제 이탈률이 아니라 단순 크기 비교이며, 진짜 순차 퍼널(단계별 이탈률)은 GA4 UI의 탐색 분석 → 유입경로 탐색에서만 확인 가능합니다.</li>
         <li><b>"상담하기"는 pre_tel_click(선불)과 post_tel_click(후불) 두 이벤트를 합쳐 하나로 집계한 값입니다.</b> 같은 쿼리에 두 이벤트를 모두 걸고 activeUsers를 재조회했으므로, 같은 날 두 이벤트를 모두 발생시킨 사용자가 중복 집계되지 않은 정확한 값입니다.</li>
         <li><b>"AI 상담목록"/"AI 상담보기"는 2026-09-30부터 신규 집계된 기능입니다.</b> 그 이전 날짜는 값이 없는 것이 아니라 기능 자체가 없었던 것이라 "0"으로 표시됩니다.</li>
         <li><b>"전체 활성사용자수"는 페이지/이벤트 구분 없이 사이트 전체를 집계한 별도 지표입니다.</b> 퍼널 단계들의 값과 더하거나 비교할 수 없으며, 단지 그 기간의 전체 트래픽 규모를 참고하기 위한 값입니다.</li>
+        <li><b>하위그룹(상담노트 약관 팝업/취소/동의 등)의 숫자를 단순히 더하면 상위 항목과 안 맞을 수 있습니다.</b> 팝업이 같은 사용자에게 하루에도 여러 번 뜰 수 있어, 한 사용자가 한 번은 취소하고 다른 한 번은 동의하면 취소·동의 양쪽에 모두 유니크하게 집계됩니다. 그래서 "취소+동의"가 "팝업" 유니크 사용자 수보다 커질 수 있으며, 이는 집계 오류가 아니라 activeUsers(유니크 사용자) 지표 특성입니다.</li>
+        <li><b>"상담하기" 하위그룹의 매출/상담건수는 GA4가 아니라 운세당 DB API(consultation-stats)에서 페이지를 열 때마다 실시간으로 가져온 값입니다.</b> 위 매체 유입 표와 달리 정적 스냅샷이 아니며, 선택한 조회 기간에 맞춰 다시 합산됩니다. "AI노트"는 아직 실제 집계가 연동되지 않아 조회 기간과 무관하게 7건으로 고정 표시되는 임시값입니다.</li>
       </ul>
     </div>
 
@@ -209,7 +203,8 @@
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
-  const fmtPct = (n) => (n >= 1000 ? numFmt.format(Math.round(n)) : n.toFixed(1)) + '%';
+  const fmtWon = (n) => (n == null ? '–' : numFmt.format(n) + '원');
+  const fmtCount = (n) => (n == null ? '–' : numFmt.format(n) + '건');
 
   function toUTC(dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -277,6 +272,95 @@
     return { value: sum, exact: false };
   }
 
+  // --- "상담하기" 하위그룹: 매출/상담건수는 운세당 DB API(consultation-stats)에서
+  // 페이지를 열 때마다 실시간으로 가져온다(GA4 정적 스냅샷과 별개). AI노트는 아직
+  // 실제 집계가 없어 조회 기간과 무관하게 7건으로 고정한다(추후 연동 예정).
+  const AI_NOTE_STATIC_COUNT = 7;
+  const FETCH_TIMEOUT_MS = 10000;
+  let CONSULT_REVENUE_DAILY = null; // {date: 매출(원), 선불+후불 합산}
+  let CONSULT_COUNT_PREPAID_DAILY = null; // {date: 상담건수(선불)}
+  let CONSULT_COUNT_POSTPAID_DAILY = null; // {date: 상담건수(후불)}
+  let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
+  let CONSULT_ERROR_MSG = '';
+
+  function consultApiUrl(baseMonth) {
+    return `https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=${baseMonth}`;
+  }
+  // DATE_RANGE(90일 창)가 여러 달에 걸쳐 있을 수 있어, 걸쳐 있는 모든 달(baseMonth)을
+  // 구해 각각 fetch 후 합친다 — 한 달만 고정 조회하면 다른 달 날짜가 영영 비게 된다.
+  const CONSULT_MONTHS = [...new Set(rangeDates(DATE_RANGE.from, DATE_RANGE.to).map((d) => d.slice(0, 7)))];
+
+  async function loadConsultStats() {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const results = await Promise.all(CONSULT_MONTHS.map(async (month) => {
+        const res = await fetch(consultApiUrl(month), { mode: 'cors', signal: controller.signal });
+        if (!res.ok) throw new Error(`${month}: HTTP ${res.status}`);
+        return res.json();
+      }));
+      const revenueMap = {};
+      const countPrepaidMap = {};
+      const countPostpaidMap = {};
+      for (const data of results) {
+        for (const day of data.dailyStats || []) {
+          revenueMap[day.date] = day.revenue.prepaid.total + day.revenue.postpaid.total;
+          countPrepaidMap[day.date] = day.consultationCount.prepaid.total;
+          countPostpaidMap[day.date] = day.consultationCount.postpaid.total;
+        }
+      }
+      CONSULT_REVENUE_DAILY = revenueMap;
+      CONSULT_COUNT_PREPAID_DAILY = countPrepaidMap;
+      CONSULT_COUNT_POSTPAID_DAILY = countPostpaidMap;
+      CONSULT_STATE = 'ok';
+    } catch (e) {
+      CONSULT_STATE = 'error';
+      CONSULT_ERROR_MSG = e.name === 'AbortError' ? '요청 시간 초과' : String(e.message || e);
+      console.error('상담 매출/건수 로드 실패', e);
+    } finally {
+      clearTimeout(timer);
+      render(CURRENT_FROM, CURRENT_TO);
+      updateFooter();
+    }
+  }
+
+  function renderCallSubRows(from, to) {
+    let revenueText;
+    let countPrepaidText;
+    let countPostpaidText;
+    if (CONSULT_STATE === 'loading') {
+      revenueText = '로딩 중…';
+      countPrepaidText = '로딩 중…';
+      countPostpaidText = '로딩 중…';
+    } else if (CONSULT_STATE === 'error') {
+      revenueText = '로드 실패';
+      countPrepaidText = '로드 실패';
+      countPostpaidText = '로드 실패';
+    } else {
+      const dates = rangeDates(from, to);
+      const revenueSum = dates.reduce((acc, d) => acc + (CONSULT_REVENUE_DAILY[d] || 0), 0);
+      const countPrepaidSum = dates.reduce((acc, d) => acc + (CONSULT_COUNT_PREPAID_DAILY[d] || 0), 0);
+      const countPostpaidSum = dates.reduce((acc, d) => acc + (CONSULT_COUNT_POSTPAID_DAILY[d] || 0), 0);
+      revenueText = fmtWon(revenueSum);
+      countPrepaidText = fmtCount(countPrepaidSum);
+      countPostpaidText = fmtCount(countPostpaidSum);
+    }
+    const items = [
+      { label: '매출', value: revenueText },
+      { label: '상담건수(선불)', value: countPrepaidText },
+      { label: '상담건수(후불)', value: countPostpaidText },
+      { label: 'AI노트', value: fmtCount(AI_NOTE_STATIC_COUNT) },
+    ];
+    const itemsHtml = items
+      .map((it) => `
+          <div class="funnel-subitem">
+            <span class="funnel-subitem-label">${it.label}</span>
+            <span class="funnel-subitem-value">${it.value}</span>
+          </div>`)
+      .join('');
+    return `<div class="funnel-subgroup">${itemsHtml}</div>`;
+  }
+
   function renderSubRows(items, from, to) {
     const itemsHtml = items
       .map((it) => {
@@ -292,17 +376,17 @@
   }
 
   function renderFunnel(from, to) {
-    const results = STEPS.map((s) => ({ step: s, ...stepValue(s, from, to) }));
-    const first = results[0].value || 1;
     const siteTotal = siteTotalValue(from, to);
-    const rows = results.map((r, i) => {
+    const results = [
+      { step: { key: 'siteTotal', label: '전체사용자' }, value: siteTotal.value },
+      ...STEPS.map((s) => ({ step: s, ...stepValue(s, from, to) })),
+    ];
+    const first = results[0].value || 1;
+    const rows = results.map((r) => {
       const widthPct = Math.max((r.value / first) * 100, r.value > 0 ? 1.5 : 0);
-      const vsFirst = i === 0 ? null : (r.value / first) * 100;
-      const ratesLine = i === 0
-        ? ''
-        : `<div class="funnel-rates">홈 대비 <b>${fmtPct(vsFirst)}</b></div>`;
-      const subItems = SUBGROUPS[r.step.key];
-      const subRowsHtml = subItems ? renderSubRows(subItems, from, to) : '';
+      const subRowsHtml = r.step.key === 'call'
+        ? renderCallSubRows(from, to)
+        : (SUBGROUPS[r.step.key] ? renderSubRows(SUBGROUPS[r.step.key], from, to) : '');
       return `
         <div class="funnel-row">
           <div class="funnel-label">${r.step.label}</div>
@@ -310,23 +394,23 @@
           <div class="funnel-figures">
             <span class="value">${fmtUsers(r.value)}</span>
           </div>
-          ${ratesLine}
           ${subRowsHtml}
         </div>`;
     }).join('');
     return `
       <div class="card">
         <h2>매체 유입 → 상담 전환 퍼널 <span class="hint">활성사용자 기준, ${from} ~ ${to}</span></h2>
-        <div class="funnel-total">
-          <div class="funnel-total-label">전체 활성사용자수 <span class="hint">페이지/이벤트 구분 없는 사이트 전체 값</span></div>
-          <div class="funnel-total-value">${fmtUsers(siteTotal.value)}</div>
-        </div>
         <div class="funnel">${rows}</div>
         <div class="note">ℹ 위 유의사항 참고 — 단계 간 비율은 순차 이탈률이 아니라 서로 독립적으로 측정된 값의 단순 크기 비교입니다.</div>
       </div>`;
   }
 
+  let CURRENT_FROM = DATE_RANGE.to;
+  let CURRENT_TO = DATE_RANGE.to;
+
   function render(from, to) {
+    CURRENT_FROM = from;
+    CURRENT_TO = to;
     document.getElementById('content').innerHTML = renderFunnel(from, to);
   }
 
@@ -343,6 +427,20 @@
     document.getElementById('customTo').value = to;
     setActivePreset(presetDays || null);
     render(from, to);
+  }
+
+  function updateFooter() {
+    const consultStatusLine = CONSULT_STATE === 'ok'
+      ? `상담하기 하위그룹의 매출/상담건수는 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 페이지 로드 시점에 실시간 fetch함(DB API).`
+      : CONSULT_STATE === 'error'
+        ? `상담하기 하위그룹의 매출/상담건수 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
+        : '상담하기 하위그룹의 매출/상담건수 실시간 fetch 중…';
+    document.getElementById('footer').innerHTML =
+      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 90일)<br>` +
+      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
+      `날짜 필터는 이미 내장된 90일 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
+      `${consultStatusLine}<br>` +
+      `생성 시각: ${GENERATED_AT}`;
   }
 
   function init() {
@@ -369,12 +467,8 @@
     document.getElementById('customTo').addEventListener('change', onCustomChange);
 
     applyRange(DATE_RANGE.to, DATE_RANGE.to, 1);
-
-    document.getElementById('footer').innerHTML =
-      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 90일)<br>` +
-      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
-      `날짜 필터는 이미 내장된 90일 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
-      `생성 시각: ${GENERATED_AT}`;
+    updateFooter();
+    loadConsultStats();
   }
 
   init();
