@@ -202,12 +202,18 @@
   const GENERATED_AT = '2026-10-02 03:08 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
   const DATE_RANGE = { from: '2026-09-18', to: '2026-10-01' };
 
-  const CONSULT_API = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=2026-09';
   const FETCH_TIMEOUT_MS = 10000;
   let CONSULT_DAILY = null; // {date: 상담수} — fetch 성공 시 채워짐
   let CONSULT_USER_DAILY = null; // {date: 상담인원(userCount, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
+  function consultApiUrl(baseMonth) {
+    return `https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=${baseMonth}`;
+  }
+  // DATE_RANGE(14일 창)가 월 경계를 넘나들 수 있어(예: 09-25~10-08), 걸쳐 있는 모든
+  // 월(baseMonth)을 구해 각각 fetch 후 합친다 — 한 달만 고정 조회하면 다른 달 날짜의
+  // 상담수/상담인원/전환율이 영영 비게 된다.
+  const CONSULT_MONTHS = [...new Set(rangeDates().map((d) => d.slice(0, 7)))];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => (n == null ? '–' : numFmt.format(n) + '명');
@@ -240,14 +246,18 @@
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
-      const res = await fetch(CONSULT_API, { mode: 'cors', signal: controller.signal });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const results = await Promise.all(CONSULT_MONTHS.map(async (month) => {
+        const res = await fetch(consultApiUrl(month), { mode: 'cors', signal: controller.signal });
+        if (!res.ok) throw new Error(`${month}: HTTP ${res.status}`);
+        return res.json();
+      }));
       const map = {};
       const userMap = {};
-      for (const day of data.dailyStats || []) {
-        map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
-        userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
+      for (const data of results) {
+        for (const day of data.dailyStats || []) {
+          map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
+          userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
+        }
       }
       CONSULT_DAILY = map;
       CONSULT_USER_DAILY = userMap;
@@ -287,7 +297,8 @@
     const statusText = CONSULT_STATE === 'error'
       ? ` (로드 실패: ${CONSULT_ERROR_MSG} — 페이지를 새로고침하면 재시도됩니다)`
       : '';
-    return `<div class="note">ℹ "상담수"는 <a href="${CONSULT_API}" target="_blank" rel="noopener">DB API(consultation-stats)</a>에서
+    const apiLinks = CONSULT_MONTHS.map((m) => `<a href="${consultApiUrl(m)}" target="_blank" rel="noopener">${m}</a>`).join(', ');
+    return `<div class="note">ℹ "상담수"는 DB API(consultation-stats, 해당 월: ${apiLinks})에서
       <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수 합계입니다 — 위 매체 유입
       표(GA4)와 달리 정적 스냅샷이 아닙니다. "상담인원"은 동일 API의 userCount(선불+후불 단순 합산)로,
       한 사람이 여러 번 상담하면 "상담수"보다 작게 나옵니다(참고용 근사치 — prepaid/postpaid
@@ -444,7 +455,7 @@
     document.getElementById('footer').innerHTML =
       `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 조회 기간 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}<br>` +
       `매체 유입(활성사용자) 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — GA4는 공개 API 엔드포인트가 없어 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
-      `상담수/전환율 열은 예외적으로 <b>${CONSULT_API}</b>를 ${consultStatusLine}<br>` +
+      `상담수/전환율 열은 예외적으로 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 ${consultStatusLine}<br>` +
       `표에 표시되는 활성사용자는 비집계 지표입니다 — 일별 값은 그날 실측치, 합계 행/열(그룹별·전체)은 항상 해당 범위로 별도 재조회한 순사용자 수이며 일별 값을 단순히 더한 것이 아닙니다.<br>` +
       `생성 시각: ${GENERATED_AT}`;
   }
