@@ -1,0 +1,790 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AI 상담노트 화면별 KPI 리포트 — 운세당</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card-bg: #ffffff;
+    --text: #1c1c1f;
+    --text-dim: #6b6b74;
+    --border: #e3e3e7;
+    --accent: #7c5cff;
+    --accent-bg: #efeaff;
+    --table-head-bg: #f0f0f3;
+    --stripe: #fafafb;
+    --good: #1f8a4c;
+    --good-bg: #e8f7ee;
+    --bad: #d13c3c;
+    --bad-bg: #fdecec;
+    --mute-bg: #eceef2;
+    --kakao: #fee500;
+    --kakao-text: #3c1e1e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171b;
+      --card-bg: #202024;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --border: #35353b;
+      --accent: #b3a1ff;
+      --accent-bg: #2a2440;
+      --table-head-bg: #26262b;
+      --stripe: #232328;
+      --good: #4fcf86;
+      --good-bg: #16301f;
+      --bad: #ff6b6b;
+      --bad-bg: #3a1a1a;
+      --mute-bg: #2a2a30;
+      --kakao: #e6cf00;
+      --kakao-text: #2a1a1a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171b;
+    --card-bg: #202024;
+    --text: #ececef;
+    --text-dim: #9a9aa4;
+    --border: #35353b;
+    --accent: #b3a1ff;
+    --accent-bg: #2a2440;
+    --table-head-bg: #26262b;
+    --stripe: #232328;
+    --good: #4fcf86;
+    --good-bg: #16301f;
+    --bad: #ff6b6b;
+    --bad-bg: #3a1a1a;
+    --mute-bg: #2a2a30;
+    --kakao: #e6cf00;
+    --kakao-text: #2a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px 214px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1120px; margin: 0; }
+  .site-nav {
+    position: fixed; left: 0; top: 0; bottom: 0; width: 190px;
+    display: flex; flex-direction: column; gap: 2px;
+    background: var(--card-bg); border-right: 1px solid var(--border);
+    padding: 18px 10px; overflow-y: auto; z-index: 200;
+  }
+  .site-nav-title { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); padding: 0 8px; margin-bottom: 8px; white-space: nowrap; }
+  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
+  .site-nav a:hover { background: var(--bg); }
+  .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+  h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; margin: 16px 0 2px; }
+  .subtitle { font-size: 0.82rem; color: var(--text-dim); margin: 0 0 18px; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .card h2 { font-size: 0.9rem; font-weight: 700; margin: 0 0 10px; }
+  .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
+  footer { color: var(--text-dim); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
+  footer a { color: var(--text-dim); }
+
+  /* --- 필터 바 --- */
+  .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .preset-btn {
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+    padding: 6px 13px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; font-family: inherit;
+  }
+  .preset-btn:hover { border-color: var(--accent); }
+  .preset-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .preset-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .preset-btn:disabled:hover { border-color: var(--border); }
+  .custom-range { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-dim); margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--border); }
+  .custom-range input[type="date"] {
+    font-size: 0.78rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--card-bg); color: var(--text); font-family: inherit;
+  }
+
+  /* --- 스코어보드 --- */
+  .score-tiles { display: flex; gap: 8px; margin-bottom: 12px; }
+  .score-tile {
+    flex: 1 1 0; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    display: flex; align-items: baseline; gap: 7px;
+  }
+  .score-tile .num { font-size: 1.3rem; font-weight: 700; }
+  .score-tile .lbl { font-size: 0.76rem; color: var(--text-dim); }
+  .score-tile.good { border-color: var(--good); } .score-tile.good .num { color: var(--good); }
+  .score-tile.bad { border-color: var(--bad); } .score-tile.bad .num { color: var(--bad); }
+  .score-tile.mute { border-color: var(--text-dim); } .score-tile.mute .num { color: var(--text-dim); }
+
+  .flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+  .flow-step {
+    flex: 1 1 140px; display: flex; flex-direction: column; align-items: center; text-align: center;
+    gap: 4px; padding: 10px 8px; border-radius: 10px; border: 1px solid transparent; cursor: default;
+  }
+  .flow-step.status-good { background: var(--good-bg); border-color: var(--good); }
+  .flow-step.status-bad { background: var(--bad-bg); border-color: var(--bad); }
+  .flow-step.status-off, .flow-step.status-nodata { background: var(--mute-bg); border-color: var(--border); }
+  .flow-step.status-aux { background: var(--stripe); border-color: var(--border); border-style: dashed; }
+  .flow-num {
+    width: 24px; height: 24px; line-height: 24px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 0.7rem; font-weight: 700; margin: 0 auto;
+  }
+  .flow-step.status-good .flow-num { background: var(--good); }
+  .flow-step.status-bad .flow-num { background: var(--bad); }
+  .flow-step.status-off .flow-num, .flow-step.status-nodata .flow-num, .flow-step.status-aux .flow-num { background: var(--text-dim); }
+  .flow-name { font-size: 0.82rem; font-weight: 700; }
+  .flow-metric { font-size: 0.78rem; color: var(--text-dim); }
+  .flow-metric b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .flow-arrow { flex: 0 0 auto; align-self: center; color: var(--border); font-size: 18px; padding: 0 2px; }
+  @media (max-width: 900px) {
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); padding: 2px 0; }
+  }
+
+  /* --- 화면별 카드 --- */
+  .screen-card-wrap { border-left-width: 4px; }
+  .screen-card-wrap.screen-status-good { border-left-color: var(--good); }
+  .screen-card-wrap.screen-status-bad { border-left-color: var(--bad); }
+  .screen-card-wrap.screen-status-off, .screen-card-wrap.screen-status-aux { border-left-color: var(--border); }
+  .screen-card { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+  .screen-mock-col { flex: 0 0 180px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .screen-mock-col .cap { font-size: 0.72rem; color: var(--text-dim); text-align: center; }
+  .screen-body { flex: 1; min-width: 0; }
+  .screen-desc { font-size: 0.8rem; color: var(--text-dim); margin: 0 0 10px; }
+  .table-scroll { overflow-x: auto; }
+  table.kpi {
+    width: 100%; min-width: 560px; border-collapse: separate; border-spacing: 0;
+    font-size: 0.78rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  table.kpi th, table.kpi td {
+    border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+    padding: 7px 9px; text-align: left; vertical-align: top; word-break: keep-all;
+  }
+  table.kpi th:last-child, table.kpi td:last-child { border-right: none; }
+  table.kpi tr:last-child td { border-bottom: none; }
+  table.kpi th { background: var(--table-head-bg); font-weight: 700; color: var(--text-dim); font-size: 0.7rem; }
+  table.kpi tbody tr:nth-child(even) { background: var(--stripe); }
+  table.kpi tbody tr.aux td { color: var(--text-dim); font-style: italic; }
+  .figcell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .badge.good { background: var(--good-bg); color: var(--good); }
+  .badge.bad { background: var(--bad-bg); color: var(--bad); }
+  .badge.mute { background: var(--mute-bg); color: var(--text-dim); }
+  .badge.aux { background: transparent; color: var(--text-dim); border: 1px dashed var(--border); }
+  .info-dot { color: var(--text-dim); cursor: help; font-size: 0.78rem; }
+
+  .evt-title { margin: 12px 0 6px; font-size: 0.7rem; font-weight: 700; color: var(--text-dim); }
+  table.evt {
+    width: 100%; min-width: 420px; border-collapse: separate; border-spacing: 0;
+    font-size: 0.74rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  table.evt th, table.evt td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px 9px; text-align: left; }
+  table.evt th:last-child, table.evt td:last-child { border-right: none; }
+  table.evt tr:last-child td { border-bottom: none; }
+  table.evt th { background: var(--table-head-bg); color: var(--text-dim); font-size: 0.68rem; }
+  table.evt td.key { font-family: "SFMono-Regular", Menlo, Consolas, monospace; color: var(--accent); }
+  table.evt tbody tr:nth-child(even) { background: var(--stripe); }
+
+  @media (max-width: 860px) {
+    body { padding-left: 16px; }
+    .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
+    .screen-card { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+    .screen-mock-col { flex: none; }
+  }
+
+  /* ===== 화면 목업 (CSS로만 그린 형태 참고용 — 실제 스크린샷 아님) ===== */
+  .mock {
+    width: 168px; height: 300px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--bg); position: relative; overflow: hidden; flex-shrink: 0;
+  }
+  .mock-notch { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 54px; height: 5px; border-radius: 3px; background: var(--border); z-index: 5; }
+  .mock-dim { position: absolute; inset: 0; background: rgba(0,0,0,0.38); }
+  .mock-line { height: 6px; border-radius: 3px; background: var(--border); }
+  .mock-line.w60 { width: 60%; } .mock-line.w80 { width: 80%; } .mock-line.w40 { width: 40%; } .mock-line.w90 { width: 90%; }
+  .mock-btn { border-radius: 7px; text-align: center; font-size: 0.62rem; font-weight: 700; padding: 6px 4px; }
+  .mock-btn.primary { background: var(--accent); color: #fff; }
+  .mock-btn.ghost { background: var(--card-bg); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* 01 상담 클릭 — 바텀시트 */
+  .mock-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--card-bg); border-top: 1px solid var(--border); border-radius: 14px 14px 0 0; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-opt-row { display: flex; align-items: center; gap: 6px; background: var(--accent-bg); border-radius: 6px; padding: 5px 7px; }
+  .mock-check { width: 13px; height: 13px; border-radius: 3px; background: var(--accent); flex-shrink: 0; position: relative; }
+  .mock-check::after { content: ''; position: absolute; left: 3px; top: 1px; width: 5px; height: 8px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(40deg); }
+
+  /* 02 약관 동의 — 중앙 모달 */
+  .mock-modal { position: absolute; left: 12px; right: 12px; top: 60px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-modal-title { font-size: 0.66rem; font-weight: 700; margin-bottom: 2px; }
+  .mock-modal-box { background: var(--stripe); border-radius: 6px; padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 80px; overflow: hidden; }
+  .mock-modal-actions { display: flex; gap: 6px; margin-top: 4px; }
+  .mock-modal-actions .mock-btn { flex: 1; }
+
+  /* 03 알림톡 수신 — 카카오톡 카드 */
+  .mock-kakao-bg { position: absolute; inset: 0; background: repeating-linear-gradient(135deg, var(--stripe) 0 14px, var(--bg) 14px 28px); }
+  .mock-kakao-prior { position: absolute; left: 14px; top: 14px; max-width: 65%; background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px 10px 10px 2px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .mock-kakao-prior .mock-line { background: var(--text-dim); opacity: 0.35; }
+  .mock-kakao-card { position: absolute; left: 14px; right: 14px; top: 70px; background: var(--kakao); color: var(--kakao-text); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+  /* 01/02 목업 뒤에 깔리는 "선생님 상세" 페이지 배경 힌트 */
+  .mock-profile-bg { padding: 16px 14px 0; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .mock-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--border); }
+  .mock-profile-bg .mock-line { margin: 0 auto; }
+  .mock-tag-row { display: flex; gap: 4px; margin-top: 2px; }
+  .mock-tag { width: 26px; height: 9px; border-radius: 999px; background: var(--stripe); border: 1px solid var(--border); }
+  .mock-kakao-title { font-size: 0.66rem; font-weight: 800; }
+  .mock-kakao-line { height: 5px; border-radius: 3px; background: rgba(60,30,30,0.28); }
+  .mock-kakao-btn { margin-top: 2px; background: #fff; color: var(--kakao-text); border-radius: 6px; text-align: center; font-size: 0.6rem; font-weight: 700; padding: 5px; }
+
+  /* 04/06 노트 상세 — 대화 스크립트 */
+  .mock-chat-head { padding: 10px 10px 6px; font-size: 0.64rem; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+  .mock-chat-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-bubble { max-width: 76%; border-radius: 9px; padding: 5px 7px; display: flex; flex-direction: column; gap: 3px; }
+  .mock-bubble .mock-line { background: currentColor; opacity: 0.35; }
+  .mock-bubble.left { align-self: flex-start; background: var(--stripe); color: var(--text-dim); }
+  .mock-bubble.right { align-self: flex-end; background: var(--accent-bg); color: var(--accent); }
+  .mock-audio { margin: 4px 10px; height: 16px; border-radius: 8px; background: var(--stripe); position: relative; display: flex; align-items: center; padding: 0 6px; }
+  .mock-audio .mock-line { width: 55%; background: var(--accent); }
+  .mock-chat-cta { position: absolute; left: 0; right: 0; bottom: 0; background: var(--card-bg); border-top: 1px solid var(--border); padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.64rem; }
+  .mock-chat-cta .pill { background: var(--good-bg); color: var(--good); border-radius: 999px; padding: 2px 7px; font-weight: 700; font-size: 0.58rem; }
+  .mock-chat-cta .cta-btn { background: var(--accent); color: #fff; border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 0.62rem; }
+  .mock-chat-cta.highlight .cta-btn { box-shadow: 0 0 0 3px var(--accent-bg); }
+
+  /* 05 후기 작성 — 설문 모달 */
+  .mock-survey { position: absolute; left: 10px; right: 10px; top: 46px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 9px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .mock-chip { border: 1px solid var(--border); border-radius: 999px; font-size: 0.56rem; text-align: center; padding: 4px 2px; color: var(--text-dim); }
+  .mock-chip.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+  .mock-skip { text-align: center; font-size: 0.6rem; color: var(--text-dim); text-decoration: underline; margin-top: 2px; }
+</style>
+<body>
+  <div class="wrap">
+    <nav class="site-nav">
+      <div class="site-nav-title">리포트 메뉴</div>
+      <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
+      <a href="ga4-ainote-kpi-unsedang.html" class="active">운세당 AI상담노트 KPI</a>
+      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
+      <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
+      <a href="db-data-mindcare.html">마인드케어 리포트</a>
+      <a href="db-data-today.html">투데이 리포트</a>
+    </nav>
+    <h1>운세당 AI 상담노트 화면별 KPI 리포트</h1>
+    <p class="subtitle">기획 문서(AI상담노트-화면별-KPI목표-260929.html)의 화면별 목표치에 GA4 실측값을 짝지어 비교합니다.</p>
+
+    <div class="card">
+      <h2>조회 기간</h2>
+      <div class="filter-row" id="filterRow">
+        <button type="button" class="preset-btn" data-preset="1">어제</button>
+        <button type="button" class="preset-btn" data-preset="90" id="presetAllBtn">전체</button>
+        <button type="button" class="preset-btn" data-preset="7">최근 7일</button>
+        <button type="button" class="preset-btn" data-preset="14">최근 14일</button>
+        <button type="button" class="preset-btn" data-preset="30">최근 30일</button>
+        <div class="custom-range">
+          <span>커스텀</span>
+          <input type="date" id="customFrom">
+          <span>~</span>
+          <input type="date" id="customTo">
+        </div>
+        <button type="button" class="preset-btn" id="captureBtn" style="margin-left:auto;">🖼 이미지로 저장</button>
+      </div>
+    </div>
+
+    <div id="content"></div>
+    <footer id="footer"></footer>
+  </div>
+
+<script>
+  // --- 일별 원시 데이터(activeUsers) — Supermetrics(GAWA) GA4 조회, 정적 스냅샷 ---
+  // AI 상담노트 기능은 2026-09-30부터 신규 집계이고 이전 데이터는 의미가 없어, 내장 범위를
+  // 2026-09-30부터로 제한했다(그 이전 날짜는 아예 담지 않음 — 집계 대상 자체가 아니었음).
+  // 상담하기(= pre_tel_click OR post_tel_click, activeUsers)
+  const DAILY_CALL = {"2026-09-30":43,"2026-10-01":43,"2026-10-02":55,"2026-10-03":66,"2026-10-04":58};
+  const CALL_TOTAL = 229; // 전체 기간 재조회한 정확값
+
+  // 상담하기(선불만, pre_tel_click) — AI 상담노트는 선불 상담에만 제공되는 기능이라
+  // "AI 상담노트 옵션 유지율"의 분모는 선불+후불을 합친 DAILY_CALL이 아니라 이걸 써야 한다.
+  const DAILY_PRETEL = {"2026-09-30":19,"2026-10-01":23,"2026-10-02":29,"2026-10-03":31,"2026-10-04":31};
+  const PRETEL_TOTAL = 122; // 전체 기간 재조회한 정확값
+
+  // AI 상담목록(/view/ai-note), AI 상담보기=노트 상세(/view/ai-note/noteInfo) 페이지뷰 activeUsers
+  const DAILY_AINOTE = {"2026-09-30":11,"2026-10-01":20,"2026-10-02":18,"2026-10-03":25,"2026-10-04":17};
+  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13};
+  const PAGE_TOTALS = { aiNote: 73, noteInfo: 72 }; // 전체 기간 정확값
+
+  // 추적 이벤트 7종 (전부 2026-09-30부터 신규 집계)
+  const DAILY_SUBEVENTS = {
+    "ai-note-agree-pop":   {"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34},
+    "ai-note-agree-click": {"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31},
+    "ai-note-cancel-click":{"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8},
+    "ai-note-review-skip": {"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8},
+    "ai-note-review-next": {"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1},
+    "ai-note-review-submit":{"2026-10-01":3,"2026-10-02":4,"2026-10-03":3},
+    "ai-note-councel-click":{"2026-09-30":1,"2026-10-01":2,"2026-10-03":1}
+  };
+  const SUBEVENT_TOTALS = {
+    "ai-note-agree-pop": 130, "ai-note-agree-click": 113, "ai-note-cancel-click": 38,
+    "ai-note-review-skip": 38, "ai-note-review-next": 19, "ai-note-review-submit": 10,
+    "ai-note-councel-click": 4
+  };
+
+  // 노트 상세(/view/ai-note/noteInfo) 참여시간 — [총 참여시간(초), 활성사용자]
+  const DAILY_ENGAGEMENT = {
+    "2026-09-30":[685,11],"2026-10-01":[2212,17],"2026-10-02":[2118,24],"2026-10-03":[2552,22],"2026-10-04":[1047,13]
+  };
+  const ENGAGEMENT_TOTAL = { duration: 8614, users: 72 }; // 전체 기간 정확값(=PAGE_TOTALS.noteInfo와 동일 모집단)
+
+  // 알림톡 "운세당 바로가기" 클릭 — UTM(utm_source=kakao_alimtalk&utm_medium=push&utm_campaign=callnote_created)로 식별
+  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9};
+  const UTM_CLICK_TOTAL = 39; // 전체 기간 정확값(activeUsers). 참고: 세션(클릭수)은 56.
+
+  // AI 상담노트 사용자수 — 운영진이 직접 전달한 실집계(DB 기준, GA4 비연동). 참고용으로만 표시하며
+  // 목표/달성 판정에는 쓰지 않는다. 이 상수는 scripts/update_ga4_unsedang.py가 관리하는 블록
+  // 목록(DAILY_PAGES/DAILY_CALL/PAGE_TOTALS/CALL_TOTAL/DAILY_SITE/SITE_ACTIVE_USERS_TOTAL/
+  // DAILY_SUBEVENTS/SUBEVENT_TOTALS/DAILY_FIRST_USER/FIRST_USER_TOTALS)에 없는 이름이라
+  // 그 배치 스크립트가 실행돼도 건드리지 않는다.
+  const DAILY_AINOTE_USAGE = {"2026-09-30":23,"2026-10-01":24,"2026-10-02":38,"2026-10-03":39,"2026-10-04":32};
+
+  const DATE_RANGE = { from: '2026-09-30', to: '2026-10-04' };
+  const ACCOUNT_ID = '488612198';
+  const ACCOUNT_NAME = 'unsedang-a3588';
+  const GENERATED_AT = '2026-10-05 11:00 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+
+  const numFmt = new Intl.NumberFormat('ko-KR');
+  const fmtUsers = (n) => numFmt.format(n) + '명';
+  const fmtPct = (n) => (n * 100).toFixed(1) + '%';
+  const fmtSec = (n) => n.toFixed(1) + '초';
+
+  function toUTC(dateStr) { const [y, m, d] = dateStr.split('-').map(Number); return Date.UTC(y, m - 1, d); }
+  function fromUTC(ts) {
+    const d = new Date(ts);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  function addDays(dateStr, delta) { return fromUTC(toUTC(dateStr) + delta * 86400000); }
+  function rangeDates(from, to) {
+    const dates = []; let cur = toUTC(from); const end = toUTC(to);
+    while (cur <= end) { dates.push(fromUTC(cur)); cur += 86400000; }
+    return dates;
+  }
+  function clamp(dateStr) {
+    if (dateStr < DATE_RANGE.from) return DATE_RANGE.from;
+    if (dateStr > DATE_RANGE.to) return DATE_RANGE.to;
+    return dateStr;
+  }
+  const isFullRange = (from, to) => from === DATE_RANGE.from && to === DATE_RANGE.to;
+
+  // 공통 집계: 전체 기간은 재조회한 정확값을, 그 외 기간은 일별 합산 근사값을 쓴다.
+  function rangeSum(dict, totalExact, from, to) {
+    if (isFullRange(from, to)) return { value: totalExact, exact: true };
+    const sum = rangeDates(from, to).reduce((acc, d) => acc + (dict[d] || 0), 0);
+    return { value: sum, exact: false };
+  }
+  const callValue = (from, to) => rangeSum(DAILY_CALL, CALL_TOTAL, from, to);
+  const pretelValue = (from, to) => rangeSum(DAILY_PRETEL, PRETEL_TOTAL, from, to);
+  const aiNoteValue = (from, to) => rangeSum(DAILY_AINOTE, PAGE_TOTALS.aiNote, from, to);
+  const noteInfoValue = (from, to) => rangeSum(DAILY_NOTEINFO, PAGE_TOTALS.noteInfo, from, to);
+  const subEventValue = (name, from, to) => rangeSum(DAILY_SUBEVENTS[name] || {}, SUBEVENT_TOTALS[name] || 0, from, to);
+  const utmClickValue = (from, to) => rangeSum(DAILY_UTM_CLICK, UTM_CLICK_TOTAL, from, to);
+  // GA4가 아니라 운영진이 직접 전달한 일별 실집계라 비집계 지표 문제가 없어 그냥 합산한다.
+  const aiNoteUsageValue = (from, to) => rangeDates(from, to).reduce((acc, d) => acc + (DAILY_AINOTE_USAGE[d] || 0), 0);
+  function engagementValue(from, to) {
+    const durDict = {}, userDict = {};
+    for (const [d, v] of Object.entries(DAILY_ENGAGEMENT)) { durDict[d] = v[0]; userDict[d] = v[1]; }
+    const dur = rangeSum(durDict, ENGAGEMENT_TOTAL.duration, from, to);
+    const usr = rangeSum(userDict, ENGAGEMENT_TOTAL.users, from, to);
+    return { duration: dur.value, users: usr.value, exact: dur.exact };
+  }
+
+  // 비율 계산: 분모 0이면 null(표시 "–"), 그 외 num/den
+  function ratio(num, den) { return den > 0 ? num / den : null; }
+
+  // ----- 화면별 KPI 지표 정의 -----
+  // kind: 'measured'(직접 측정) | 'proxy'(대체 분모로 근사) | 'aux'(보조지표, 목표 없음) | 'off'(미연동)
+  // dir: 'up'(실측 >= 목표면 달성) | 'down'(실측 <= 목표면 달성)
+  function buildMetrics(from, to) {
+    const call = callValue(from, to).value;
+    const pretel = pretelValue(from, to).value;
+    const aiNote = aiNoteValue(from, to).value;
+    const noteInfo = noteInfoValue(from, to).value;
+    const pop = subEventValue('ai-note-agree-pop', from, to).value;
+    const agree = subEventValue('ai-note-agree-click', from, to).value;
+    const cancel = subEventValue('ai-note-cancel-click', from, to).value;
+    const skip = subEventValue('ai-note-review-skip', from, to).value;
+    const next = subEventValue('ai-note-review-next', from, to).value;
+    const submit = subEventValue('ai-note-review-submit', from, to).value;
+    const councel = subEventValue('ai-note-councel-click', from, to).value;
+    const utmClick = utmClickValue(from, to).value;
+    const aiNoteUsage = aiNoteUsageValue(from, to);
+    const eng = engagementValue(from, to);
+    const avgSec = eng.users > 0 ? eng.duration / eng.users : null;
+    const reviewBase = next + skip;
+
+    return {
+      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, aiNoteUsage },
+      screens: [
+        {
+          no: '01', name: '상담 클릭', file: '상담하기 바텀시트',
+          desc: '선생님 상세 화면 위에 "상담하기" 모달이 뜬다. "AI가 대화를 자동으로 정리해 상담노트로 만들어드려요" 안내와 함께 "AI 상담노트" 옵션(체크됨)·"상담하기" CTA가 배치돼 있다.',
+          mock: 'mock01', coreMetric: 'optKeep',
+          metrics: [
+            { key: 'optKeep', label: 'AI 상담노트 팝업', calc: '상담노트 팝업 노출 ÷ 상담하기(선불, pre_tel_click) 클릭', target: 0.8, dir: 'up', kind: 'proxy', value: ratio(pop, pretel) },
+          ],
+          events: [{ label: 'AI 상담노트 레이어 팝업 노출', key: 'ai-note-agree-pop', value: pop }],
+        },
+        {
+          no: '02', name: '약관 동의', file: 'AI 상담노트 이용 동의 모달',
+          desc: '"AI 상담노트를 이용하려면 필요해요" 제목의 개인정보 수집·이용 동의 모달. 하단에 "취소"·"동의하기" 두 버튼.',
+          mock: 'mock02', coreMetric: 'agreeRate',
+          metrics: [
+            { key: 'agreeRate', label: '동의율', calc: '동의하기 클릭 ÷ 팝업 노출', target: 0.8, dir: 'up', kind: 'measured', value: ratio(agree, pop) },
+            { key: 'cancelRate', label: '거부(취소)율', calc: '취소 클릭 ÷ 팝업 노출', target: 0.2, dir: 'down', kind: 'measured', value: ratio(cancel, pop) },
+          ],
+          events: [
+            { label: '동의하기 버튼 클릭', key: 'ai-note-agree-click', value: agree },
+            { label: '취소 버튼 클릭', key: 'ai-note-cancel-click', value: cancel },
+          ],
+        },
+        {
+          no: '03', name: '알림톡 수신', file: '상담종료 후 카카오톡 "운세당" 채널',
+          desc: '상담 종료 후 발송되는 카카오 알림톡. "AI 상담노트가 도착했어요" 문구와 "운세당 바로가기" 버튼.',
+          mock: 'mock03', coreMetric: 'ctrKakao',
+          metrics: [
+            { key: 'sendRate', label: '알림톡 발송 성공률', calc: '알림톡 발송 로그 연동 필요', target: 1.0, dir: 'up', kind: 'off', value: null },
+            { key: 'ctrKakao', label: '바로가기 클릭수', calc: '알림톡 발송 로그가 없어 CTR(%)은 계산 불가 — UTM(kakao_alimtalk/push/callnote_created) 클릭 활성사용자 수치만 집계', target: null, kind: 'aux', value: utmClick, unit: 'count' },
+          ],
+          events: [
+            { label: '알림톡 "바로가기" 클릭 (세션: ' + 'UTM 식별)', key: 'utm_source=kakao_alimtalk&utm_medium=push&utm_campaign=callnote_created', value: utmClick },
+          ],
+        },
+        {
+          no: '04', name: 'AI 상담노트 진입', file: '노트 상세(대화 스크립트) 화면',
+          desc: '"선생님 · N분 상담" 헤더 아래 대화 스크립트가 이어지고, 하단에 오디오 재생바와 고정 CTA "상담가능 | 상담하기"가 배치돼 있다.',
+          mock: 'mock04', coreMetric: 'avgDwell',
+          metrics: [
+            { key: 'noteEntry', label: '노트 진입율', calc: 'AI 상담보기(노트 상세) ÷ 알림톡 "바로가기" UTM 클릭', target: 0.9, dir: 'up', kind: 'proxy', value: ratio(noteInfo, utmClick) },
+            { key: 'listToView', label: '↳ 보조: 상담목록 → 상담보기 전환율', calc: 'AI 상담보기 ÷ AI 상담목록', target: null, dir: 'up', kind: 'aux', value: ratio(noteInfo, aiNote) },
+            { key: 'avgDwell', label: '평균 체류시간', calc: '노트 상세 참여시간 합 ÷ 참여 활성사용자', target: 20, dir: 'up', kind: 'measured', value: avgSec, unit: 'sec' },
+            { key: 'aiNoteUsage', label: '↳ 참고: AI 상담노트 사용자수', calc: '운영 DB 실집계(일자별 전달값 합산, GA4 비연동)', target: null, dir: 'up', kind: 'aux', value: aiNoteUsage, unit: 'count' },
+          ],
+          events: [],
+        },
+        {
+          no: '05', name: '후기 작성', file: '노트 화면 내 후기 설문 모달(1/2)',
+          desc: '"OO님과의 상담은 어떠셨나요?" 후기 설문 모달(1/2). 칩을 복수 선택하며, "다음" CTA와 "건너뛰고 상담노트 보기" 링크가 함께 있다.',
+          mock: 'mock05', coreMetric: 'reviewDone',
+          metrics: [
+            { key: 'reviewDone', label: '후기 작성 완료율', calc: '2/2 제출 ÷ (1/2 다음 + 1/2 건너뛰기)', target: 0.3, dir: 'up', kind: 'proxy', value: ratio(submit, reviewBase) },
+            { key: 'reviewSkipRate', label: '↳ 참고: 건너뛰기율', calc: '1/2 건너뛰기 ÷ (1/2 다음 + 1/2 건너뛰기) — 후기 작성 완료율과 같은 모수의 반대쪽이라 별도 목표 없이 참고만', target: null, kind: 'aux', value: ratio(skip, reviewBase) },
+            { key: 'reviewComplete', label: '↳ 보조: 1/2 → 2/2 완주율', calc: '2/2 제출 ÷ 1/2 다음', target: null, dir: 'up', kind: 'aux', value: ratio(submit, next) },
+          ],
+          events: [
+            { label: '1/2 다음 버튼 클릭', key: 'ai-note-review-next', value: next },
+            { label: '1/2 건너뛰기 클릭', key: 'ai-note-review-skip', value: skip },
+            { label: '2/2 작성 버튼 클릭', key: 'ai-note-review-submit', value: submit },
+          ],
+        },
+        {
+          no: '06', name: 'AI 재상담하기', file: '노트 화면 하단 "상담하기" 버튼 클릭',
+          desc: '04와 동일한 노트 상세 화면이며, 하단 고정 "상담가능 | 상담하기" 버튼을 눌러 재상담으로 이어지는 액션 지점을 가리킨다.',
+          mock: 'mock06', coreMetric: 'recallCtr',
+          metrics: [
+            { key: 'recallCtr', label: '재상담 버튼 CTR', calc: '재상담 버튼 클릭 ÷ AI 상담보기(노트 진입)', target: 0.15, dir: 'up', kind: 'measured', value: ratio(councel, noteInfo) },
+            { key: 'sameTeacher', label: '동일 선생님 재상담율', calc: '상담 DB 연동 필요', target: 0.2, dir: 'up', kind: 'off', value: null },
+            { key: 'totalRecall', label: '전체 재상담율', calc: '상담 DB 연동 필요', target: 0.3, dir: 'up', kind: 'off', value: null },
+          ],
+          events: [{ label: '재상담 버튼 클릭', key: 'ai-note-councel-click', value: councel }],
+        },
+      ],
+    };
+  }
+
+  function metricStatus(m) {
+    if (m.kind === 'off') return 'off';
+    if (m.kind === 'aux') return 'aux';
+    if (m.value == null) return 'nodata';
+    return (m.dir === 'up' ? m.value >= m.target : m.value <= m.target) ? 'good' : 'bad';
+  }
+  function fmtMetricValue(m) {
+    if (m.value == null) return '–';
+    if (m.unit === 'sec') return fmtSec(m.value);
+    if (m.unit === 'count') return fmtUsers(m.value);
+    return fmtPct(m.value);
+  }
+  function fmtTarget(m) {
+    if (m.target == null) return '–';
+    if (m.unit === 'sec') return `${m.target}초 이상`;
+    if (m.unit === 'count') return fmtUsers(m.target);
+    return m.dir === 'down' ? `${m.target * 100}% 이하` : `${m.target * 100}% 이상`;
+  }
+  function statusBadge(status) {
+    if (status === 'good') return '<span class="badge good">달성</span>';
+    if (status === 'bad') return '<span class="badge bad">미달</span>';
+    if (status === 'off') return '<span class="badge mute">미연동</span>';
+    if (status === 'aux') return '<span class="badge aux">보조지표</span>';
+    return '<span class="badge mute">–</span>';
+  }
+  function kindBadge(kind) {
+    if (kind === 'proxy') return ' <span class="badge aux" title="기획 문서가 정의한 분모를 직접 측정할 방법이 없어, 가장 가까운 대체 지표로 근사 계산한 값입니다. 계산식 칸에 실제 쓴 분모를 적어뒀습니다.">프록시</span>';
+    return '';
+  }
+  // 분자·분모가 서로 다른 GA4 이벤트를 각각 독립 집계한 activeUsers라, 비율이 100%를
+  // 넘을 수 있다(부분집합 관계가 보장되지 않음 — 집계 오류 아님). 퍼센트형 지표에서
+  // 100%를 넘을 때만 안내 아이콘을 붙인다.
+  function over100Note(m) {
+    if (m.value == null || m.unit || m.value <= 1) return '';
+    return ' <span class="info-dot" title="분자·분모가 서로 다른 GA4 이벤트를 각각 독립적으로 집계한 activeUsers라 100%를 넘을 수 있습니다 — 한쪽이 다른 쪽의 부분집합이라는 보장이 없습니다(집계 오류 아님).">ⓘ</span>';
+  }
+
+  const MOCKS = {
+    mock01: `
+      <div class="mock-profile-bg">
+        <div class="mock-avatar"></div>
+        <div class="mock-line w60"></div>
+        <div class="mock-line w40"></div>
+        <div class="mock-tag-row"><div class="mock-tag"></div><div class="mock-tag"></div><div class="mock-tag"></div></div>
+      </div>
+      <div class="mock-dim"></div>
+      <div class="mock-sheet">
+        <div class="mock-line w90"></div><div class="mock-line w60"></div>
+        <div class="mock-opt-row"><div class="mock-check"></div><div class="mock-line w40" style="background:var(--accent);opacity:.6"></div></div>
+        <div class="mock-btn primary">상담하기</div>
+      </div>`,
+    mock02: `
+      <div class="mock-profile-bg">
+        <div class="mock-avatar"></div>
+        <div class="mock-line w60"></div>
+        <div class="mock-line w40"></div>
+        <div class="mock-tag-row"><div class="mock-tag"></div><div class="mock-tag"></div><div class="mock-tag"></div></div>
+      </div>
+      <div class="mock-dim"></div>
+      <div class="mock-modal">
+        <div class="mock-modal-title">AI 상담노트를 이용하려면 필요해요</div>
+        <div class="mock-modal-box"><div class="mock-line w90"></div><div class="mock-line w80"></div><div class="mock-line w90"></div><div class="mock-line w60"></div></div>
+        <div class="mock-modal-actions"><div class="mock-btn ghost">취소</div><div class="mock-btn primary">동의하기</div></div>
+      </div>`,
+    mock03: `
+      <div class="mock-kakao-bg"></div>
+      <div class="mock-kakao-prior"><div class="mock-line w60"></div><div class="mock-line w40"></div></div>
+      <div class="mock-kakao-card">
+        <div class="mock-kakao-title">AI 상담노트가 도착했어요</div>
+        <div class="mock-kakao-line" style="width:92%"></div><div class="mock-kakao-line" style="width:70%"></div>
+        <div class="mock-kakao-btn">운세당 바로가기</div>
+      </div>`,
+    mock04: `
+      <div class="mock-chat-head">선생님 · 6분 상담</div>
+      <div class="mock-chat-body">
+        <div class="mock-bubble left"><div class="mock-line w80"></div><div class="mock-line w40"></div></div>
+        <div class="mock-bubble right"><div class="mock-line w60"></div></div>
+        <div class="mock-bubble left"><div class="mock-line w90"></div><div class="mock-line w60"></div></div>
+      </div>
+      <div class="mock-audio"><div class="mock-line"></div></div>
+      <div class="mock-chat-cta"><span class="pill">상담가능</span><span class="cta-btn">상담하기</span></div>`,
+    mock05: `
+      <div class="mock-chat-head">선생님 · 6분 상담</div>
+      <div class="mock-chat-body"><div class="mock-bubble left"><div class="mock-line w80"></div></div></div>
+      <div class="mock-dim"></div>
+      <div class="mock-survey">
+        <div class="mock-modal-title">OO님과의 상담은 어떠셨나요?</div>
+        <div class="mock-chip-grid">
+          <div class="mock-chip on">편안한 경청</div><div class="mock-chip">쉬운 설명</div>
+          <div class="mock-chip on">높은 적중률</div><div class="mock-chip">구체적 조언</div>
+        </div>
+        <div class="mock-btn primary" style="margin-top:4px;">다음</div>
+        <div class="mock-skip">건너뛰고 상담노트 보기</div>
+      </div>`,
+    mock06: `
+      <div class="mock-chat-head">선생님 · 6분 상담</div>
+      <div class="mock-chat-body">
+        <div class="mock-bubble left"><div class="mock-line w80"></div><div class="mock-line w40"></div></div>
+        <div class="mock-bubble right"><div class="mock-line w60"></div></div>
+      </div>
+      <div class="mock-audio"><div class="mock-line"></div></div>
+      <div class="mock-chat-cta highlight"><span class="pill">상담가능</span><span class="cta-btn">상담하기</span></div>`,
+  };
+
+  function flowStatusLabel(status) {
+    if (status === 'good') return '달성';
+    if (status === 'bad') return '미달';
+    if (status === 'off') return '미연동';
+    if (status === 'aux') return '참고용';
+    return '측정불가';
+  }
+  function renderScoreboard(data) {
+    let good = 0, bad = 0, off = 0;
+    data.screens.forEach((s) => s.metrics.forEach((m) => {
+      const st = metricStatus(m);
+      if (st === 'good') good++; else if (st === 'bad') bad++; else if (st === 'off') off++;
+    }));
+    const flowHtml = data.screens.map((s, i) => {
+      const core = s.metrics.find((m) => m.key === s.coreMetric);
+      const valTxt = core ? fmtMetricValue(core) : '–';
+      const status = core ? metricStatus(core) : 'nodata';
+      const statusClass = status === 'nodata' ? 'status-nodata' : `status-${status}`;
+      return `
+        ${i > 0 ? '<div class="flow-arrow">→</div>' : ''}
+        <div class="flow-step ${statusClass}" title="${flowStatusLabel(status)}">
+          <div class="flow-num">${s.no}</div>
+          <div class="flow-name">${s.name}</div>
+          <div class="flow-metric">${core ? core.label : ''}<br><b>${valTxt}</b></div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h2>요약 스코어보드</h2>
+        <div class="score-tiles">
+          <div class="score-tile good"><div class="num">${good}</div><div class="lbl">달성</div></div>
+          <div class="score-tile bad"><div class="num">${bad}</div><div class="lbl">미달</div></div>
+          <div class="score-tile mute"><div class="num">${off}</div><div class="lbl">미연동</div></div>
+        </div>
+        <div class="flow">${flowHtml}</div>
+      </div>`;
+  }
+
+  function renderScreenCard(s) {
+    const core = s.metrics.find((m) => m.key === s.coreMetric);
+    const coreStatus = core ? metricStatus(core) : 'nodata';
+    const cardStatusClass = coreStatus === 'nodata' ? 'screen-status-off' : `screen-status-${coreStatus}`;
+    const rows = s.metrics.map((m) => {
+      const status = metricStatus(m);
+      return `
+        <tr${m.kind === 'aux' ? ' class="aux"' : ''}>
+          <td>${m.label}${kindBadge(m.kind)}</td>
+          <td>${m.calc}</td>
+          <td class="figcell">${fmtTarget(m)}</td>
+          <td class="figcell">${fmtMetricValue(m)}${over100Note(m)}</td>
+          <td>${statusBadge(status)}</td>
+        </tr>`;
+    }).join('');
+    const eventsHtml = s.events.length ? `
+      <p class="evt-title">추적 이벤트</p>
+      <div class="table-scroll">
+      <table class="evt">
+        <thead><tr><th>이벤트 설명</th><th>GA 이벤트키</th><th>기간 내 활성사용자</th></tr></thead>
+        <tbody>${s.events.map((e) => `<tr><td>${e.label}</td><td class="key">${e.key}</td><td class="figcell">${fmtUsers(e.value)}</td></tr>`).join('')}</tbody>
+      </table>
+      </div>` : '';
+    return `
+      <div class="card screen-card-wrap ${cardStatusClass}">
+        <h2>${s.no}. ${s.name} <span class="hint">${s.file}</span></h2>
+        <div class="screen-card">
+          <div class="screen-mock-col">
+            <div class="mock">${MOCKS[s.mock]}<div class="mock-notch"></div></div>
+            <div class="cap">${s.no} · ${s.name} (형태 참고용 목업)</div>
+          </div>
+          <div class="screen-body">
+            <p class="screen-desc">${s.desc}</p>
+            <div class="table-scroll">
+            <table class="kpi">
+              <thead><tr><th>지표명</th><th>계산식</th><th>목표</th><th>실측</th><th>달성</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+            </div>
+            ${eventsHtml}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  let CURRENT_FROM = DATE_RANGE.to;
+  let CURRENT_TO = DATE_RANGE.to;
+
+  function render(from, to) {
+    CURRENT_FROM = from; CURRENT_TO = to;
+    const data = buildMetrics(from, to);
+    const html = renderScoreboard(data) + data.screens.map(renderScreenCard).join('');
+    document.getElementById('content').innerHTML = html;
+  }
+
+  function setActivePreset(days) {
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.preset) === days);
+    });
+  }
+  function applyRange(from, to, presetDays) {
+    from = clamp(from); to = clamp(to);
+    document.getElementById('customFrom').value = from;
+    document.getElementById('customTo').value = to;
+    setActivePreset(presetDays || null);
+    render(from, to);
+  }
+  function updateFooter() {
+    document.getElementById('footer').innerHTML =
+      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(AI 상담노트 집계 시작일인 9월 30일부터, 총 ${rangeDates(DATE_RANGE.from, DATE_RANGE.to).length}일)<br>` +
+      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
+      `날짜 필터는 이미 내장된 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
+      `원본 KPI 목표 문서: AI상담노트-화면별-KPI목표-260929.html (작성일 2026-09-29)<br>` +
+      `생성 시각: ${GENERATED_AT}`;
+  }
+
+  // --- 이미지 저장: html2canvas를 버튼 클릭 시점에 지연 로드 ---
+  const HTML2CANVAS_SRC = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+  function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = HTML2CANVAS_SRC;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('html2canvas 로드 실패(네트워크 확인 필요)'));
+      document.head.appendChild(s);
+    });
+  }
+  async function captureContent() {
+    const btn = document.getElementById('captureBtn');
+    const orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '캡처 중…';
+    try {
+      await loadHtml2Canvas();
+      const target = document.getElementById('content');
+      const canvas = await window.html2canvas(target, {
+        backgroundColor: getComputedStyle(document.body).backgroundColor,
+        scale: 2, useCORS: true,
+      });
+      const link = document.createElement('a');
+      link.download = `ga4-ainote-kpi-unsedang_${CURRENT_FROM}_${CURRENT_TO}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      console.error('이미지 캡처 실패', e);
+      alert('이미지 캡처에 실패했습니다: ' + (e.message || e));
+    } finally {
+      btn.disabled = false; btn.textContent = orig;
+    }
+  }
+
+  function init() {
+    const totalDays = rangeDates(DATE_RANGE.from, DATE_RANGE.to).length;
+    document.getElementById('presetAllBtn').textContent = `전체(${totalDays}일)`;
+    // 7/14/30일 버튼은 "전체" 가용 일수보다 길면 전체와 결과가 똑같아 의미가 없으므로
+    // 비활성화한다 — 내장 범위가 늘어나 가용 일수가 그 숫자를 넘으면 자동으로 풀린다.
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
+      const days = Number(btn.dataset.preset);
+      if (days > 1 && days < 90) {
+        btn.disabled = days >= totalDays;
+      }
+    });
+    document.getElementById('customFrom').min = DATE_RANGE.from;
+    document.getElementById('customFrom').max = DATE_RANGE.to;
+    document.getElementById('customTo').min = DATE_RANGE.from;
+    document.getElementById('customTo').max = DATE_RANGE.to;
+
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const days = Number(btn.dataset.preset);
+        const to = DATE_RANGE.to;
+        const from = days >= 90 ? DATE_RANGE.from : clamp(addDays(to, -(days - 1)));
+        applyRange(from, to, days);
+      });
+    });
+    const onCustomChange = () => {
+      const from = document.getElementById('customFrom').value || DATE_RANGE.from;
+      const to = document.getElementById('customTo').value || DATE_RANGE.to;
+      if (from > to) return;
+      applyRange(from, to, null);
+    };
+    document.getElementById('customFrom').addEventListener('change', onCustomChange);
+    document.getElementById('customTo').addEventListener('change', onCustomChange);
+    document.getElementById('captureBtn').addEventListener('click', captureContent);
+
+    applyRange(DATE_RANGE.from, DATE_RANGE.to, 90);
+    updateFooter();
+  }
+
+  init();
+</script>

@@ -12,8 +12,6 @@
     --accent-bg: #efeaff;
     --table-head-bg: #f0f0f3;
     --stripe: #fafafb;
-    --warn-bg: #fff4e5;
-    --warn-text: #8a5300;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -26,8 +24,6 @@
       --accent-bg: #2a2440;
       --table-head-bg: #26262b;
       --stripe: #232328;
-      --warn-bg: #3a2c10;
-      --warn-text: #f0c374;
     }
   }
   :root[data-theme="dark"] {
@@ -40,8 +36,6 @@
     --accent-bg: #2a2440;
     --table-head-bg: #26262b;
     --stripe: #232328;
-    --warn-bg: #3a2c10;
-    --warn-text: #f0c374;
   }
   * { box-sizing: border-box; }
   body {
@@ -67,13 +61,8 @@
   .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
   .card h2 { font-size: 0.88rem; font-weight: 400; margin: 0 0 8px; }
   .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
-  .notice { border-color: var(--warn-text); }
-  .notice h2 { color: var(--warn-text); }
-  .notice ul { margin: 0; padding-left: 18px; font-size: 0.8rem; color: var(--text); }
-  .notice li { margin-bottom: 6px; }
   footer { color: var(--text-dim); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
   footer a { color: var(--text-dim); }
-  .note { margin-top: 10px; font-size: 0.74rem; color: var(--warn-text); background: var(--warn-bg); padding: 7px 10px; border-radius: 8px; }
 
   /* --- 필터 바 --- */
   .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -109,7 +98,6 @@
   .funnel-subitem { display: grid; grid-template-columns: 128px 92px; column-gap: 10px; font-size: 0.74rem; color: var(--text-dim); }
   .funnel-subitem-label { text-align: left; white-space: nowrap; }
   .funnel-subitem-value { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
-  .funnel-subitem-value--placeholder { color: var(--warn-text); }
   .funnel-media-group {
     grid-column: 1 / -1;
     display: grid;
@@ -136,24 +124,13 @@
     <nav class="site-nav">
       <div class="site-nav-title">리포트 메뉴</div>
       <a href="ga4-funnel-unsedang.html" class="active">운세당 GA4 퍼널</a>
+      <a href="ga4-ainote-kpi-unsedang.html">운세당 AI상담노트 KPI</a>
       <a href="db-data-unsedang.html">운세당 매출 리포트</a>
       <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="db-data-mindcare.html">마인드케어 리포트</a>
       <a href="db-data-today.html">투데이 리포트</a>
     </nav>
     <h1>운세당 GA4 퍼널 리포트</h1>
-
-    <div class="card notice">
-      <h2>⚠ 읽기 전 유의사항</h2>
-      <ul>
-        <li><b>각 단계는 독립적으로 측정된 값입니다.</b> 실제 순차 유입 흐름이 아니라, 서로 다른 페이지/이벤트를 발생시킨 활성사용자 수를 나열한 것입니다 — 예를 들어 "운세"나 "후기"는 "AI 상담" 단계를 거치지 않고도 도달할 수 있습니다. 막대 길이는 실제 이탈률이 아니라 단순 크기 비교이며, 진짜 순차 퍼널(단계별 이탈률)은 GA4 UI의 탐색 분석 → 유입경로 탐색에서만 확인 가능합니다.</li>
-        <li><b>"상담하기"는 pre_tel_click(선불)과 post_tel_click(후불) 두 이벤트를 합쳐 하나로 집계한 값입니다.</b> 같은 쿼리에 두 이벤트를 모두 걸고 activeUsers를 재조회했으므로, 같은 날 두 이벤트를 모두 발생시킨 사용자가 중복 집계되지 않은 정확한 값입니다.</li>
-        <li><b>"AI 상담목록"/"AI 상담보기"는 2026-09-30부터 신규 집계된 기능입니다.</b> 그 이전 날짜는 값이 없는 것이 아니라 기능 자체가 없었던 것이라 "0"으로 표시됩니다.</li>
-        <li><b>"전체사용자"는 페이지/이벤트 구분 없이 사이트 전체를 집계한 별도 지표입니다.</b> 퍼널 단계들의 값과 더하거나 비교할 수 없으며, 단지 그 기간의 전체 트래픽 규모를 참고하기 위한 값입니다. 그 아래 "매체별 유입" 하위그룹은 firstUserSource(최초 유입 시점에 평생 고정되는 값)를 그룹별로 단순 합산한 것이라, 같은 날 다른 방식으로도 방문한 사용자가 있으면 그룹 합산치가 "전체사용자" 값과 정확히 일치하지 않을 수 있습니다.</li>
-        <li><b>하위그룹(상담노트 약관 팝업/취소/동의 등)의 숫자를 단순히 더하면 상위 항목과 안 맞을 수 있습니다.</b> 팝업이 같은 사용자에게 하루에도 여러 번 뜰 수 있어, 한 사용자가 한 번은 취소하고 다른 한 번은 동의하면 취소·동의 양쪽에 모두 유니크하게 집계됩니다. 그래서 "취소+동의"가 "팝업" 유니크 사용자 수보다 커질 수 있으며, 이는 집계 오류가 아니라 activeUsers(유니크 사용자) 지표 특성입니다.</li>
-        <li><b>"상담사 상세" 아래 매출/상담건수 하위그룹은 GA4가 아니라 운세당 DB API(consultation-stats)에서 페이지를 열 때마다 실시간으로 가져온 값입니다.</b> 위 매체 유입 표와 달리 정적 스냅샷이 아니며, 선택한 조회 기간에 맞춰 다시 합산됩니다. "AI상담노트사용"은 아직 실제 집계가 연동되지 않아 조회 기간과 무관하게 24명으로 고정 표시되는 임시값입니다.</li>
-      </ul>
-    </div>
 
     <div class="card">
       <h2>조회 기간</h2>
@@ -331,9 +308,13 @@
   }
 
   // --- "상담사 상세" 하위그룹: 매출/상담건수는 운세당 DB API(consultation-stats)에서
-  // 페이지를 열 때마다 실시간으로 가져온다(GA4 정적 스냅샷과 별개). AI상담노트사용은
-  // 아직 실제 집계가 없어 조회 기간과 무관하게 24명으로 고정한다(추후 연동 예정).
-  const AI_NOTE_STATIC_COUNT = 24;
+  // 페이지를 열 때마다 실시간으로 가져온다(GA4 정적 스냅샷과 별개).
+  // AI상담노트사용은 운영진이 직접 전달한 일별 실집계다(GA4 비연동, DB API와도 무관).
+  // scripts/update_ga4_unsedang.py가 관리하는 블록 목록(DAILY_PAGES/DAILY_CALL/
+  // PAGE_TOTALS/CALL_TOTAL/DAILY_SITE/SITE_ACTIVE_USERS_TOTAL/DAILY_SUBEVENTS/
+  // SUBEVENT_TOTALS/DAILY_FIRST_USER/FIRST_USER_TOTALS)에 없는 이름이라 그 배치
+  // 스크립트가 실행돼도 건드리지 않는다. 날짜가 없으면 아직 집계분을 못 받은 것이라 0.
+  const AI_NOTE_USAGE_DAILY = {"2026-09-30":23,"2026-10-01":24,"2026-10-02":38,"2026-10-03":39,"2026-10-04":32};
   const FETCH_TIMEOUT_MS = 10000;
   let CONSULT_REVENUE_DAILY = null; // {date: 매출(원), 선불+후불 합산}
   let CONSULT_COUNT_PREPAID_DAILY = null; // {date: 상담건수(선불)}
@@ -403,17 +384,18 @@
       countPrepaidText = fmtCount(countPrepaidSum);
       countPostpaidText = fmtCount(countPostpaidSum);
     }
+    const aiNoteUsageSum = rangeDates(from, to).reduce((acc, d) => acc + (AI_NOTE_USAGE_DAILY[d] || 0), 0);
     const items = [
       { label: '매출', value: revenueText },
       { label: '상담건수(선불)', value: countPrepaidText },
       { label: '상담건수(후불)', value: countPostpaidText },
-      { label: 'AI상담노트사용', value: fmtUsers(AI_NOTE_STATIC_COUNT), placeholder: true },
+      { label: 'AI상담노트사용', value: fmtUsers(aiNoteUsageSum) },
     ];
     const itemsHtml = items
       .map((it) => `
           <div class="funnel-subitem">
             <span class="funnel-subitem-label">${it.label}</span>
-            <span class="funnel-subitem-value${it.placeholder ? ' funnel-subitem-value--placeholder' : ''}">${it.value}</span>
+            <span class="funnel-subitem-value">${it.value}</span>
           </div>`)
       .join('');
     return `<div class="funnel-subgroup">${itemsHtml}</div>`;
@@ -461,7 +443,6 @@
       <div class="card">
         <h2>매체 유입 → 상담 전환 퍼널 <span class="hint">활성사용자 기준, ${from} ~ ${to}</span></h2>
         <div class="funnel">${rows}</div>
-        <div class="note">ℹ 위 유의사항 참고 — 단계 간 비율은 순차 이탈률이 아니라 서로 독립적으로 측정된 값의 단순 크기 비교입니다.</div>
       </div>`;
   }
 
