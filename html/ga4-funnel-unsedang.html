@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GA4 퍼널 리포트 — 운세당</title>
 <style>
   :root {
@@ -54,7 +55,7 @@
     padding: 18px 10px; overflow-y: auto; z-index: 200;
   }
   .site-nav-title { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); padding: 0 8px; margin-bottom: 8px; white-space: nowrap; }
-  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; }
+  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
   h1 { font-size: 1.35rem; margin: 16px 0 4px; }
@@ -118,6 +119,15 @@
   }
   .funnel-media-item .funnel-subitem-label { font-size: 0.68rem; color: var(--text-dim); text-align: center; }
   .funnel-media-item .funnel-subitem-value { font-size: 0.78rem; font-weight: 400; color: var(--accent); text-align: center; }
+  @media (max-width: 760px) {
+    body { padding-left: 16px; }
+    .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
+    .funnel-row { grid-template-columns: 74px 1fr 68px; gap: 8px; }
+    .funnel-label { font-size: 0.74rem; }
+    .funnel-figures .value { font-size: 0.82rem; }
+    .funnel-subitem { grid-template-columns: 1fr auto; }
+    .funnel-media-group { grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); }
+  }
 </style>
 <body>
   <div class="wrap">

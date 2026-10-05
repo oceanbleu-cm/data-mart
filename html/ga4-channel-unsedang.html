@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GA4 매체별 유입 리포트 — 운세당</title>
 <style>
   :root {
@@ -81,7 +82,7 @@
     padding: 18px 10px; overflow-y: auto; z-index: 200;
   }
   .site-nav-title { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); padding: 0 8px; margin-bottom: 8px; white-space: nowrap; }
-  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; }
+  .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
   h1 { font-size: 1.35rem; margin: 16px 0 4px; }
@@ -138,6 +139,10 @@
   .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
   .copy-btn:disabled { color: var(--accent); border-color: var(--accent); cursor: default; }
   td.date-cell { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+  @media (max-width: 860px) {
+    body { padding-left: 16px; }
+    .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
+  }
 </style>
 <body>
   <div class="wrap">

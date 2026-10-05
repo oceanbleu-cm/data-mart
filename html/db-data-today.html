@@ -1,5 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>투데이 리포트 — 운세당</title>
 <style>
   :root {
@@ -111,6 +112,8 @@
     padding: 9px 8px;
     border-radius: 8px;
     text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
@@ -215,6 +218,8 @@
   .summary-grid-5 { grid-template-columns: repeat(5, 1fr); }
   @media (max-width: 760px) {
     .summary-grid-5 { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+    body { padding-left: 16px; }
+    .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
   }
   .stat { padding: 7px 10px; background: var(--stripe); border-radius: 8px; }
   .stat .label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 2px; }
