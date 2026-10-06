@@ -75,7 +75,6 @@
     background: var(--card-bg); border-right: 1px solid var(--border);
     padding: 18px 10px; overflow-y: auto; z-index: 200;
   }
-  .site-nav-title { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); padding: 0 8px; margin-bottom: 8px; white-space: nowrap; }
   .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
@@ -255,10 +254,9 @@
 <body>
   <div class="wrap">
     <nav class="site-nav">
-      <div class="site-nav-title">리포트 메뉴</div>
+      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
       <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
       <a href="ga4-ainote-kpi-unsedang.html" class="active">운세당 AI상담노트 KPI</a>
-      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
       <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="db-data-mindcare.html">마인드케어 리포트</a>
       <a href="db-data-today.html">투데이 리포트</a>
@@ -280,7 +278,6 @@
           <span>~</span>
           <input type="date" id="customTo">
         </div>
-        <button type="button" class="preset-btn" id="captureBtn" style="margin-left:auto;">🖼 이미지로 저장</button>
       </div>
     </div>
 
@@ -364,6 +361,7 @@
   const fmtUsers = (n) => numFmt.format(n) + '명';
   const fmtPct = (n) => (n * 100).toFixed(1) + '%';
   const fmtSec = (n) => n.toFixed(1) + '초';
+  const fmtTxn = (n) => numFmt.format(n) + '건'; // 사람 수가 아니라 건수(발송/상담 건) — DB API count류
 
   function toUTC(dateStr) { const [y, m, d] = dateStr.split('-').map(Number); return Date.UTC(y, m - 1, d); }
   function fromUTC(ts) {
@@ -413,7 +411,7 @@
   function ratio(num, den) { return den > 0 ? num / den : null; }
 
   // ----- 화면별 KPI 지표 정의 -----
-  // kind: 'measured'(직접 측정) | 'proxy'(대체 분모로 근사) | 'aux'(보조지표, 목표 없음) | 'off'(미연동)
+  // kind: 'measured'(직접 측정) | 'proxy'(대체 분모로 근사) | 'aux'(보조지표, 목표 없음) | 'off'(추가 개발 필요 — 연동 문제가 아니라 추적 자체가 아직 없음)
   // dir: 'up'(실측 >= 목표면 달성) | 'down'(실측 <= 목표면 달성)
   function buildMetrics(from, to) {
     const call = callValue(from, to).value;
@@ -468,7 +466,10 @@
           mock: 'mock03', coreMetric: 'sendRate',
           metrics: [
             { key: 'sendRate', label: '알림톡 발송 성공률', calc: '알림톡 발송 성공건수 ÷ AI 상담노트 생성 상담건수(발송 시도 근사치)', target: 1.0, dir: 'up', kind: 'proxy', value: ratio(alimtalk, aiNoteConsultCnt) },
-            { key: 'ctrKakao', label: '바로가기 클릭수', calc: '알림톡 발송 로그가 없어 CTR(%)은 계산 불가 — UTM(kakao_alimtalk/push/callnote_created) 클릭 활성사용자 수치만 집계', target: null, kind: 'aux', value: utmClick, unit: 'count' },
+            { key: 'alimtalkCount', label: '↳ 참고: 알림톡 발송 성공건수', calc: '운세당 DB API(aiNoteAlimtalkCount)', target: null, kind: 'aux', value: alimtalk, unit: 'txn' },
+            { key: 'aiNoteConsultCnt', label: '↳ 참고: AI 상담노트 생성 상담건수', calc: '운세당 DB API(consultationCount.prepaid.aiNoteConsultation)', target: null, kind: 'aux', value: aiNoteConsultCnt, unit: 'txn' },
+            { key: 'ctrKakao', label: '"운세당 바로가기" CTR', calc: '바로가기 클릭 ÷ 알림톡 발송 성공건수(기획 목표는 "열람" 대비지만 열람 로그가 없어 발송건수로 근사)', target: 0.8, dir: 'up', kind: 'proxy', value: ratio(utmClick, alimtalk) },
+            { key: 'utmClickCount03', label: '↳ 참고: 바로가기 클릭수', calc: 'GA4 activeUsers(sessionSource=kakao_alimtalk 등)', target: null, kind: 'aux', value: utmClick, unit: 'count' },
           ],
           events: [
             { label: '알림톡 "바로가기" 클릭 (세션: ' + 'UTM 식별)', key: 'utm_source=kakao_alimtalk&utm_medium=push&utm_campaign=callnote_created', value: utmClick },
@@ -480,6 +481,8 @@
           mock: 'mock04', coreMetric: 'avgDwell',
           metrics: [
             { key: 'noteEntry', label: '노트 진입율', calc: 'AI 상담보기(노트 상세) ÷ 알림톡 "바로가기" UTM 클릭', target: 0.9, dir: 'up', kind: 'proxy', value: ratio(noteInfo, utmClick) },
+            { key: 'noteInfoCount', label: '↳ 참고: AI 상담보기(노트 상세)', calc: 'GA4 activeUsers(/view/ai-note/noteInfo)', target: null, kind: 'aux', value: noteInfo, unit: 'count' },
+            { key: 'utmClickCount', label: '↳ 참고: 알림톡 "바로가기" UTM 클릭', calc: 'GA4 activeUsers(sessionSource=kakao_alimtalk 등)', target: null, kind: 'aux', value: utmClick, unit: 'count' },
             { key: 'listToView', label: '↳ 보조: 상담목록 → 상담보기 전환율', calc: 'AI 상담보기 ÷ AI 상담목록', target: null, dir: 'up', kind: 'aux', value: ratio(noteInfo, aiNote) },
             { key: 'avgDwell', label: '평균 체류시간', calc: '노트 상세 참여시간 합 ÷ 참여 활성사용자', target: 20, dir: 'up', kind: 'measured', value: avgSec, unit: 'sec' },
             { key: 'aiNoteUsage', label: '↳ 참고: AI 상담노트 사용자수', calc: '운영 DB 실집계(일자별 전달값 합산, GA4 비연동)', target: null, dir: 'up', kind: 'aux', value: aiNoteUsage, unit: 'count' },
@@ -526,18 +529,20 @@
     if (m.value == null) return '–';
     if (m.unit === 'sec') return fmtSec(m.value);
     if (m.unit === 'count') return fmtUsers(m.value);
+    if (m.unit === 'txn') return fmtTxn(m.value);
     return fmtPct(m.value);
   }
   function fmtTarget(m) {
     if (m.target == null) return '–';
     if (m.unit === 'sec') return `${m.target}초 이상`;
     if (m.unit === 'count') return fmtUsers(m.target);
+    if (m.unit === 'txn') return fmtTxn(m.target);
     return m.dir === 'down' ? `${m.target * 100}% 이하` : `${m.target * 100}% 이상`;
   }
   function statusBadge(status) {
     if (status === 'good') return '<span class="badge good">달성</span>';
     if (status === 'bad') return '<span class="badge bad">미달</span>';
-    if (status === 'off') return '<span class="badge mute">미연동</span>';
+    if (status === 'off') return '<span class="badge mute">추가 개발 필요</span>';
     if (status === 'aux') return '<span class="badge aux">보조지표</span>';
     return '<span class="badge mute">–</span>';
   }
@@ -623,7 +628,7 @@
   function flowStatusLabel(status) {
     if (status === 'good') return '달성';
     if (status === 'bad') return '미달';
-    if (status === 'off') return '미연동';
+    if (status === 'off') return '추가 개발 필요';
     if (status === 'aux') return '참고용';
     return '측정불가';
   }
@@ -653,7 +658,7 @@
         <div class="score-tiles">
           <div class="score-tile good"><div class="num">${good}</div><div class="lbl">달성</div></div>
           <div class="score-tile bad"><div class="num">${bad}</div><div class="lbl">미달</div></div>
-          <div class="score-tile mute"><div class="num">${off}</div><div class="lbl">미연동</div></div>
+          <div class="score-tile mute"><div class="num">${off}</div><div class="lbl">추가 개발 필요</div></div>
         </div>
         <div class="flow">${flowHtml}</div>
       </div>`;
@@ -688,7 +693,7 @@
         <div class="screen-card">
           <div class="screen-mock-col">
             <div class="mock">${MOCKS[s.mock]}<div class="mock-notch"></div></div>
-            <div class="cap">${s.no} · ${s.name} (형태 참고용 목업)</div>
+            <div class="cap">${s.no} · ${s.name}</div>
           </div>
           <div class="screen-body">
             <p class="screen-desc">${s.desc}</p>
@@ -704,11 +709,7 @@
       </div>`;
   }
 
-  let CURRENT_FROM = DATE_RANGE.to;
-  let CURRENT_TO = DATE_RANGE.to;
-
   function render(from, to) {
-    CURRENT_FROM = from; CURRENT_TO = to;
     const data = buildMetrics(from, to);
     const html = renderScoreboard(data) + data.screens.map(renderScreenCard).join('');
     document.getElementById('content').innerHTML = html;
@@ -734,41 +735,6 @@
       `날짜 필터는 이미 내장된 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
       `원본 KPI 목표 문서: AI상담노트-화면별-KPI목표-260929.html (작성일 2026-09-29)<br>` +
       `생성 시각: ${GENERATED_AT}`;
-  }
-
-  // --- 이미지 저장: html2canvas를 버튼 클릭 시점에 지연 로드 ---
-  const HTML2CANVAS_SRC = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-  function loadHtml2Canvas() {
-    if (window.html2canvas) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = HTML2CANVAS_SRC;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('html2canvas 로드 실패(네트워크 확인 필요)'));
-      document.head.appendChild(s);
-    });
-  }
-  async function captureContent() {
-    const btn = document.getElementById('captureBtn');
-    const orig = btn.textContent;
-    btn.disabled = true; btn.textContent = '캡처 중…';
-    try {
-      await loadHtml2Canvas();
-      const target = document.getElementById('content');
-      const canvas = await window.html2canvas(target, {
-        backgroundColor: getComputedStyle(document.body).backgroundColor,
-        scale: 2, useCORS: true,
-      });
-      const link = document.createElement('a');
-      link.download = `ga4-ainote-kpi-unsedang_${CURRENT_FROM}_${CURRENT_TO}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (e) {
-      console.error('이미지 캡처 실패', e);
-      alert('이미지 캡처에 실패했습니다: ' + (e.message || e));
-    } finally {
-      btn.disabled = false; btn.textContent = orig;
-    }
   }
 
   function init() {
@@ -803,7 +769,6 @@
     };
     document.getElementById('customFrom').addEventListener('change', onCustomChange);
     document.getElementById('customTo').addEventListener('change', onCustomChange);
-    document.getElementById('captureBtn').addEventListener('click', captureContent);
 
     applyRange(DATE_RANGE.from, DATE_RANGE.to, 90);
     updateFooter();
