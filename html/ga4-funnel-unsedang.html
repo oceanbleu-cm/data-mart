@@ -13,6 +13,11 @@
     --accent-bg: #efeaff;
     --table-head-bg: #f0f0f3;
     --stripe: #fafafb;
+    --good: #1f8a4c;
+    --good-bg: #e8f7ee;
+    --bad: #d13c3c;
+    --bad-bg: #fdecec;
+    --mute-bg: #eceef2;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -25,6 +30,11 @@
       --accent-bg: #2a2440;
       --table-head-bg: #26262b;
       --stripe: #232328;
+      --good: #4fcf86;
+      --good-bg: #16301f;
+      --bad: #ff6b6b;
+      --bad-bg: #3a1a1a;
+      --mute-bg: #2a2a30;
     }
   }
   :root[data-theme="dark"] {
@@ -37,6 +47,11 @@
     --accent-bg: #2a2440;
     --table-head-bg: #26262b;
     --stripe: #232328;
+    --good: #4fcf86;
+    --good-bg: #16301f;
+    --bad: #ff6b6b;
+    --bad-bg: #3a1a1a;
+    --mute-bg: #2a2a30;
   }
   * { box-sizing: border-box; }
   body {
@@ -47,7 +62,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
     line-height: 1.5;
   }
-  .wrap { max-width: 900px; margin: 0; }
+  .wrap { max-width: 980px; margin: 0; }
   .site-nav {
     position: fixed; left: 0; top: 0; bottom: 0; width: 190px;
     display: flex; flex-direction: column; gap: 2px;
@@ -57,9 +72,10 @@
   .site-nav a { display: block; font-size: 0.8rem; color: var(--text); line-height: 1.4; padding: 9px 8px; border-radius: 8px; text-decoration: none; white-space: nowrap; flex-shrink: 0; }
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
-  h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  h1 { font-size: 1.35rem; margin: 16px 0 2px; }
+  .subtitle { font-size: 0.78rem; color: var(--text-dim); margin: 0 0 14px; line-height: 1.6; }
   .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 12px; }
-  .card h2 { font-size: 0.88rem; font-weight: 400; margin: 0 0 8px; }
+  .card h2 { font-size: 0.88rem; font-weight: 700; margin: 0 0 10px; }
   .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
   footer { color: var(--text-dim); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
   footer a { color: var(--text-dim); }
@@ -78,54 +94,84 @@
     background: var(--card-bg); color: var(--text); font-family: inherit;
   }
 
-  /* --- 퍼널 --- */
-  .funnel { display: flex; flex-direction: column; gap: 2px; }
-  .funnel-row { display: grid; grid-template-columns: 104px 1fr 168px; align-items: center; gap: 12px; padding: 3px 0; }
-  .funnel-row + .funnel-row { border-top: 1px solid var(--border); }
-  .funnel-label { font-size: 0.82rem; color: var(--text); text-align: right; white-space: nowrap; }
-  .funnel-track { position: relative; height: 13px; background: var(--stripe); border-radius: 4px; }
-  .funnel-bar { height: 100%; background: var(--accent); border-radius: 4px; min-width: 3px; }
-  .funnel-figures { display: flex; align-items: baseline; gap: 8px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
-  .funnel-figures .value { font-size: 0.92rem; font-weight: 600; color: var(--text); }
-  .funnel-subgroup {
-    grid-column: 1 / -1;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
-    margin: 3px 0 0;
-    padding: 5px 10px;
-    background: var(--stripe);
-    border-radius: 6px;
+  /* --- 데이터 출처 배지 / 공통 조각 --- */
+  .src-badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.64rem; font-weight: 700; vertical-align: 2px; margin-left: 6px; white-space: nowrap; }
+  .src-badge.ga4 { background: var(--accent-bg); color: var(--accent); }
+  .src-badge.db { background: var(--good-bg); color: var(--good); }
+  .src-badge.manual { background: var(--mute-bg); color: var(--text-dim); }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.66rem; font-weight: 700; white-space: nowrap; }
+  .badge.bad { background: var(--bad-bg); color: var(--bad); }
+  .badge.mute { background: var(--mute-bg); color: var(--text-dim); }
+  .sec-title { font-size: 0.78rem; font-weight: 700; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .note { font-size: 0.72rem; color: var(--text-dim); margin: 10px 0 0; line-height: 1.65; }
+  .note b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .note a { color: var(--accent); }
+  .note.warn b, .note.warn { color: var(--bad); }
+  .chip { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; margin-left: 5px; vertical-align: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip.up { background: var(--good-bg); color: var(--good); }
+  .chip.down { background: var(--bad-bg); color: var(--bad); }
+  .chip.flat { background: var(--mute-bg); color: var(--text-dim); }
+
+  /* --- KPI 요약 타일 --- */
+  .kpi-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .kpi-tile { border: 1px solid var(--border); border-radius: 9px; padding: 8px 11px; background: var(--card-bg); min-width: 0; }
+  .kpi-tile .lbl { font-size: 0.68rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi-tile .num { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .kpi-tile .sublbl { font-size: 0.63rem; color: var(--text-dim); margin-top: 3px; line-height: 1.45; }
+  .kpi-tile.hero { border-color: var(--accent); background: var(--accent-bg); }
+  .kpi-tile.hero .num { color: var(--accent); }
+
+  /* --- 퍼널(단계 막대 + 단계 간 전환율 커넥터) --- */
+  .fnl { display: flex; flex-direction: column; }
+  .fnl-row { display: grid; grid-template-columns: 150px 1fr 124px; align-items: center; gap: 12px; }
+  .fnl-label { text-align: right; min-width: 0; }
+  .fnl-label .nm { font-size: 0.82rem; font-weight: 600; display: block; }
+  .fnl-label .sub { font-size: 0.64rem; color: var(--text-dim); font-family: "SFMono-Regular", Menlo, Consolas, monospace; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fnl-track { position: relative; height: 22px; background: var(--stripe); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .fnl-bar { height: 100%; background: var(--accent); min-width: 2px; }
+  .fnl-row.terminal .fnl-bar { background: linear-gradient(90deg, var(--accent), var(--good)); }
+  .fnl-figs { text-align: right; font-variant-numeric: tabular-nums; min-width: 0; }
+  .fnl-figs .v { font-size: 0.94rem; font-weight: 700; white-space: nowrap; }
+  .fnl-figs .p { font-size: 0.66rem; color: var(--text-dim); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fnl-conn {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    margin: 4px 0 4px 162px; padding: 4px 10px;
+    border-left: 2px solid var(--border); font-size: 0.71rem; color: var(--text-dim);
   }
-  .funnel-subitem { display: grid; grid-template-columns: 128px 92px; column-gap: 10px; font-size: 0.74rem; color: var(--text-dim); }
-  .funnel-subitem-label { text-align: left; white-space: nowrap; }
-  .funnel-subitem-value { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 500; }
-  .funnel-media-group {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 6px;
-    margin: 3px 0 0;
-    padding: 5px 10px;
-    background: var(--stripe);
-    border-radius: 6px;
-  }
-  .funnel-media-item {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 5px 2px;
-    white-space: nowrap;
-  }
-  .funnel-media-item .funnel-subitem-label { font-size: 0.68rem; color: var(--text-dim); text-align: center; }
-  .funnel-media-item .funnel-subitem-value { font-size: 0.78rem; font-weight: 400; color: var(--accent); text-align: center; }
+  .fnl-conn .rate { font-size: 0.84rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .fnl-conn .drop { font-variant-numeric: tabular-nums; }
+  .fnl-conn.worst { border-left-color: var(--bad); background: var(--bad-bg); border-radius: 0 6px 6px 0; }
+  .fnl-conn.worst .rate { color: var(--bad); }
+  .fnl-conn.gain { border-left-color: var(--accent); background: var(--accent-bg); border-radius: 0 6px 6px 0; }
+  .fnl-conn.gain .rate { color: var(--accent); }
+
+  /* --- 소형 지표 타일(병렬 지표 / 매체별 유입 / 사업 성과) --- */
+  .mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(152px, 1fr)); gap: 8px; }
+  .mini-grid.narrow { grid-template-columns: repeat(auto-fit, minmax(116px, 1fr)); }
+  .mini { border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; background: var(--card-bg); min-width: 0; }
+  .mini .lbl { font-size: 0.7rem; color: var(--text-dim); display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+  .mini .lbl .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini .lbl .sh { font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .mini .num { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mini .mbar { height: 5px; border-radius: 3px; background: var(--stripe); margin-top: 6px; overflow: hidden; }
+  .mini .mbar > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .mini.alt .mbar > i { background: var(--text-dim); }
+  .mini .sublbl { font-size: 0.64rem; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   @media (max-width: 760px) {
     body { padding-left: 16px; }
     .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
-    .funnel-row { grid-template-columns: 74px 1fr 68px; gap: 8px; }
-    .funnel-label { font-size: 0.74rem; }
-    .funnel-figures .value { font-size: 0.82rem; }
-    .funnel-subitem { grid-template-columns: 1fr auto; }
-    .funnel-media-group { grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); }
+    .fnl-row { grid-template-columns: 88px 1fr 86px; gap: 8px; }
+    .fnl-label .nm { font-size: 0.73rem; }
+    .fnl-label .sub { display: none; }
+    .fnl-figs .v { font-size: 0.82rem; }
+    .fnl-figs .pnote { display: none; }
+    .fnl-conn { margin-left: 96px; padding: 4px 8px; gap: 5px; }
+    .fnl-conn .rate { font-size: 0.78rem; }
+    .kpi-tiles { grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+    .kpi-tile .num { font-size: 0.98rem; }
+    .mini-grid, .mini-grid.narrow { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+    #captureBtn { margin-left: 0 !important; }
   }
 </style>
 <body>
@@ -135,10 +181,15 @@
       <a href="ga4-funnel-unsedang.html" class="active">운세당 GA4 퍼널</a>
       <a href="ga4-ainote-kpi-unsedang.html">운세당 AI상담노트 KPI</a>
       <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
+      <a href="ga4-naver-powerlink-unsedang.html">네이버 파워링크 퍼널</a>
       <a href="db-data-mindcare.html">마인드케어 리포트</a>
       <a href="db-data-today.html">투데이 리포트</a>
     </nav>
     <h1>운세당 GA4 퍼널 리포트</h1>
+    <p class="subtitle">
+      상담 전환까지의 <b>전환 퍼널</b>(단계별 전환율·이탈)과, 그와 인과관계가 없는
+      <b>병렬 지표</b>(열람 경로·매체 구성·DB 실적)를 분리해서 봅니다.
+    </p>
 
     <div class="card">
       <h2>조회 기간</h2>
@@ -179,19 +230,22 @@
   // 전부 2026-09-30부터 신규 집계된 이벤트라 현재 내장 범위(~2026-09-29)엔 데이터가 없어 0으로 내장됨.
   const DAILY_SUBEVENTS = {"ai-note-agree-pop":{"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34,"2026-10-05":41},"ai-note-cancel-click":{"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8,"2026-10-05":11},"ai-note-agree-click":{"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31,"2026-10-05":40},"ai-note-review-skip":{"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8,"2026-10-05":12},"ai-note-review-next":{"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1,"2026-10-05":6},"ai-note-review-submit":{"2026-10-01":3,"2026-10-02":4,"2026-10-03":3,"2026-10-05":2},"ai-note-councel-click":{"2026-09-30":1,"2026-10-01":2,"2026-10-03":1}};
   const SUBEVENT_TOTALS = {"ai-note-agree-pop":164,"ai-note-cancel-click":49,"ai-note-agree-click":147,"ai-note-review-skip":48,"ai-note-review-next":25,"ai-note-review-submit":12,"ai-note-councel-click":4};
-  const SUBGROUPS = {
-    cslInfo: [
-      { eventName: 'ai-note-agree-pop', label: '상담노트 약관 팝업' },
-      { eventName: 'ai-note-cancel-click', label: '상담노트 약관 취소' },
-      { eventName: 'ai-note-agree-click', label: '상담노트 약관 동의' },
-    ],
-    aiNoteInfo: [
-      { eventName: 'ai-note-review-skip', label: '후기 미작성' },
-      { eventName: 'ai-note-review-next', label: '후기 1/2' },
-      { eventName: 'ai-note-review-submit', label: '후기 작성 2/2' },
-      { eventName: 'ai-note-councel-click', label: '재상담' },
-    ],
+  // DAILY_SUBEVENTS/SUBEVENT_TOTALS의 eventName → 화면 라벨. 새 이벤트를 추가할 때는
+  // 스크립트의 EVENT_KEYS와 이 맵, 그리고 아래 AINOTE_FUNNEL/AINOTE_SIDE를 함께 고친다.
+  const EVENT_LABELS = {
+    'ai-note-agree-pop': '약관 팝업 노출',
+    'ai-note-cancel-click': '약관 취소',
+    'ai-note-agree-click': '약관 동의',
+    'ai-note-review-skip': '후기 미작성(스킵)',
+    'ai-note-review-next': '후기 1단계 진행',
+    'ai-note-review-submit': '후기 제출 완료',
+    'ai-note-councel-click': '노트에서 재상담 클릭',
   };
+  // AI 상담노트 이벤트는 특정 날짜부터 신규 집계됐다 — 그 이전 기간은 "데이터 없음"이지
+  // "0명"이 아니라서, 내장 데이터에서 실제 집계 시작일을 동적으로 구해 안내에 쓴다.
+  const AINOTE_EVENT_START = Object.values(DAILY_SUBEVENTS)
+    .flatMap((byDate) => Object.keys(byDate))
+    .sort()[0] || null;
 
   // 매체별 유입(firstUserSource 그룹) — "전체사용자" 아래 하위그룹으로 표시. 매체별
   // 유입 리포트(ga4-channel-unsedang.html)와 동일한 그룹/분류 기준이지만 이 퍼널
@@ -213,21 +267,65 @@
   const ACCOUNT_NAME = 'unsedang-a3588';
   const GENERATED_AT = '2026-10-06 03:09 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
 
-  const STEPS = [
-    { key: 'home', type: 'page', label: '홈메인' },
-    { key: 'csl', type: 'page', label: '상담사 목록' },
-    { key: 'cslInfo', type: 'page', label: '상담사 상세' },
-    { key: 'aiNote', type: 'page', label: 'AI 상담목록' },
-    { key: 'aiNoteInfo', type: 'page', label: 'AI 상담보기' },
-    { key: 'call', type: 'call', label: '상담하기' },
-    { key: 'content', type: 'page', label: '운세' },
-    { key: 'totalRatingComment', type: 'page', label: '후기' },
+  // ===========================================================================
+  // 리포트 구조 — "하나의 선형 퍼널"이 아니라 성격이 다른 블록 4개로 나눈다.
+  //
+  //  (1) MAIN_FUNNEL — 상담 전환 경로의 **근사** 퍼널.
+  //      [중요] 이건 GA4 '유입경로 탐색'처럼 세션 경로를 추적한 값이 아니다. 각 단계는
+  //      페이지 경로/이벤트별로 **따로 필터링해 조회한 activeUsers**일 뿐이라, "A를 거쳐
+  //      B로 갔다"가 아니라 "같은 기간에 A도 B도 집계됐다"는 뜻이다. 내장 데이터 모든
+  //      기간(어제/7·14·30·90일)에서 단조감소가 성립하는 단계만 골라 퍼널로 근사했을
+  //      뿐이며, 단조감소는 두 단계가 이어져 있을 **정황**이지 증거가 아니다. 그래서
+  //      커넥터의 '전환율/이탈'도 추적된 이동이 아니라 두 단계 수치의 비/차이다.
+  //      진짜 순차 경로가 필요하면 GA4 UI의 탐색 분석 → 유입경로 탐색을 써야 한다
+  //      (docs/ga4_guide.md §5 참고 — API로는 불가능).
+  //      상담사 목록(csl)은 **일부러 뺐다**:
+  //      90일 순사용자 기준 상담사 상세(3,189명) > 상담사 목록(2,003명)이고 비율이
+  //      모든 기간에서 149~182%라, 목록은 상세의 선행 관문이 아니다(광고·딥링크로
+  //      상세에 직접 진입하는 사용자가 다수). 목록을 퍼널 단계로 두면 전환율이
+  //      100%를 넘어 숫자가 무의미해진다 → PARALLEL_METRICS의 "선택 경로"로 옮겼다.
+  //  (2) AINOTE_FUNNEL — 상담이 끝난 '뒤' 알림톡에서 시작되는 별도 트랙. 전체사용자
+  //      대비로 보면 0.x%라 아무것도 안 보이므로 자기 1단계를 100% 기준선으로 쓴다.
+  //  (3) PARALLEL_METRICS — 상담 전환과 인과관계가 없는 병렬 열람 경로(운세·후기 등).
+  //      순차 퍼널이 아니라고 화면에 명시하고, 전체사용자 대비 도달률로만 본다.
+  //  (4) 매체별 유입(전체사용자의 분류) / 사업 성과(GA4 밖 DB·수동 집계) — 별도 카드.
+  //
+  // 이 정의들은 scripts/update_ga4_unsedang.py가 건드리는 const 블록이 아니다
+  // (그 스크립트는 DAILY_*/*_TOTALS/DATE_RANGE/GENERATED_AT만 정규식으로 교체한다).
+  // ===========================================================================
+  const MAIN_FUNNEL = [
+    { id: 'site', label: '전체사용자', sub: '사이트 전체' },
+    { id: 'home', label: '홈메인 도달', sub: '/view/home' },
+    { id: 'cslInfo', label: '상담사 상세 도달', sub: '/view/csl/cslInfo' },
+    { id: 'call', label: '상담하기 클릭', sub: 'pre/post_tel_click' },
+  ];
+  const AINOTE_FUNNEL = [
+    { id: 'ai-note-agree-pop', label: '약관 팝업 노출', sub: '상담사 상세' },
+    { id: 'ai-note-agree-click', label: '약관 동의', sub: '동의 클릭' },
+    { id: 'aiNoteInfo', label: 'AI 상담보기', sub: '/view/ai-note/noteInfo' },
+    { id: 'ai-note-review-next', label: '후기 1단계 진행', sub: '후기 작성 시작' },
+    { id: 'ai-note-review-submit', label: '후기 제출 완료', sub: '후기 2/2' },
+  ];
+  // AI 노트 트랙의 '이탈 사유/분기' — 퍼널 단계가 아니라 같은 트랙의 곁가지다.
+  const AINOTE_SIDE = [
+    { id: 'ai-note-cancel-click', label: '약관 취소', of: 'ai-note-agree-pop' },
+    { id: 'aiNote', label: 'AI 상담목록 열람', of: null },
+    { id: 'ai-note-review-skip', label: '후기 미작성(스킵)', of: 'aiNoteInfo' },
+    { id: 'ai-note-councel-click', label: '노트에서 재상담', of: 'aiNoteInfo' },
+  ];
+  const PARALLEL_METRICS = [
+    { id: 'csl', label: '상담사 목록', sub: '상세로 가는 선택 경로' },
+    { id: 'content', label: '운세', sub: '/view/content' },
+    { id: 'totalRatingComment', label: '후기', sub: '/view/csl/totalRatingComment' },
+    { id: 'aiNote', label: 'AI 상담목록', sub: '/view/ai-note' },
   ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
   const fmtWon = (n) => (n == null ? '–' : numFmt.format(n) + '원');
   const fmtCount = (n) => (n == null ? '–' : numFmt.format(n) + '건');
+  const fmtPct = (r) => (r == null || !isFinite(r) ? '–' : (r * 100).toFixed(1) + '%');
+  const fmtRatio2 = (r) => (r == null || !isFinite(r) ? '–' : r.toFixed(2));
 
   function toUTC(dateStr) {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -259,74 +357,133 @@
     return dateStr;
   }
 
-  function dailyValue(step, date) {
-    if (step.type === 'call') {
-      const v = DAILY_CALL[date];
-      return v ? v[0] : 0;
+  const PAGE_KEY_SET = new Set(Object.keys(DAILY_PAGES));
+
+  function isFullRange(from, to) {
+    return from === DATE_RANGE.from && to === DATE_RANGE.to;
+  }
+
+  // 일별 값의 단순 합. activeUsers는 비집계 지표라 같은 사용자가 여러 날에 중복
+  // 포함된다 — 그래서 전체(90일) 범위에서는 아래 nodeValue()가 dimension 없이 따로
+  // 재조회한 *_TOTALS(중복 제거된 순사용자)를 대신 쓴다. 다만 기간 비교(이전 동기간)는
+  // 양쪽을 반드시 같은 방식으로 재야 하므로 항상 이 합산값을 쓴다.
+  function nodeSum(id, from, to) {
+    const dates = rangeDates(from, to);
+    if (id === 'site') return dates.reduce((a, d) => a + (DAILY_SITE[d] || 0), 0);
+    if (id === 'call') return dates.reduce((a, d) => a + ((DAILY_CALL[d] || [0])[0]), 0);
+    if (PAGE_KEY_SET.has(id)) return dates.reduce((a, d) => a + ((DAILY_PAGES[id][d] || [0])[0]), 0);
+    const byDate = DAILY_SUBEVENTS[id] || {};
+    return dates.reduce((a, d) => a + (byDate[d] || 0), 0);
+  }
+
+  // 화면에 표시할 값. 전체(90일)일 때만 정확한 순사용자 합계를 쓴다.
+  function nodeValue(id, from, to) {
+    if (isFullRange(from, to)) {
+      if (id === 'site') return { value: SITE_ACTIVE_USERS_TOTAL, exact: true };
+      if (id === 'call') return { value: CALL_TOTAL.activeUsers, exact: true };
+      if (PAGE_KEY_SET.has(id)) return { value: PAGE_TOTALS[id] || 0, exact: true };
+      return { value: SUBEVENT_TOTALS[id] || 0, exact: true };
     }
-    const v = DAILY_PAGES[step.key][date];
-    return v ? v[0] : 0;
-  }
-
-  function stepValue(step, from, to) {
-    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
-    if (isFullRange) {
-      const total = step.type === 'call' ? CALL_TOTAL.activeUsers : PAGE_TOTALS[step.key];
-      return { value: total, exact: true };
-    }
-    const dates = rangeDates(from, to);
-    const sum = dates.reduce((acc, d) => acc + dailyValue(step, d), 0);
-    return { value: sum, exact: false };
-  }
-
-  function siteTotalValue(from, to) {
-    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
-    if (isFullRange) return { value: SITE_ACTIVE_USERS_TOTAL, exact: true };
-    const dates = rangeDates(from, to);
-    const sum = dates.reduce((acc, d) => acc + (DAILY_SITE[d] || 0), 0);
-    return { value: sum, exact: false };
-  }
-
-  function subEventValue(eventName, from, to) {
-    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
-    if (isFullRange) return { value: SUBEVENT_TOTALS[eventName], exact: true };
-    const dates = rangeDates(from, to);
-    const sum = dates.reduce((acc, d) => acc + (DAILY_SUBEVENTS[eventName][d] || 0), 0);
-    return { value: sum, exact: false };
+    return { value: nodeSum(id, from, to), exact: false };
   }
 
   function firstUserGroupValue(key, from, to) {
-    const isFullRange = from === DATE_RANGE.from && to === DATE_RANGE.to;
-    if (isFullRange) return { value: FIRST_USER_TOTALS[key], exact: true };
+    if (isFullRange(from, to)) return { value: FIRST_USER_TOTALS[key], exact: true };
     const dates = rangeDates(from, to);
     const sum = dates.reduce((acc, d) => acc + ((DAILY_FIRST_USER[key][d] || [0])[0]), 0);
     return { value: sum, exact: false };
   }
 
-  // --- "전체사용자" 하위그룹: 매체별 유입(firstUserSource 그룹). 2줄(4+3)로 표시.
-  function renderMediaSubRows(from, to) {
-    const itemsHtml = FIRST_USER_GROUPS
-      .map((g) => `
-          <div class="funnel-media-item">
-            <span class="funnel-subitem-label">${g.label}</span>
-            <span class="funnel-subitem-value">${fmtUsers(firstUserGroupValue(g.key, from, to).value)}</span>
-          </div>`)
-      .join('');
-    return `<div class="funnel-media-group">${itemsHtml}</div>`;
+  // --- 이전 동기간(바로 앞의 같은 길이 구간). 내장 범위를 벗어나면 비교 불가(null). ---
+  function prevPeriod(from, to) {
+    const len = rangeDates(from, to).length;
+    const pTo = addDays(from, -1);
+    const pFrom = addDays(pTo, -(len - 1));
+    if (pFrom < DATE_RANGE.from) return null;
+    return { from: pFrom, to: pTo };
   }
 
-  // --- "상담사 상세" 하위그룹: 매출/상담건수는 운세당 DB API(consultation-stats)에서
+  // 증감 칩. mode 'rel' = 상대 증감률(%), mode 'pp' = 비율의 절대 차이(%p).
+  function deltaChip(cur, prev, mode) {
+    if (prev == null || cur == null || !isFinite(cur) || !isFinite(prev)) return '';
+    if (mode === 'pp') {
+      const d = (cur - prev) * 100;
+      if (Math.abs(d) < 0.05) return '<span class="chip flat">±0.0%p</span>';
+      const cls = d > 0 ? 'up' : 'down';
+      return `<span class="chip ${cls}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}%p</span>`;
+    }
+    if (!prev) return '';
+    const d = ((cur - prev) / prev) * 100;
+    if (Math.abs(d) < 0.05) return '<span class="chip flat">±0.0%</span>';
+    const cls = d > 0 ? 'up' : 'down';
+    return `<span class="chip ${cls}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}%</span>`;
+  }
+
+  // --- 매체별 유입(firstUserSource 그룹). 퍼널 단계가 아니라 "전체사용자를 어디서
+  // 왔는지로 나눈 분류"라서 퍼널 안에 끼워넣지 않고 독립 카드로 뺐다. 구성비는
+  // 그룹 합계 기준(firstUserSource는 사용자당 평생 하나라 그룹 합산이 정확하다).
+  function renderMediaCard(from, to) {
+    const rows = FIRST_USER_GROUPS
+      .map((g) => ({ label: g.label, value: firstUserGroupValue(g.key, from, to).value }))
+      .sort((a, b) => b.value - a.value);
+    const sum = rows.reduce((a, r) => a + r.value, 0);
+    const max = rows[0] ? rows[0].value : 0;
+    const itemsHtml = rows.map((r) => `
+          <div class="mini">
+            <div class="lbl"><span class="nm">${r.label}</span><span class="sh">${sum ? fmtPct(r.value / sum) : '–'}</span></div>
+            <div class="num">${fmtUsers(r.value)}</div>
+            <div class="mbar"><i style="width:${max ? Math.max((r.value / max) * 100, r.value > 0 ? 2 : 0) : 0}%"></i></div>
+          </div>`).join('');
+    return `
+      <div class="card">
+        <h2>매체별 유입 <span class="src-badge ga4">GA4</span>
+          <span class="hint">퍼널 아님 — 신규 유입 매체(firstUserSource) 구성</span></h2>
+        <div class="mini-grid narrow">${itemsHtml}</div>
+        <p class="note">그룹 합계 <b>${fmtUsers(sum)}</b>. 사용자별 최초 유입 매체로 나눈 것이라
+          단계 간 전환 관계가 없습니다. 일별 추이는
+          <a href="ga4-channel-unsedang.html">매체별 유입 리포트</a>에서 봅니다.</p>
+      </div>`;
+  }
+
+  // --- "사업 성과" 카드: 매출/상담건수는 운세당 DB API(consultation-stats)에서
   // 페이지를 열 때마다 실시간으로 가져온다(GA4 정적 스냅샷과 별개).
-  // AI상담노트사용은 운영진이 직접 전달한 일별 실집계다(GA4 비연동, DB API와도 무관).
+  // AI_NOTE_USAGE_DAILY는 운영진이 직접 전달한 일별 수기 집계다(GA4 비연동).
+  //
+  // [2026-10-06 확인] 이 수기값이 가리키는 지표가 무엇인지 DB API 실값과 대조해 확정했다 —
+  // consultationCount.prepaid.aiNoteConsultation(AI 상담노트가 만들어진 상담 **건수**)와
+  // 같은 개념이다. 5일 중 3일(09-30=23, 10-02=38, 10-04=32)이 정확히 일치하고 나머지
+  // 2일도 ±1건 차이(합계 156 vs 158)인 반면, userCount 쪽(= 유저수 99명)과는 전혀 맞지
+  // 않는다. 즉 단위가 "명"이 아니라 "건"이다 — 기존에 fmtUsers로 "명"을 붙여 표시하던 건
+  // 의미상 오류였다(ga4-ainote-kpi-unsedang.html에서도 같은 혼동을 'txn'/"건"으로 바로잡은
+  // 전례가 있다).
+  //
+  // 따라서 이제 DB API 실시간 값을 정식 지표로 쓰고, 이 수기값은 지우지 않고(운영진이 계속
+  // 입력할 수 있고 교차검증에 쓰인다) "수기 집계 대조" 보조 행으로 남겨 DB와의 차이를
+  // 보여준다. 수기값은 10-04에서 멈춰 있어 그 이후 날짜는 0이다 — 정식 지표로 쓰면 최근
+  // 날짜를 조용히 0으로 과소 보고하게 된다는 점도 DB 승격의 근거다.
+  //
   // scripts/update_ga4_unsedang.py가 관리하는 블록 목록(DAILY_PAGES/DAILY_CALL/
   // PAGE_TOTALS/CALL_TOTAL/DAILY_SITE/SITE_ACTIVE_USERS_TOTAL/DAILY_SUBEVENTS/
   // SUBEVENT_TOTALS/DAILY_FIRST_USER/FIRST_USER_TOTALS)에 없는 이름이라 그 배치
   // 스크립트가 실행돼도 건드리지 않는다. 날짜가 없으면 아직 집계분을 못 받은 것이라 0.
   const AI_NOTE_USAGE_DAILY = {"2026-09-30":23,"2026-10-01":24,"2026-10-02":38,"2026-10-03":39,"2026-10-04":32};
+  const MANUAL_USAGE_DATES = Object.keys(AI_NOTE_USAGE_DAILY).sort();
   const FETCH_TIMEOUT_MS = 10000;
   let CONSULT_REVENUE_DAILY = null; // {date: 매출(원), 선불+후불 합산}
   let CONSULT_COUNT_PREPAID_DAILY = null; // {date: 상담건수(선불)}
   let CONSULT_COUNT_POSTPAID_DAILY = null; // {date: 상담건수(후불)}
+  // --- AI 상담노트 관련 DB 필드(전부 일자별). AI 상담노트는 선불 전용 기능이라
+  // postpaid.aiNoteConsultation / postpaid.aiNoteRepeatConsultation은 실제로 항상 0임을
+  // 전 일자에 대해 검증했다 — 그래서 prepaid만 읽는다.
+  // (주의: afterAiNoteRepeatConsultation은 postpaid에도 0이 아닌 값이 들어온다 —
+  //  AI노트는 선불 상담에서 만들어지지만 알림톡을 받고 돌아온 재상담은 후불일 수 있기
+  //  때문. 이 리포트는 ga4-ainote-kpi-unsedang.html과 같은 정의를 쓰려고
+  //  aiNoteRepeatConsultation("전체 재상담")만 표시하므로 해당 필드는 쓰지 않는다.)
+  let CONSULT_ALIMTALK_DAILY = null;       // {date: AI 상담노트 알림톡 발송 성공 건수}
+  let CONSULT_AINOTE_CNT_DAILY = null;     // {date: 선불 · AI노트가 만들어진 상담 건수}
+  let CONSULT_AINOTE_RPT_CNT_DAILY = null; // {date: 선불 · 위 상담 중 재상담 건수}
+  let CONSULT_AINOTE_USR_DAILY = null;     // {date: 선불 · AI노트가 만들어진 유저수}
+  let CONSULT_AINOTE_RPT_USR_DAILY = null; // {date: 선불 · 위 상담 중 재상담 유저수}
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
 
@@ -349,16 +506,35 @@
       const revenueMap = {};
       const countPrepaidMap = {};
       const countPostpaidMap = {};
+      const alimtalkMap = {};
+      const aiNoteCntMap = {};
+      const aiNoteRptCntMap = {};
+      const aiNoteUsrMap = {};
+      const aiNoteRptUsrMap = {};
+      // 과거 달(AI 상담노트 기능 이전)에는 aiNote* 필드가 없을 수 있어 전부 0으로 방어한다.
+      const n = (v) => (typeof v === 'number' ? v : 0);
       for (const data of results) {
         for (const day of data.dailyStats || []) {
+          const cPre = day.consultationCount.prepaid;
+          const uPre = day.userCount.prepaid;
           revenueMap[day.date] = day.revenue.prepaid.total + day.revenue.postpaid.total;
           countPrepaidMap[day.date] = day.consultationCount.prepaid.total;
           countPostpaidMap[day.date] = day.consultationCount.postpaid.total;
+          alimtalkMap[day.date] = n(day.aiNoteAlimtalkCount);
+          aiNoteCntMap[day.date] = n(cPre.aiNoteConsultation);
+          aiNoteRptCntMap[day.date] = n(cPre.aiNoteRepeatConsultation);
+          aiNoteUsrMap[day.date] = n(uPre.aiNoteConsultation);
+          aiNoteRptUsrMap[day.date] = n(uPre.aiNoteRepeatConsultation);
         }
       }
       CONSULT_REVENUE_DAILY = revenueMap;
       CONSULT_COUNT_PREPAID_DAILY = countPrepaidMap;
       CONSULT_COUNT_POSTPAID_DAILY = countPostpaidMap;
+      CONSULT_ALIMTALK_DAILY = alimtalkMap;
+      CONSULT_AINOTE_CNT_DAILY = aiNoteCntMap;
+      CONSULT_AINOTE_RPT_CNT_DAILY = aiNoteRptCntMap;
+      CONSULT_AINOTE_USR_DAILY = aiNoteUsrMap;
+      CONSULT_AINOTE_RPT_USR_DAILY = aiNoteRptUsrMap;
       CONSULT_STATE = 'ok';
     } catch (e) {
       CONSULT_STATE = 'error';
@@ -371,86 +547,343 @@
     }
   }
 
-  function renderCallSubRows(from, to) {
-    let revenueText;
-    let countPrepaidText;
-    let countPostpaidText;
-    if (CONSULT_STATE === 'loading') {
-      revenueText = '로딩 중…';
-      countPrepaidText = '로딩 중…';
-      countPostpaidText = '로딩 중…';
-    } else if (CONSULT_STATE === 'error') {
-      revenueText = '로드 실패';
-      countPrepaidText = '로드 실패';
-      countPostpaidText = '로드 실패';
+  // --- 사업 성과(GA4 밖 데이터). 매출/상담건수는 DB API 실시간 fetch, AI상담노트사용은
+  // 운영진 수동 실집계다. GA4 퍼널(스냅샷)과 소스가 달라 퍼널 막대에 섞지 않고
+  // 별도 카드로 분리했다. 대신 "클릭 → 실제 상담"을 잇는 파생지표를 함께 계산한다.
+  function renderBusinessCard(from, to) {
+    const dates = rangeDates(from, to);
+    const callUsers = nodeValue('call', from, to).value;
+    const aiNoteUsageSum = dates.reduce((acc, d) => acc + (AI_NOTE_USAGE_DAILY[d] || 0), 0);
+
+    let tiles;
+    let noteHtml;
+    if (CONSULT_STATE === 'loading' || CONSULT_STATE === 'error') {
+      const ph = CONSULT_STATE === 'loading' ? '로딩 중…' : '로드 실패';
+      tiles = [
+        { label: '매출(선불+후불)', value: ph },
+        { label: '상담건수 합계', value: ph },
+        { label: '상담건수(선불)', value: ph },
+        { label: '상담건수(후불)', value: ph },
+      ];
+      noteHtml = CONSULT_STATE === 'error'
+        ? `<p class="note warn">매출/상담건수 실시간 조회 실패(${CONSULT_ERROR_MSG}) — 새로고침하면 재시도합니다.</p>`
+        : '<p class="note">매출/상담건수를 DB API에서 불러오는 중…</p>';
     } else {
-      const dates = rangeDates(from, to);
-      const revenueSum = dates.reduce((acc, d) => acc + (CONSULT_REVENUE_DAILY[d] || 0), 0);
-      const countPrepaidSum = dates.reduce((acc, d) => acc + (CONSULT_COUNT_PREPAID_DAILY[d] || 0), 0);
-      const countPostpaidSum = dates.reduce((acc, d) => acc + (CONSULT_COUNT_POSTPAID_DAILY[d] || 0), 0);
-      revenueText = fmtWon(revenueSum);
-      countPrepaidText = fmtCount(countPrepaidSum);
-      countPostpaidText = fmtCount(countPostpaidSum);
+      const revenueSum = dates.reduce((a, d) => a + (CONSULT_REVENUE_DAILY[d] || 0), 0);
+      const prepaid = dates.reduce((a, d) => a + (CONSULT_COUNT_PREPAID_DAILY[d] || 0), 0);
+      const postpaid = dates.reduce((a, d) => a + (CONSULT_COUNT_POSTPAID_DAILY[d] || 0), 0);
+      const totalCnt = prepaid + postpaid;
+      tiles = [
+        { label: '매출(선불+후불)', value: fmtWon(revenueSum), hero: true },
+        { label: '상담건수 합계', value: fmtCount(totalCnt) },
+        { label: '상담건수(선불)', value: fmtCount(prepaid) },
+        { label: '상담건수(후불)', value: fmtCount(postpaid) },
+        {
+          label: '클릭 1명당 상담건수',
+          value: callUsers ? fmtRatio2(totalCnt / callUsers) + '건' : '–',
+          sublbl: `÷ 클릭 ${fmtUsers(callUsers)}`,
+        },
+        {
+          label: '상담 1건당 결제액',
+          value: totalCnt ? fmtWon(Math.round(revenueSum / totalCnt)) : '–',
+          sublbl: '매출 ÷ 상담건수',
+        },
+      ];
+      noteHtml = `<p class="note">매출·상담건수는 운세당 DB API를 페이지 로드 시점에 실시간으로 가져온
+        값이라 위쪽 GA4 퍼널(정적 스냅샷)과 집계 시점이 다릅니다.
+        <b>클릭 1명당 상담건수</b>는 사람 수(활성사용자)와 건수를 나눈 값이라 전환율(%)이 아닙니다 —
+        클릭이 실제 상담으로 얼마나 이어졌는지 보는 보조지표입니다.</p>`;
     }
-    const aiNoteUsageSum = rangeDates(from, to).reduce((acc, d) => acc + (AI_NOTE_USAGE_DAILY[d] || 0), 0);
-    const items = [
-      { label: '매출', value: revenueText },
-      { label: '상담건수(선불)', value: countPrepaidText },
-      { label: '상담건수(후불)', value: countPostpaidText },
-      { label: 'AI상담노트사용', value: fmtUsers(aiNoteUsageSum) },
-    ];
-    const itemsHtml = items
-      .map((it) => `
-          <div class="funnel-subitem">
-            <span class="funnel-subitem-label">${it.label}</span>
-            <span class="funnel-subitem-value">${it.value}</span>
-          </div>`)
-      .join('');
-    return `<div class="funnel-subgroup">${itemsHtml}</div>`;
-  }
+    const renderTiles = (list) => list.map((t) => `
+          <div class="kpi-tile${t.hero ? ' hero' : ''}">
+            <div class="lbl">${t.label}${t.manual ? '<span class="src-badge manual">수기</span>' : ''}</div>
+            <div class="num">${t.value}</div>
+            ${t.sublbl ? `<div class="sublbl">${t.sublbl}</div>` : ''}
+          </div>`).join('');
 
-  function renderSubRows(items, from, to) {
-    const itemsHtml = items
-      .map((it) => {
-        const v = subEventValue(it.eventName, from, to).value;
-        return `
-          <div class="funnel-subitem">
-            <span class="funnel-subitem-label">${it.label}</span>
-            <span class="funnel-subitem-value">${fmtUsers(v)}</span>
-          </div>`;
-      })
-      .join('');
-    return `<div class="funnel-subgroup">${itemsHtml}</div>`;
-  }
-
-  function renderFunnel(from, to) {
-    const siteTotal = siteTotalValue(from, to);
-    const results = [
-      { step: { key: 'siteTotal', label: '전체사용자' }, value: siteTotal.value },
-      ...STEPS.map((s) => ({ step: s, ...stepValue(s, from, to) })),
-    ];
-    const first = results[0].value || 1;
-    const rows = results.map((r) => {
-      const widthPct = Math.max((r.value / first) * 100, r.value > 0 ? 1.5 : 0);
-      const subRowsHtml = r.step.key === 'siteTotal'
-        ? renderMediaSubRows(from, to)
-        : r.step.key === 'cslInfo'
-          ? renderSubRows(SUBGROUPS.cslInfo, from, to) + renderCallSubRows(from, to)
-          : (SUBGROUPS[r.step.key] ? renderSubRows(SUBGROUPS[r.step.key], from, to) : '');
-      return `
-        <div class="funnel-row">
-          <div class="funnel-label">${r.step.label}</div>
-          <div class="funnel-track"><div class="funnel-bar" style="width:${widthPct}%"></div></div>
-          <div class="funnel-figures">
-            <span class="value">${fmtUsers(r.value)}</span>
-          </div>
-          ${subRowsHtml}
-        </div>`;
-    }).join('');
     return `
       <div class="card">
-        <h2>매체 유입 → 상담 전환 퍼널 <span class="hint">활성사용자 기준, ${from} ~ ${to}</span></h2>
-        <div class="funnel">${rows}</div>
+        <h2>사업 성과 <span class="src-badge db">DB</span>
+          <span class="hint">GA4 아님 — 운세당 DB API 실시간 조회</span></h2>
+        <div class="kpi-tiles">${renderTiles(tiles)}</div>
+        ${noteHtml}
+        ${renderAiNoteDbSection(from, to, aiNoteUsageSum, renderTiles)}
+      </div>`;
+  }
+
+  // --- 사업 성과 카드 안의 "AI 상담노트(DB 실시간)" 구역.
+  // 지표 정의는 ga4-ainote-kpi-unsedang.html의 03(알림톡 발송 성공률)/06(전체 재상담율)과
+  // 동일하게 맞췄다 — 다만 그 리포트는 하루 1회 값을 박아넣는 정적 스냅샷이고 여기는
+  // 페이지를 열 때마다 실시간으로 가져오는 값이라 조회 시점에 따라 미세하게 다를 수 있다.
+  function renderAiNoteDbSection(from, to, manualSum, renderTiles) {
+    if (CONSULT_STATE !== 'ok') return '';
+    const dates = rangeDates(from, to);
+    const sum = (map) => dates.reduce((a, d) => a + ((map || {})[d] || 0), 0);
+    const alimtalk = sum(CONSULT_ALIMTALK_DAILY);
+    const noteCnt = sum(CONSULT_AINOTE_CNT_DAILY);
+    const rptCnt = sum(CONSULT_AINOTE_RPT_CNT_DAILY);
+    const noteUsr = sum(CONSULT_AINOTE_USR_DAILY);
+    const rptUsr = sum(CONSULT_AINOTE_RPT_USR_DAILY);
+
+    if (!alimtalk && !noteCnt) {
+      return `
+        <div class="sec-title">AI 상담노트 <span class="src-badge db">DB 실시간</span></div>
+        <p class="note">선택 기간에 AI 상담노트 상담 기록이 없습니다.</p>`;
+    }
+
+    // 수기 집계(AI_NOTE_USAGE_DAILY)와 DB 건수의 차이 — 같은 지표를 두 경로로 받은 것이라
+    // 차이가 나면 수기 입력이 밀렸거나 누락된 것이다(데이터 품질 점검용).
+    // 단, 수기 기록이 아예 없는 날짜가 선택 기간에 섞여 있으면 그 차이는 "불일치"가 아니라
+    // "기록이 없는 것"이므로 차이를 내세우지 않는다.
+    const gap = manualSum - noteCnt;
+    const covered = MANUAL_USAGE_DATES.length
+      && from >= MANUAL_USAGE_DATES[0]
+      && to <= MANUAL_USAGE_DATES[MANUAL_USAGE_DATES.length - 1];
+    const gapText = manualSum === 0
+      ? '해당 기간 수기 입력 없음'
+      : !covered
+        ? `수기 입력 ${MANUAL_USAGE_DATES[0]}~${MANUAL_USAGE_DATES[MANUAL_USAGE_DATES.length - 1]}만 있음`
+        : (gap === 0 ? 'DB와 일치' : `DB 대비 ${gap > 0 ? '+' : ''}${numFmt.format(gap)}건`);
+
+    const tiles = [
+      { label: '알림톡 발송 성공', value: fmtCount(alimtalk), sublbl: 'aiNoteAlimtalkCount' },
+      { label: 'AI노트 생성 상담', value: fmtCount(noteCnt), hero: true, sublbl: '선불 · AI노트가 만들어진 상담' },
+      {
+        label: '알림톡 발송 성공률',
+        value: noteCnt ? fmtPct(alimtalk / noteCnt) : '–',
+        sublbl: '발송 성공 ÷ 생성 상담',
+      },
+      {
+        label: '전체 재상담율',
+        value: noteUsr ? '≈ ' + fmtPct(rptUsr / noteUsr) : '–',
+        sublbl: `재상담 ${numFmt.format(rptUsr)}명 ÷ ${numFmt.format(noteUsr)}명`,
+      },
+      { label: 'AI노트 재상담', value: fmtCount(rptCnt), sublbl: '생성 상담 중 재상담 건수' },
+      { label: 'AI노트 생성 유저', value: '≈ ' + fmtUsers(noteUsr), sublbl: '일별 합 — 중복 포함' },
+      {
+        label: 'AI상담노트사용',
+        value: fmtCount(manualSum),
+        sublbl: gapText,
+        manual: true,
+      },
+    ];
+    return `
+      <div class="sec-title">AI 상담노트 <span class="src-badge db">DB 실시간</span></div>
+      <div class="kpi-tiles">${renderTiles(tiles)}</div>
+      <p class="note">
+        <b>≈</b> 표시는 유저수 기반이라 날짜별로 더하면 같은 사람이 중복 계산되는 값입니다(건수는 정확히 합산됩니다).
+        지표 정의는 <a href="ga4-ainote-kpi-unsedang.html">AI 상담노트 KPI 리포트</a>의 "알림톡 발송 성공률"·"전체 재상담율"과
+        같지만, 그쪽은 하루 1회 갱신되는 정적 스냅샷이고 여기는 페이지를 열 때마다 실시간 조회라 조회 시점에 따라 값이 다를 수 있습니다.
+        발송 성공률이 100%를 넘을 수 있는 건 알림톡이 상담 1건당 여러 번 발송될 수 있기 때문입니다.
+      </p>
+      <p class="note">
+        <b>AI상담노트사용</b>(수기)은 운영진이 직접 입력하는 값으로, DB의 "AI노트 생성 상담"과 같은 지표입니다 —
+        이제 DB 실시간 값이 정식 수치이고 수기값은 입력 누락을 확인하는 대조용으로만 남겨뒀습니다.
+      </p>`;
+  }
+
+  // ===========================================================================
+  // 퍼널 렌더링 — 단계 막대 + 단계 사이에 "전환율 / 이탈 인원·이탈률" 커넥터를 넣는다.
+  // 막대 폭은 (전체사용자가 아니라) **그 퍼널의 1단계** 기준이라 작은 트랙도 읽힌다.
+  // 절대 이탈 인원이 가장 큰 구간은 '최대 이탈'로 강조한다.
+  // ===========================================================================
+  function renderFunnelRows(steps, from, to, compare) {
+    const cur = steps.map((s) => ({ ...s, value: nodeValue(s.id, from, to).value }));
+    const base = cur[0].value;
+    const prev = compare ? prevPeriod(from, to) : null;
+    const prevVals = prev ? steps.map((s) => nodeSum(s.id, prev.from, prev.to)) : null;
+    const curSums = prev ? steps.map((s) => nodeSum(s.id, from, to)) : null;
+
+    // 최대 이탈 구간(절대 인원 기준). 전환율이 100%를 넘는 구간은 후보에서 제외한다.
+    let worstIdx = -1;
+    let worstDrop = 0;
+    for (let i = 1; i < cur.length; i++) {
+      const drop = cur[i - 1].value - cur[i].value;
+      if (drop > worstDrop) { worstDrop = drop; worstIdx = i; }
+    }
+
+    let html = '';
+    cur.forEach((s, i) => {
+      const pctOfBase = base ? s.value / base : null;
+      const barPct = base ? Math.max((s.value / base) * 100, s.value > 0 ? 1.2 : 0) : 0;
+      if (i > 0) {
+        const fromV = cur[i - 1].value;
+        const rate = fromV ? cur[i].value / fromV : null;
+        const drop = fromV - cur[i].value;
+        const prevRate = prevVals && prevVals[i - 1] ? prevVals[i] / prevVals[i - 1] : null;
+        const curRate = curSums && curSums[i - 1] ? curSums[i] / curSums[i - 1] : null;
+        const gain = drop < 0;
+        const cls = gain ? 'gain' : (i === worstIdx && drop > 0 ? 'worst' : '');
+        const dropHtml = gain
+          ? `<span class="drop">상위 단계를 거치지 않은 직접 진입 <b>+${numFmt.format(-drop)}명</b></span>`
+          : `<span class="drop">이탈 ${numFmt.format(drop)}명 (${fmtPct(fromV ? drop / fromV : null)})</span>`;
+        html += `
+        <div class="fnl-conn ${cls}">
+          <span class="rate">↓ ${fmtPct(rate)}</span>
+          ${dropHtml}
+          ${deltaChip(curRate, prevRate, 'pp')}
+          ${cls === 'worst' ? '<span class="badge bad">최대 이탈</span>' : ''}
+          ${gain ? '<span class="badge mute">순차 아님</span>' : ''}
+        </div>`;
+      }
+      html += `
+        <div class="fnl-row${i === cur.length - 1 ? ' terminal' : ''}">
+          <div class="fnl-label"><span class="nm">${s.label}</span><span class="sub">${s.sub || ''}</span></div>
+          <div class="fnl-track"><div class="fnl-bar" style="width:${barPct}%"></div></div>
+          <div class="fnl-figs">
+            <span class="v">${fmtUsers(s.value)}</span>
+            <span class="p">${i === 0 ? '기준 100%' : fmtPct(pctOfBase) + '<span class="pnote"> (1단계 대비)</span>'}</span>
+          </div>
+        </div>`;
+    });
+    return { html, cur, base, prev };
+  }
+
+  function renderMainFunnel(from, to) {
+    const { html, cur, base, prev } = renderFunnelRows(MAIN_FUNNEL, from, to, true);
+    const end = cur[cur.length - 1].value;
+    const overall = base ? end / base : null;
+    const prevOverall = prev
+      ? (nodeSum('site', prev.from, prev.to) ? nodeSum('call', prev.from, prev.to) / nodeSum('site', prev.from, prev.to) : null)
+      : null;
+    const curOverallSum = prev
+      ? (nodeSum('site', from, to) ? nodeSum('call', from, to) / nodeSum('site', from, to) : null)
+      : null;
+
+    // 상담사 목록(csl)은 퍼널 단계가 아니라 '선택 경로'라는 근거를 숫자로 보여준다.
+    const cslV = nodeValue('csl', from, to).value;
+    const cslInfoV = nodeValue('cslInfo', from, to).value;
+    const homeV = nodeValue('home', from, to).value;
+
+    const compareNote = prev
+      ? `증감은 이전 동기간(<b>${prev.from} ~ ${prev.to}</b>) 대비이며, 양쪽 모두 일별 합계로 같은 방식으로 계산했습니다.`
+      : '이전 동기간이 내장 데이터(90일) 범위를 벗어나 증감 비교를 표시하지 않았습니다.';
+
+    return `
+      <div class="card">
+        <h2>① 핵심 전환 퍼널 <span class="src-badge ga4">GA4</span>
+          <span class="hint">활성사용자 기준(근사 — 세션 경로 추적 아님) · ${from} ~ ${to}</span></h2>
+        <div class="fnl">${html}</div>
+        <p class="note">
+          전체 전환율(전체사용자 → 상담하기 클릭) <b>${fmtPct(overall)}</b>${deltaChip(curOverallSum, prevOverall, 'pp')}
+          · 단계별로 따로 집계한 활성사용자를 단조감소 순서로 놓은 <b>근사 퍼널</b>입니다 — 세션 경로를 추적한 값이 아니라
+          전환율·이탈은 두 단계 수치의 비·차이입니다.
+        </p>
+        <p class="note">
+          <b>상담사 목록은 일부러 단계에서 뺐습니다.</b> 선택 기간 기준 상담사 목록 ${fmtUsers(cslV)} /
+          상담사 상세 ${fmtUsers(cslInfoV)} — <b>상세 도달이 목록 방문의 ${cslV ? fmtPct(cslInfoV / cslV) : '–'}</b>입니다.
+          목록을 거치지 않고 광고·딥링크로 상세에 바로 들어오는 경로가 크다는 뜻이라, 목록을 퍼널 관문으로 두면
+          전환율이 100%를 넘어 의미가 사라집니다(홈메인 대비 목록 방문 ${homeV ? fmtPct(cslV / homeV) : '–'}).
+        </p>
+        <p class="note">${compareNote}</p>
+      </div>`;
+  }
+
+  function renderAiNoteFunnel(from, to) {
+    const startsAfter = AINOTE_EVENT_START && to < AINOTE_EVENT_START;
+    const { html, cur, base } = renderFunnelRows(AINOTE_FUNNEL, from, to, false);
+    const sideHtml = AINOTE_SIDE.map((s) => {
+      const v = nodeValue(s.id, from, to).value;
+      const ofV = s.of ? nodeValue(s.of, from, to).value : null;
+      const ofLabel = s.of ? (AINOTE_FUNNEL.find((f) => f.id === s.of) || {}).label : null;
+      return `
+          <div class="mini alt">
+            <div class="lbl"><span class="nm">${s.label}</span><span class="sh">${ofV ? fmtPct(v / ofV) : ''}</span></div>
+            <div class="num">${fmtUsers(v)}</div>
+            ${ofLabel ? `<div class="sublbl">${ofLabel} 대비</div>` : '<div class="sublbl">독립 열람 경로</div>'}
+          </div>`;
+    }).join('');
+
+    const body = startsAfter || base === 0
+      ? `<p class="note warn">선택 기간에 AI 상담노트 트랙 데이터가 없습니다 —
+           관련 이벤트는 <b>${AINOTE_EVENT_START || '집계 시작일 미확인'}</b>부터 집계됩니다.</p>`
+      : `<div class="fnl">${html}</div>
+         <p class="note">약관 팝업을 100%로 본 자체 기준선입니다 — 전체사용자(수천 명) 대비로 그리면
+           이 트랙은 1% 미만이라 막대가 보이지 않기 때문입니다. 상담이 끝난 뒤 알림톡에서 시작되는
+           경로라 ①번 퍼널의 연장선이 아닙니다.</p>
+         <div class="mini-grid">${sideHtml}</div>`;
+
+    return `
+      <div class="card">
+        <h2>② AI 상담노트 트랙 <span class="src-badge ga4">GA4</span>
+          <span class="hint">상담 이후 경로 · 자체 기준선 · ${AINOTE_EVENT_START ? AINOTE_EVENT_START + '부터 집계' : ''}</span></h2>
+        ${body}
+        ${renderAiNoteDbCrossCheck(from, to)}
+        <p class="note">화면별 목표 대비 달성 현황은
+          <a href="ga4-ainote-kpi-unsedang.html">AI 상담노트 KPI 리포트</a>에서 봅니다.</p>
+      </div>`;
+  }
+
+  // GA4 이벤트(프록시)가 실제와 얼마나 가까운지 DB 실값으로 한 줄 교차검증한다.
+  // GA4 '약관 동의'는 사람 수, DB 'AI노트 생성 상담'은 건수라 1:1 비교는 아니다.
+  function renderAiNoteDbCrossCheck(from, to) {
+    if (CONSULT_STATE !== 'ok') return '';
+    const dates = rangeDates(from, to);
+    const dbCnt = dates.reduce((a, d) => a + ((CONSULT_AINOTE_CNT_DAILY || {})[d] || 0), 0);
+    if (!dbCnt) return '';
+    const agree = nodeValue('ai-note-agree-click', from, to).value;
+    return `<p class="note">DB 대조 <span class="src-badge db">DB</span>:
+      같은 기간 AI노트가 실제로 만들어진 상담 <b>${fmtCount(dbCnt)}</b>
+      (위 GA4 '약관 동의' ${fmtUsers(agree)}은 사람 수라 1:1 비교는 아닙니다).</p>`;
+  }
+
+  function renderParallelCard(from, to) {
+    const siteV = nodeValue('site', from, to).value;
+    const rows = PARALLEL_METRICS.map((m) => ({ ...m, value: nodeValue(m.id, from, to).value }));
+    const max = rows.reduce((a, r) => Math.max(a, r.value), 0);
+    const itemsHtml = rows.map((r) => `
+          <div class="mini">
+            <div class="lbl"><span class="nm">${r.label}</span><span class="sh">${siteV ? fmtPct(r.value / siteV) : '–'}</span></div>
+            <div class="num">${fmtUsers(r.value)}</div>
+            <div class="mbar"><i style="width:${max ? Math.max((r.value / max) * 100, r.value > 0 ? 2 : 0) : 0}%"></i></div>
+            <div class="sublbl">${r.sub}</div>
+          </div>`).join('');
+    return `
+      <div class="card">
+        <h2>③ 병렬 참여 지표 <span class="src-badge ga4">GA4</span>
+          <span class="hint">순차 퍼널 아님 — 전체사용자 대비 도달률</span></h2>
+        <div class="mini-grid">${itemsHtml}</div>
+        <p class="note">상담 전환과 선후 관계가 없는 열람 경로입니다. 오른쪽 %는 전체사용자
+          <b>${fmtUsers(siteV)}</b> 대비 도달률이고, 막대는 이 네 지표끼리의 상대 크기입니다 —
+          서로 더하거나 ①번 퍼널의 단계로 이어붙여 읽으면 안 됩니다.</p>
+      </div>`;
+  }
+
+  function renderSummaryCard(from, to) {
+    const prev = prevPeriod(from, to);
+    const ids = ['site', 'home', 'cslInfo', 'call'];
+    const labels = { site: '전체사용자', home: '홈메인 도달', cslInfo: '상담사 상세 도달', call: '상담하기 클릭' };
+    const tiles = ids.map((id) => {
+      const v = nodeValue(id, from, to).value;
+      const chip = prev ? deltaChip(nodeSum(id, from, to), nodeSum(id, prev.from, prev.to), 'rel') : '';
+      return `
+          <div class="kpi-tile${id === 'call' ? ' hero' : ''}">
+            <div class="lbl">${labels[id]}</div>
+            <div class="num">${fmtUsers(v)}${chip}</div>
+          </div>`;
+    });
+    const siteV = nodeValue('site', from, to).value;
+    const callV = nodeValue('call', from, to).value;
+    const rateChip = prev
+      ? deltaChip(
+          nodeSum('site', from, to) ? nodeSum('call', from, to) / nodeSum('site', from, to) : null,
+          nodeSum('site', prev.from, prev.to) ? nodeSum('call', prev.from, prev.to) / nodeSum('site', prev.from, prev.to) : null,
+          'pp',
+        )
+      : '';
+    tiles.push(`
+          <div class="kpi-tile hero">
+            <div class="lbl">전체 전환율</div>
+            <div class="num">${fmtPct(siteV ? callV / siteV : null)}${rateChip}</div>
+          </div>`);
+    const exactNote = isFullRange(from, to)
+      ? '전체(90일)는 GA4에서 dimension 없이 따로 재조회한 <b>중복 제거된 순사용자</b> 값입니다.'
+      : '선택 기간 값은 <b>일별 활성사용자의 합</b>이라 여러 날 방문한 사용자가 중복 계산됩니다 — 전환율은 분자·분모를 같은 방식으로 재므로 비교에 쓸 수 있습니다.';
+    return `
+      <div class="card">
+        <h2>요약 <span class="hint">${from} ~ ${to}${prev ? ` · 증감은 이전 동기간(${prev.from} ~ ${prev.to}) 대비` : ' · 이전 동기간 비교 불가'}</span></h2>
+        <div class="kpi-tiles">${tiles.join('')}</div>
+        <p class="note">${exactNote}</p>
       </div>`;
   }
 
@@ -460,7 +893,13 @@
   function render(from, to) {
     CURRENT_FROM = from;
     CURRENT_TO = to;
-    document.getElementById('content').innerHTML = renderFunnel(from, to);
+    document.getElementById('content').innerHTML =
+      renderSummaryCard(from, to)
+      + renderMainFunnel(from, to)
+      + renderAiNoteFunnel(from, to)
+      + renderParallelCard(from, to)
+      + renderMediaCard(from, to)
+      + renderBusinessCard(from, to);
   }
 
   function setActivePreset(days) {
@@ -480,15 +919,16 @@
 
   function updateFooter() {
     const consultStatusLine = CONSULT_STATE === 'ok'
-      ? `상담사 상세 하위그룹의 매출/상담건수는 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 페이지 로드 시점에 실시간 fetch함(DB API).`
+      ? `"사업 성과" 카드의 매출/상담건수는 <b>${consultApiUrl('YYYY-MM')}</b>를 baseMonth <b>${CONSULT_MONTHS.join(', ')}</b>에 대해 페이지 로드 시점에 실시간 fetch함(DB API).`
       : CONSULT_STATE === 'error'
-        ? `상담사 상세 하위그룹의 매출/상담건수 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
-        : '상담사 상세 하위그룹의 매출/상담건수 실시간 fetch 중…';
+        ? `"사업 성과" 카드의 매출/상담건수 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
+        : '"사업 성과" 카드의 매출/상담건수 실시간 fetch 중…';
     document.getElementById('footer').innerHTML =
       `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 90일)<br>` +
-      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
+      `GA4 부분(<span class="src-badge ga4">GA4</span> 표시)은 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 매일 정오(KST) 자동 라우틴이 최근 90일 창을 하루씩 밀어 갱신합니다.<br>` +
       `날짜 필터는 이미 내장된 90일 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
-      `${consultStatusLine}<br>` +
+      `전체(90일)를 선택하면 dimension 없이 따로 재조회한 순사용자 합계를, 그보다 짧은 기간은 일별 활성사용자 합계를 씁니다(활성사용자는 비집계 지표라 날짜별로 더하면 중복 계산됨).<br>` +
+      `${consultStatusLine} "AI상담노트사용"은 운영진 수동 실집계로 GA4/DB API와 무관합니다.<br>` +
       `생성 시각: ${GENERATED_AT}`;
   }
 

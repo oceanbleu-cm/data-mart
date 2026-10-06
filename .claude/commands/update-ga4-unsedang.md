@@ -20,8 +20,8 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 
 이 문구는 §8에서 사용자에게 그대로 전달한다.
 
-**퍼널 단계(화면 표시 순서, 8단계)**: 홈메인 → 상담사 목록 → 상담사 상세 → AI 상담목록 →
-AI 상담보기 → 상담하기 → 운세 → 후기. 앞의 6단계(상담하기 제외)는 페이지 조회수 기반
+**수집 대상(7개 페이지 + 상담하기 이벤트)**: 홈메인 · 상담사 목록 · 상담사 상세 ·
+AI 상담목록 · AI 상담보기 · 운세 · 후기는 페이지 조회수 기반
 (`PAGE_PATH_TO_KEY` 참고), "상담하기"는 `pre_tel_click`(선불)과 `post_tel_click`(후불) 두
 이벤트를 **하나의 필터**(`eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`)로
 묶어 `activeUsers`를 재조회한 값(`DAILY_CALL`/`CALL_TOTAL`, 페이지와는 별개의 독립 시리즈)이다.
@@ -29,14 +29,14 @@ AI 상담보기 → 상담하기 → 운세 → 후기. 앞의 6단계(상담하
 집계되지 않는다.
 
 **이 외에 세 지표가 더 있고, 이 커맨드가 매 실행마다 함께 롤링한다**:
-- **전체사용자**(최상단에 표시, `DAILY_SITE`/`SITE_ACTIVE_USERS_TOTAL`): 페이지/
+- **전체사용자**(`DAILY_SITE`/`SITE_ACTIVE_USERS_TOTAL`): 페이지/
   이벤트 dimension 없이 사이트 전체를 집계한 별도 시리즈.
-- **하위그룹**(`DAILY_SUBEVENTS`/`SUBEVENT_TOTALS`, "상담사 상세"/"AI 상담보기" 아래 표시):
+- **AI 상담노트 트랙 이벤트**(`DAILY_SUBEVENTS`/`SUBEVENT_TOTALS`):
   `EVENT_KEYS` 7개 이벤트(`ai-note-agree-pop`, `ai-note-cancel-click`, `ai-note-agree-click`,
   `ai-note-review-skip`, `ai-note-review-next`, `ai-note-review-submit`,
   `ai-note-councel-click`) — 전부 2026-09-30부터 신규 집계된 이벤트라 그 이전 날짜는 0이
   정상이다.
-- **매체별 유입**(`DAILY_FIRST_USER`/`FIRST_USER_TOTALS`, "전체사용자" 아래 표시):
+- **매체별 유입**(`DAILY_FIRST_USER`/`FIRST_USER_TOTALS`):
   `GROUP_KEYS` 7개(`lg`/`notSet`/`direct`/`naverGrp`/`googleGrp`/`kakaoGrp`/`etcGrp`) —
   GA4 `firstUserSource` 원본 값을 `html/ga4-channel-unsedang.html`
   (`update_ga4_channel_unsedang.py`)과 동일한 `FIRST_USER_LABEL_TO_GROUP`/
@@ -50,8 +50,9 @@ AI 상담보기 → 상담하기 → 운세 → 후기. 앞의 6단계(상담하
 
 **새 페이지 경로/이벤트/하위그룹 이벤트가 필요해지면(예: 신규 기능 추가) 이 커맨드/
 스크립트만으로는 처리할 수 없다** — `scripts/update_ga4_unsedang.py`의
-`PAGE_PATH_TO_KEY`/`PAGE_KEYS`/`EVENT_KEYS`와 HTML의 `STEPS`/`SUBGROUPS`/`DAILY_PAGES`/
-`DAILY_SUBEVENTS`를 사람이 먼저 함께 갱신해야 한다. 알 수 없는 경로/eventName이 쿼리
+`PAGE_PATH_TO_KEY`/`PAGE_KEYS`/`EVENT_KEYS`와 HTML의 화면 구성 정의
+(`MAIN_FUNNEL`/`AINOTE_FUNNEL`/`AINOTE_SIDE`/`PARALLEL_METRICS`/`EVENT_LABELS`)
+및 `DAILY_PAGES`/`DAILY_SUBEVENTS`를 사람이 먼저 함께 갱신해야 한다. 알 수 없는 경로/eventName이 쿼리
 결과에 섞여 있으면 스크립트가 `SafetyError`로 중단한다(자동 분류하지 않음 — 페이지/이벤트
 목록은 고정된 소수 집합이라 조용히 넘어가면 안 된다). **단, `firstUserSource`는 다르다** —
 `update-ga4-channel-unsedang`의 sessionSource처럼 새 원본 값이 나와도 `classify_source()`가
