@@ -36,30 +36,36 @@
     },
     "totalChargeAmount": 128500000,      // 상담코인(CSL_PAID) 충전금액 합계 (운세 포인트 충전 제외, 원 단위)
     "totalRefundAmount": 3200000,        // 환불금액 합계 (운세·상담 유료 포인트 환불, 원 단위)
-  
+    "aiNoteAlimtalkCount": 4210,                   // AI 상담노트 알림톡 발송수 (발송 성공 건만)
     // [상담 유형 정의] revenue / consultationCount / userCount / dailyStats 공통
-    //   newConsultation           : 신규상담 - 고객의 전체 이력 중 최초 상담 1건
-    //   repeatConsultation        : 재상담 - 신규상담을 제외한 나머지 전부 (당일 재상담 + 이후 재상담)
-    //   sameDayRepeatConsultation : 당일 재상담 - 재상담 중 상담일이 그 고객의 신규상담일과 같은 건
-    //   laterRepeatConsultation   : 이후 재상담 - 재상담 중 신규상담일 다음 날부터의 건
-    //   revenue, consultationCount 에서 항상 성립:
-    //     total = newConsultation + repeatConsultation
-    //     repeatConsultation = sameDayRepeatConsultation + laterRepeatConsultation
-    //   userCount 에서는 성립하지 않는다 (userCount 위 주석 참고)
+    //    newConsultation           : 신규상담 - 고객의 전체 이력 중 최초 상담 1건
+    //    repeatConsultation        : 재상담 - 신규상담을 제외한 나머지 전부 (당일 재상담 + 이후 재상담)
+    //    sameDayRepeatConsultation : 당일 재상담 - 재상담 중 상담일이 그 고객의 신규상담일과 같은 건
+    //    laterRepeatConsultation   : 이후 재상담 - 재상담 중 신규상담일 다음 날부터의 건
+    //    revenue, consultationCount 에서 항상 성립:
+    //    total = newConsultation + repeatConsultation
+    //    repeatConsultation = sameDayRepeatConsultation + laterRepeatConsultation
+    //    userCount 에서는 성립하지 않는다 (userCount 위 주석 참고)
     "revenue": {                         // 매출액 - 결제 방식별 구분 (신규/재상담, 재상담은 당일/이후로 다시 구분)
       "prepaid": {
         "total": 84200000,                        //   선불 매출 합계
         "newConsultation": 52300000,              //   선불 · 신규상담 매출
         "repeatConsultation": 31900000,           //   선불 · 재상담 매출 (당일 + 이후)
         "sameDayRepeatConsultation": 12400000,    //   선불 · 당일 재상담 매출
-        "laterRepeatConsultation": 19500000       //   선불 · 이후 재상담 매출
+        "laterRepeatConsultation": 19500000,      //   선불 · 이후 재상담 매출
+        "aiNoteConsultation": 61400000,           //   선불 · AI 상담노트가 만들어진 상담 매출
+        "aiNoteRepeatConsultation": 24800000,     //   선불 · 위 상담 매출중 재상담 매출 {이전 AI상담노트가 만들어 지기 전 매출 포함} — "전체 재상담" 지표로 사용
+        "afterAiNoteRepeatConsultation": 15600000 //   선불 · AI 상담노트 알림톡을 받은 뒤 재상담 매출 (현재 리포트에서는 미사용)
       },
       "postpaid": {
         "total": 41100000,                        //   후불 매출 합계
         "newConsultation": 24500000,              //   후불 · 신규상담 매출
         "repeatConsultation": 16600000,           //   후불 · 재상담 매출 (당일 + 이후)
         "sameDayRepeatConsultation": 7300000,     //   후불 · 당일 재상담 매출
-        "laterRepeatConsultation": 9300000        //   후불 · 이후 재상담 매출
+        "laterRepeatConsultation": 9300000,       //   후불 · 이후 재상담 매출
+        "aiNoteConsultation": 0,                  //   후불 · AI 상담노트가 만들어진 상담 매출 — AI상담노트는 선불 전용 기능이라 항상 0
+        "aiNoteRepeatConsultation": 0,            //   후불 · 위 상담 매출중 재상담 매출 — 항상 0
+        "afterAiNoteRepeatConsultation": 0        //   후불 · AI 상담노트 알림톡을 받은 뒤 재상담 매출 — 항상 0
       }
     },
     "consultationCount": {               // 상담 건수 - 결제 방식별 구분 (revenue 와 동일 구조)
@@ -68,14 +74,20 @@
         "newConsultation": 3450,                  //   선불 · 신규상담 건수
         "repeatConsultation": 2670,               //   선불 · 재상담 건수 (당일 + 이후)
         "sameDayRepeatConsultation": 1080,        //   선불 · 당일 재상담 건수
-        "laterRepeatConsultation": 1590           //   선불 · 이후 재상담 건수
+        "laterRepeatConsultation": 1590,          //   선불 · 이후 재상담 건수
+        "aiNoteConsultation": 4460,               //   선불 · AI 상담노트가 만들어진 상담 건수
+        "aiNoteRepeatConsultation": 1950,         //   선불 · 위 상담 매출중 재상담 건수 {이전 AI상담노트가 만들어 지기 전 건수 포함} — "전체 재상담" 지표로 사용
+        "afterAiNoteRepeatConsultation": 1230     //   선불 · AI 상담노트 알림톡을 받은 뒤 재상담 건수 (현재 리포트에서는 미사용)
       },
       "postpaid": {
         "total": 2870,                            //   후불 건수 합계
         "newConsultation": 1620,                  //   후불 · 신규상담 건수
         "repeatConsultation": 1250,               //   후불 · 재상담 건수 (당일 + 이후)
         "sameDayRepeatConsultation": 520,         //   후불 · 당일 재상담 건수
-        "laterRepeatConsultation": 730            //   후불 · 이후 재상담 건수
+        "laterRepeatConsultation": 730,           //   후불 · 이후 재상담 건수
+        "aiNoteConsultation": 0,                  //   후불 · AI 상담노트가 만들어진 상담 건수 — AI상담노트는 선불 전용 기능이라 항상 0
+        "aiNoteRepeatConsultation": 0,            //   후불 · 위 상담 매출중 재상담 건수 — 항상 0
+        "afterAiNoteRepeatConsultation": 0        //   후불 · AI 상담노트 알림톡을 받은 뒤 재상담 건수 — 항상 0
       }
     },
     // [userCount 주의] 한 유저가 여러 항목에 동시에 잡히므로 서로 더하면 안 된다.
@@ -88,17 +100,22 @@
         "newConsultation": 3450,                  //   선불 · 신규상담 유저수 (= 신규상담 건수)
         "repeatConsultation": 910,                //   선불 · 재상담 유저수
         "sameDayRepeatConsultation": 520,         //   선불 · 당일 재상담 유저수
-        "laterRepeatConsultation": 610            //   선불 · 이후 재상담 유저수
+        "laterRepeatConsultation": 610,           //   선불 · 이후 재상담 유저수
+        "aiNoteConsultation": 2890,               //   선불 · AI 상담노트가 만들어진 유저수
+        "aiNoteRepeatConsultation": 640,          //   선불 · 위 상담 매출중 재상담 유저수 {이전 AI상담노트가 만들어 지기 전 유저수 포함} — "전체 재상담" 지표로 사용
+        "afterAiNoteRepeatConsultation": 390      //   선불 · AI 상담노트 알림톡을 받은 뒤 재상담 유저수 (현재 리포트에서는 미사용)
       },
       "postpaid": {
         "total": 1840,                            //   후불 상담 유저수
         "newConsultation": 1620,                  //   후불 · 신규상담 유저수 (= 신규상담 건수)
         "repeatConsultation": 470,                //   후불 · 재상담 유저수
         "sameDayRepeatConsultation": 260,         //   후불 · 당일 재상담 유저수
-        "laterRepeatConsultation": 280            //   후불 · 이후 재상담 유저수
+        "laterRepeatConsultation": 280,           //   후불 · 이후 재상담 유저수
+        "aiNoteConsultation": 0,                  //   후불 · AI 상담노트가 만들어진 유저수 — AI상담노트는 선불 전용 기능이라 항상 0
+        "aiNoteRepeatConsultation": 0,            //   후불 · 위 상담 매출중 재상담 유저수 — 항상 0
+        "afterAiNoteRepeatConsultation": 0        //   후불 · AI 상담노트 알림톡을 받은 뒤 재상담 유저수 — 항상 0
       }
     },
-  
     "topRevenueConsultants": [           // 매출액(신규+재상담) 기준 상담사 TOP5 (월 전체 기준, rank 오름차순, 매출 0 인 상담사 제외)
       // consultantId 는 상담사 고유번호(csl_key)를 문자열로 준다.
       // userCount 는 월 전체에 이 상담사와 상담한 유저수(중복 제외). 일자별 TOP5 의 userCount 를 더한 값과 다르다.

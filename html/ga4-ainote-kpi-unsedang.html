@@ -293,44 +293,60 @@
   // AI 상담노트 기능은 2026-09-30부터 신규 집계이고 이전 데이터는 의미가 없어, 내장 범위를
   // 2026-09-30부터로 제한했다(그 이전 날짜는 아예 담지 않음 — 집계 대상 자체가 아니었음).
   // 상담하기(= pre_tel_click OR post_tel_click, activeUsers)
-  const DAILY_CALL = {"2026-09-30":43,"2026-10-01":43,"2026-10-02":55,"2026-10-03":66,"2026-10-04":58};
-  const CALL_TOTAL = 229; // 전체 기간 재조회한 정확값
+  const DAILY_CALL = {"2026-09-30":43,"2026-10-01":43,"2026-10-02":55,"2026-10-03":66,"2026-10-04":58,"2026-10-05":70};
+  const CALL_TOTAL = 286; // 전체 기간 재조회한 정확값
 
   // 상담하기(선불만, pre_tel_click) — AI 상담노트는 선불 상담에만 제공되는 기능이라
   // "AI 상담노트 옵션 유지율"의 분모는 선불+후불을 합친 DAILY_CALL이 아니라 이걸 써야 한다.
-  const DAILY_PRETEL = {"2026-09-30":19,"2026-10-01":23,"2026-10-02":29,"2026-10-03":31,"2026-10-04":31};
-  const PRETEL_TOTAL = 122; // 전체 기간 재조회한 정확값
+  const DAILY_PRETEL = {"2026-09-30":19,"2026-10-01":23,"2026-10-02":29,"2026-10-03":31,"2026-10-04":31,"2026-10-05":40};
+  const PRETEL_TOTAL = 156; // 전체 기간 재조회한 정확값
 
   // AI 상담목록(/view/ai-note), AI 상담보기=노트 상세(/view/ai-note/noteInfo) 페이지뷰 activeUsers
-  const DAILY_AINOTE = {"2026-09-30":11,"2026-10-01":20,"2026-10-02":18,"2026-10-03":25,"2026-10-04":17};
-  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13};
-  const PAGE_TOTALS = { aiNote: 73, noteInfo: 72 }; // 전체 기간 정확값
+  const DAILY_AINOTE = {"2026-09-30":11,"2026-10-01":20,"2026-10-02":18,"2026-10-03":25,"2026-10-04":17,"2026-10-05":21};
+  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13,"2026-10-05":26};
+  const PAGE_TOTALS = { aiNote: 90, noteInfo: 90 }; // 전체 기간 정확값
 
   // 추적 이벤트 7종 (전부 2026-09-30부터 신규 집계)
   const DAILY_SUBEVENTS = {
-    "ai-note-agree-pop":   {"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34},
-    "ai-note-agree-click": {"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31},
-    "ai-note-cancel-click":{"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8},
-    "ai-note-review-skip": {"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8},
-    "ai-note-review-next": {"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1},
-    "ai-note-review-submit":{"2026-10-01":3,"2026-10-02":4,"2026-10-03":3},
-    "ai-note-councel-click":{"2026-09-30":1,"2026-10-01":2,"2026-10-03":1}
+    "ai-note-agree-pop": {"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34,"2026-10-05":41},
+    "ai-note-agree-click": {"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31,"2026-10-05":40},
+    "ai-note-cancel-click": {"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8,"2026-10-05":11},
+    "ai-note-review-skip": {"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8,"2026-10-05":12},
+    "ai-note-review-next": {"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1,"2026-10-05":6},
+    "ai-note-review-submit": {"2026-10-01":3,"2026-10-02":4,"2026-10-03":3,"2026-10-05":2},
+    "ai-note-councel-click": {"2026-09-30":1,"2026-10-01":2,"2026-10-03":1}
   };
   const SUBEVENT_TOTALS = {
-    "ai-note-agree-pop": 130, "ai-note-agree-click": 113, "ai-note-cancel-click": 38,
-    "ai-note-review-skip": 38, "ai-note-review-next": 19, "ai-note-review-submit": 10,
-    "ai-note-councel-click": 4
+    "ai-note-agree-pop": 164, "ai-note-agree-click": 147, "ai-note-cancel-click": 49, "ai-note-review-skip": 48, "ai-note-review-next": 25, "ai-note-review-submit": 12, "ai-note-councel-click": 4
   };
 
   // 노트 상세(/view/ai-note/noteInfo) 참여시간 — [총 참여시간(초), 활성사용자]
   const DAILY_ENGAGEMENT = {
-    "2026-09-30":[685,11],"2026-10-01":[2212,17],"2026-10-02":[2118,24],"2026-10-03":[2552,22],"2026-10-04":[1047,13]
+    "2026-09-30":[685,11],"2026-10-01":[2212,17],"2026-10-02":[2118,24],"2026-10-03":[2552,22],"2026-10-04":[1047,13],"2026-10-05":[3035,26]
   };
-  const ENGAGEMENT_TOTAL = { duration: 8614, users: 72 }; // 전체 기간 정확값(=PAGE_TOTALS.noteInfo와 동일 모집단)
+  const ENGAGEMENT_TOTAL = { duration: 11649, users: 90 }; // 전체 기간 정확값(=PAGE_TOTALS.noteInfo와 동일 모집단)
 
   // 알림톡 "운세당 바로가기" 클릭 — UTM(utm_source=kakao_alimtalk&utm_medium=push&utm_campaign=callnote_created)로 식별
-  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9};
-  const UTM_CLICK_TOTAL = 39; // 전체 기간 정확값(activeUsers). 참고: 세션(클릭수)은 56.
+  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9,"2026-10-05":20};
+  const UTM_CLICK_TOTAL = 53; // 전체 기간 정확값(activeUsers). 참고: 세션(클릭수)은 56.
+
+  // 운세당 DB API(consultation-stats/monthly, baseMonth=2026-09·2026-10 조회) — 2026-10-06 조회.
+  // AI 상담노트는 선불 전용 기능이라 후불 값은 전부 0(API로 실측 확인). 03 발송성공률의
+  // 분자(알림톡 발송 성공건수, 최상위 aiNoteAlimtalkCount)와 분모(발송 시도 근사치로 쓰는
+  // consultationCount.prepaid.aiNoteConsultation).
+  const DAILY_ALIMTALK = {"2026-09-30":23,"2026-10-01":22,"2026-10-02":40,"2026-10-03":38,"2026-10-04":44,"2026-10-05":60};
+  const ALIMTALK_TOTAL = 227;
+  const DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50};
+  const AINOTE_CONSULT_CNT_TOTAL = 208;
+
+  // 06 전체 재상담율의 분모(userCount.prepaid.aiNoteConsultation)·분자(userCount.prepaid.
+  // aiNoteRepeatConsultation, "전체 재상담" 유저수 — afterAiNoteRepeatConsultation은 현재 미사용).
+  // 유저수는 날짜 간 중복제거가 보장되지 않아 일별 합산은 근사값(API가 baseMonth 단위만
+  // 지원해 09월/10월에 걸친 이 구간의 단일 정확값을 재조회할 방법이 없음).
+  const DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28};
+  const AINOTE_CONSULT_USR_TOTAL = 127;
+  const DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17};
+  const AINOTE_REPEAT_USR_TOTAL = 59;
 
   // AI 상담노트 사용자수 — 운영진이 직접 전달한 실집계(DB 기준, GA4 비연동). 참고용으로만 표시하며
   // 목표/달성 판정에는 쓰지 않는다. 이 상수는 scripts/update_ga4_unsedang.py가 관리하는 블록
@@ -339,10 +355,10 @@
   // 그 배치 스크립트가 실행돼도 건드리지 않는다.
   const DAILY_AINOTE_USAGE = {"2026-09-30":23,"2026-10-01":24,"2026-10-02":38,"2026-10-03":39,"2026-10-04":32};
 
-  const DATE_RANGE = { from: '2026-09-30', to: '2026-10-04' };
+  const DATE_RANGE = { from: '2026-09-30', to: '2026-10-05' };
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
-  const GENERATED_AT = '2026-10-05 11:00 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const GENERATED_AT = '2026-10-06 04:44 UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)';
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
@@ -381,6 +397,10 @@
   const utmClickValue = (from, to) => rangeSum(DAILY_UTM_CLICK, UTM_CLICK_TOTAL, from, to);
   // GA4가 아니라 운영진이 직접 전달한 일별 실집계라 비집계 지표 문제가 없어 그냥 합산한다.
   const aiNoteUsageValue = (from, to) => rangeDates(from, to).reduce((acc, d) => acc + (DAILY_AINOTE_USAGE[d] || 0), 0);
+  const alimtalkValue = (from, to) => rangeSum(DAILY_ALIMTALK, ALIMTALK_TOTAL, from, to);
+  const aiNoteConsultCntValue = (from, to) => rangeSum(DAILY_AINOTE_CONSULT_CNT, AINOTE_CONSULT_CNT_TOTAL, from, to);
+  const aiNoteConsultUsrValue = (from, to) => rangeSum(DAILY_AINOTE_CONSULT_USR, AINOTE_CONSULT_USR_TOTAL, from, to);
+  const aiNoteRepeatUsrValue = (from, to) => rangeSum(DAILY_AINOTE_REPEAT_USR, AINOTE_REPEAT_USR_TOTAL, from, to);
   function engagementValue(from, to) {
     const durDict = {}, userDict = {};
     for (const [d, v] of Object.entries(DAILY_ENGAGEMENT)) { durDict[d] = v[0]; userDict[d] = v[1]; }
@@ -409,12 +429,16 @@
     const councel = subEventValue('ai-note-councel-click', from, to).value;
     const utmClick = utmClickValue(from, to).value;
     const aiNoteUsage = aiNoteUsageValue(from, to);
+    const alimtalk = alimtalkValue(from, to).value;
+    const aiNoteConsultCnt = aiNoteConsultCntValue(from, to).value;
+    const aiNoteConsultUsr = aiNoteConsultUsrValue(from, to).value;
+    const aiNoteRepeatUsr = aiNoteRepeatUsrValue(from, to).value;
     const eng = engagementValue(from, to);
     const avgSec = eng.users > 0 ? eng.duration / eng.users : null;
     const reviewBase = next + skip;
 
     return {
-      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, aiNoteUsage },
+      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, aiNoteUsage, alimtalk, aiNoteConsultCnt, aiNoteConsultUsr, aiNoteRepeatUsr },
       screens: [
         {
           no: '01', name: '상담 클릭', file: '상담하기 바텀시트',
@@ -441,9 +465,9 @@
         {
           no: '03', name: '알림톡 수신', file: '상담종료 후 카카오톡 "운세당" 채널',
           desc: '상담 종료 후 발송되는 카카오 알림톡. "AI 상담노트가 도착했어요" 문구와 "운세당 바로가기" 버튼.',
-          mock: 'mock03', coreMetric: 'ctrKakao',
+          mock: 'mock03', coreMetric: 'sendRate',
           metrics: [
-            { key: 'sendRate', label: '알림톡 발송 성공률', calc: '알림톡 발송 로그 연동 필요', target: 1.0, dir: 'up', kind: 'off', value: null },
+            { key: 'sendRate', label: '알림톡 발송 성공률', calc: '알림톡 발송 성공건수 ÷ AI 상담노트 생성 상담건수(발송 시도 근사치)', target: 1.0, dir: 'up', kind: 'proxy', value: ratio(alimtalk, aiNoteConsultCnt) },
             { key: 'ctrKakao', label: '바로가기 클릭수', calc: '알림톡 발송 로그가 없어 CTR(%)은 계산 불가 — UTM(kakao_alimtalk/push/callnote_created) 클릭 활성사용자 수치만 집계', target: null, kind: 'aux', value: utmClick, unit: 'count' },
           ],
           events: [
@@ -483,8 +507,8 @@
           mock: 'mock06', coreMetric: 'recallCtr',
           metrics: [
             { key: 'recallCtr', label: '재상담 버튼 CTR', calc: '재상담 버튼 클릭 ÷ AI 상담보기(노트 진입)', target: 0.15, dir: 'up', kind: 'measured', value: ratio(councel, noteInfo) },
-            { key: 'sameTeacher', label: '동일 선생님 재상담율', calc: '상담 DB 연동 필요', target: 0.2, dir: 'up', kind: 'off', value: null },
-            { key: 'totalRecall', label: '전체 재상담율', calc: '상담 DB 연동 필요', target: 0.3, dir: 'up', kind: 'off', value: null },
+            { key: 'sameTeacher', label: '동일 선생님 재상담율', calc: '상담사 매칭 로그 연동 필요', target: 0.2, dir: 'up', kind: 'off', value: null },
+            { key: 'totalRecall', label: '전체 재상담율', calc: 'AI 상담노트 재상담 유저수 ÷ AI 상담노트 생성 유저수', target: 0.3, dir: 'up', kind: 'measured', value: ratio(aiNoteRepeatUsr, aiNoteConsultUsr) },
           ],
           events: [{ label: '재상담 버튼 클릭', key: 'ai-note-councel-click', value: councel }],
         },
@@ -705,7 +729,8 @@
   function updateFooter() {
     document.getElementById('footer').innerHTML =
       `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(AI 상담노트 집계 시작일인 9월 30일부터, 총 ${rangeDates(DATE_RANGE.from, DATE_RANGE.to).length}일)<br>` +
-      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
+      `03 발송 성공률·06 전체 재상담율은 GA4가 아닌 운세당 DB API(consultation-stats/monthly)에서 2026-10-06 조회한 값입니다.<br>` +
+      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics/DB API로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
       `날짜 필터는 이미 내장된 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
       `원본 KPI 목표 문서: AI상담노트-화면별-KPI목표-260929.html (작성일 2026-09-29)<br>` +
       `생성 시각: ${GENERATED_AT}`;
