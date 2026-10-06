@@ -463,7 +463,7 @@
         {
           no: '03', name: '알림톡 수신', file: '상담종료 후 카카오톡 "운세당" 채널',
           desc: '상담 종료 후 발송되는 카카오 알림톡. "AI 상담노트가 도착했어요" 문구와 "운세당 바로가기" 버튼.',
-          mock: 'mock03', coreMetric: 'sendRate',
+          mock: 'mock03', coreMetric: 'sendRate', hideEvents: true,
           metrics: [
             { key: 'sendRate', label: '알림톡 발송 성공률', calc: '알림톡 발송 성공건수 ÷ AI 상담노트 생성 상담건수(발송 시도 근사치)', target: 1.0, dir: 'up', kind: 'proxy', value: ratio(alimtalk, aiNoteConsultCnt) },
             { key: 'alimtalkCount', label: '↳ 참고: 알림톡 발송 성공건수', calc: '운세당 DB API(aiNoteAlimtalkCount)', target: null, kind: 'aux', value: alimtalk, unit: 'txn' },
@@ -680,12 +680,14 @@
         </tr>`;
     }).join('');
     const eventsHtml = s.events.length ? `
+      <div${s.hideEvents ? ' style="display:none"' : ''}>
       <p class="evt-title">추적 이벤트</p>
       <div class="table-scroll">
       <table class="evt">
         <thead><tr><th>이벤트 설명</th><th>GA 이벤트키</th><th>기간 내 활성사용자</th></tr></thead>
         <tbody>${s.events.map((e) => `<tr><td>${e.label}</td><td class="key">${e.key}</td><td class="figcell">${fmtUsers(e.value)}</td></tr>`).join('')}</tbody>
       </table>
+      </div>
       </div>` : '';
     return `
       <div class="card screen-card-wrap ${cardStatusClass}">
