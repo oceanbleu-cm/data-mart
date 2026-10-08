@@ -536,11 +536,11 @@
       .join('');
     el.innerHTML = `
       <div class="card">
-        <h2>GA4 활성 현황 <span class="hint">최근 7일(${GA4_RANGE.recentFrom}~${GA4_RANGE.recentTo}) vs 이전 7일(${GA4_RANGE.prevFrom}~${GA4_RANGE.prevTo})</span></h2>
+        <h2>GA4 활성 현황</h2>
         <div class="table-scroll">
           <table>
             <thead>
-              <tr><th>지표</th><th>최근 7일</th><th>이전 7일</th><th>증감</th></tr>
+              <tr><th>지표</th><th>최근 7일 (${GA4_RANGE.recentFrom} ~ ${GA4_RANGE.recentTo})</th><th>이전 7일 (${GA4_RANGE.prevFrom} ~ ${GA4_RANGE.prevTo})</th><th>증감</th></tr>
             </thead>
             <tbody>${bodyRows}</tbody>
           </table>
