@@ -28,7 +28,7 @@ TOTAL_DAILY/TOTAL_PERIOD(사이트 전체, attribution 기준과 무관)는 소�
     python3 update_ga4_channel_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                             [--generated-at STR] [--no-backup]
 
-입력 디렉터리(--indir) 안의 4개 파일 스키마:
+입력 디렉터리(--indir) 안의 6개 파일 스키마:
     total_daily.json     : {"rows": [{"date","activeUsers"}, ...]}
                             (소스 필터 없음, 마지막 수록일 다음날 ~ 새 to)
     total_period.json    : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우 전체, 소스 필터 없음)
@@ -39,6 +39,13 @@ TOTAL_DAILY/TOTAL_PERIOD(사이트 전체, attribution 기준과 무관)는 소�
     firstuser_raw_period.json : {"rows": [{"source","activeUsers","sessions"}, ...]}
                             (firstUserSource 기준, dimension 포함, 새 윈도우 전체. 그룹별
                              기간 합계도 마찬가지로 단순 합산해서 만든다.)
+    recent7_total.json   : {"rows": [{"activeUsers"}]}  (한 행, 새 윈도우의 "최근 7일"만
+                            — new_to-6~new_to, 소스 필터 없음. 표 중간에 삽입되는 "최근 7일
+                            합계/평균" 행용. activeUsers는 비집계 지표라 TOTAL_DAILY 일별
+                            값을 단순 합산할 수 없어 이 구간만 별도 재조회해야 한다.)
+    recent7_firstuser_raw.json : {"rows": [{"source","activeUsers","sessions"}, ...]}
+                            (firstUserSource 기준, dimension 포함, new_to-6~new_to만. 그룹별
+                             "최근 7일" 합계도 마찬가지로 단순 합산해서 만든다.)
 
     알려진 매핑 테이블(FIRST_USER_LABEL_TO_GROUP)에 없는 새 firstUserSource 값이 나타나면
     더 이상 SafetyError로 중단하지 않는다 — classify_source()가 자동으로 분류한다:
@@ -196,11 +203,13 @@ def load_firstuser_incremental(indir):
     return incr, all_dates, label_warnings
 
 
-def load_firstuser_period(indir):
-    """반환: ({group_key: int}, label_warnings) — firstuser_raw_period.json을 그룹별로
-    단순 합산(정확함). 매핑에 없는 값은 classify_source()로 자동 분류해서 포함한다."""
+def load_firstuser_period(indir, fname='firstuser_raw_period.json'):
+    """반환: ({group_key: int}, label_warnings) — <fname>(기본 firstuser_raw_period.json)을
+    그룹별로 단순 합산(정확함). 매핑에 없는 값은 classify_source()로 자동 분류해서 포함한다.
+    fname을 바꿔 넣으면(예: recent7_firstuser_raw.json) 같은 로직으로 다른 기간의 period
+    파일도 집계할 수 있다(최근 7일 서브합계용)."""
     totals = {k: 0 for k in GROUP_KEYS}
-    rows = _read_rows(indir, 'firstuser_raw_period.json')
+    rows = _read_rows(indir, fname)
     unknown = sorted({r['source'] for r in rows if r['source'] not in FIRST_USER_LABEL_TO_GROUP})
     label_warnings = [
         f"신규 firstUserSource 값 '{lbl}' → {classify_source(lbl)} 자동 분류(사람 확인 권장)"
@@ -319,6 +328,11 @@ def render_total_daily(total_daily):
     return f'  const TOTAL_DAILY = {json_str};'
 
 
+def render_recent7_totals(totals):
+    parts = ', '.join(f'{k}: {totals[k]}' for k in GROUP_KEYS)
+    return f'  const RECENT7_FIRST_USER_TOTALS = {{ {parts} }};'
+
+
 def patch_scalars(src, new_from, new_to, total_period, generated_at):
     src = re.sub(
         r"const DATE_RANGE = \{ from: '[\d-]+', to: '[\d-]+' \};",
@@ -327,6 +341,20 @@ def patch_scalars(src, new_from, new_to, total_period, generated_at):
     )
     src = re.sub(r'const TOTAL_PERIOD = \d+;', f'const TOTAL_PERIOD = {total_period};', src)
     src = re.sub(r"const GENERATED_AT = '.*?';", f"const GENERATED_AT = '{generated_at}';", src)
+    return src
+
+
+def patch_recent7_scalars(src, recent7_from, recent7_to, recent7_total):
+    src, n1 = re.subn(
+        r"const RECENT7_RANGE = \{ from: '[\d-]+', to: '[\d-]+' \};",
+        f"const RECENT7_RANGE = {{ from: '{recent7_from}', to: '{recent7_to}' }};",
+        src,
+    )
+    if n1 != 1:
+        raise SafetyError('RECENT7_RANGE 블록을 찾지 못했습니다 — HTML 구조가 바뀐 것 같습니다. 수동 확인 필요.')
+    src, n2 = re.subn(r'const RECENT7_TOTAL = \d+;', f'const RECENT7_TOTAL = {recent7_total};', src)
+    if n2 != 1:
+        raise SafetyError('RECENT7_TOTAL 블록을 찾지 못했습니다 — HTML 구조가 바뀐 것 같습니다. 수동 확인 필요.')
     return src
 
 
@@ -384,8 +412,21 @@ def main():
     new_fu_totals, fu_period_label_warnings = load_firstuser_period(args.indir)
     new_total_period = _read_single_value(args.indir, 'total_period.json')
 
+    # --- 최근 7일 서브합계(RECENT7_*) — 새 윈도우의 가장 최근 7일, 항상 new_to 기준 ---
+    recent7_to = new_to
+    recent7_from = (date.fromisoformat(new_to) - timedelta(days=6)).isoformat()
+    new_recent7_total = _read_single_value(args.indir, 'recent7_total.json')
+    new_recent7_fu_totals, recent7_label_warnings = load_firstuser_period(args.indir, 'recent7_firstuser_raw.json')
+    if new_recent7_total < 0:
+        raise SafetyError(f'RECENT7_TOTAL이 음수입니다: {new_recent7_total}')
+    if new_recent7_total > new_total_period:
+        raise SafetyError(
+            f'RECENT7_TOTAL({new_recent7_total})이 TOTAL_PERIOD({new_total_period})보다 큽니다 — '
+            f'최근 7일은 14일 전체의 부분집합이라 있을 수 없는 값입니다. 쿼리 기간을 재확인하세요.'
+        )
+
     warnings = extra_warnings
-    warnings += fu_incr_label_warnings + fu_period_label_warnings
+    warnings += fu_incr_label_warnings + fu_period_label_warnings + recent7_label_warnings
     warnings += validate_total_daily(new_total_daily, new_total_period, new_from, new_to)
     warnings += validate_group_series('FIRST_USER', new_fu_daily, new_fu_totals, new_from, new_to)
 
@@ -403,6 +444,10 @@ def main():
 
     new_src = patch_scalars(new_src, new_from, new_to, new_total_period, generated_at)
 
+    r7t_start, r7t_end, _ = extract_single_line_block(new_src, 'RECENT7_FIRST_USER_TOTALS', '  ')
+    new_src = replace_block_text(new_src, r7t_start, r7t_end, render_recent7_totals(new_recent7_fu_totals))
+    new_src = patch_recent7_scalars(new_src, recent7_from, recent7_to, new_recent7_total)
+
     # --- 스모크 테스트: 재작성한 소스를 다시 파싱해 라운드트립 일치 확인 ---
     _, _, chk_total_daily_body = extract_single_line_block(new_src, 'TOTAL_DAILY', '  ')
     _, _, chk_fu_daily_body = extract_block(new_src, 'FIRST_USER_DAILY', '  ')
@@ -410,6 +455,9 @@ def main():
     assert parse_daily_block(chk_fu_daily_body) == new_fu_daily
     chk_range = parse_scalars(new_src)
     assert chk_range == {'from': new_from, 'to': new_to}
+    m_r7r = re.search(r"const RECENT7_RANGE = \{ from: '([\d-]+)', to: '([\d-]+)' \};", new_src)
+    assert m_r7r and m_r7r.group(1) == recent7_from and m_r7r.group(2) == recent7_to
+    assert re.search(rf'const RECENT7_TOTAL = {new_recent7_total};', new_src)
 
     seen_warnings = set()
     warnings = [w for w in warnings if not (w in seen_warnings or seen_warnings.add(w))]
@@ -418,6 +466,7 @@ def main():
     print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (14일 유지, 롤링)')
     print(f'[첫 사용자 소스] 그룹별 기간 합계(활성사용자): {new_fu_totals}')
     print(f'전체 기간 합계(활성사용자): {new_total_period}')
+    print(f'최근 7일 서브합계 {recent7_from}~{recent7_to}: 전체 {new_recent7_total}, 그룹별 {new_recent7_fu_totals}')
     if warnings:
         print('경고:')
         for w in warnings:

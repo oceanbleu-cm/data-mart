@@ -104,6 +104,8 @@
   th:first-child, td:first-child { text-align: center; font-variant-numeric: normal; }
   th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.72rem; }
   tbody tr:nth-child(even) { background: var(--stripe); }
+  tbody tr.total-row td { border-top: 2px solid var(--accent); }
+  tbody tr.avg-sub-row td { color: var(--text-dim); font-style: italic; border-bottom: 2px solid var(--accent); }
   tfoot td { font-weight: 600; border-top: 2px solid var(--border); border-bottom: none; }
   th.col-s0 { background: var(--s0-head-bg); color: var(--s0-text); }
   th.col-s1 { background: var(--s1-head-bg); color: var(--s1-text); }
@@ -198,6 +200,17 @@
     { key: 'kakaoGrp', label: 'kakao' },
     { key: 'etcGrp', label: '기타' },
   ];
+
+  // --- 최근 7일 서브합계(DATE_RANGE 중 가장 최근 7일) — 표 중간에 삽입되는 "최근 7일 합계/평균" 행 ---
+  // activeUsers는 비집계 지표라 TOTAL_DAILY/FIRST_USER_DAILY의 일별 값을 단순 합산하면
+  // 재방문자가 중복 집계된다. 그래서 FIRST_USER_TOTALS(14일 전체)와 동일한 원리로, 이 7일
+  // 구간만 GA4에 별도로 재조회한 값이다(그룹별은 원본 라벨 분류 후 단순합산 — firstUserSource는
+  // 평생 1개 값이라 라벨 분류 자체는 안전하지만, 날짜로 쪼개 합산하면 재방문자 중복이 생기므로
+  // 날짜 dimension 없이 재조회). 매일 자동 라우틴이 창이 밀릴 때마다 최근 7일 구간도 같이
+  // 재계산해 덮어쓴다.
+  const RECENT7_RANGE = { from: '2026-10-01', to: '2026-10-07' };
+  const RECENT7_TOTAL = 4703;
+  const RECENT7_FIRST_USER_TOTALS = { lg: 1302, notSet: 1236, direct: 331, naverGrp: 1716, googleGrp: 68, kakaoGrp: 69, etcGrp: 6 };
 </script>
 <script>
 (function () {
@@ -396,10 +409,52 @@
     }
   };
 
+  // 최근 7일 합계/평균 행(표 중간, 최근 7일 일별 행 바로 아래 삽입) — RECENT7_TOTAL/
+  // RECENT7_FIRST_USER_TOTALS는 이 7일 구간만 GA4에 별도로 재조회한 정확한 값(비집계
+  // 지표라 일별 값 단순 합산이 아님). 상담수/상담인원은 CONSULT_DAILY가 매출·건수류라
+  // 안전하게 합산 가능해 최근 7일 날짜만 골라 그 자리에서 합산한다.
+  function recent7SubRows() {
+    const dates = rangeDates();
+    const last7Dates = dates.slice(-7);
+    const groupCellsFor = (divisor) =>
+      FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(Math.round(RECENT7_FIRST_USER_TOTALS[g.key] / divisor))}</td>`).join('');
+
+    let consultSumCell = '–';
+    let consultUserSumCell = '–';
+    let consultAvgCell = '–';
+    let consultUserAvgCell = '–';
+    let convCell = '–';
+    if (CONSULT_STATE === 'ok') {
+      const consultSum = last7Dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      const consultUserSum = last7Dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
+      consultSumCell = fmtCount(consultSum);
+      consultUserSumCell = fmtUsers(consultUserSum);
+      consultAvgCell = fmtCount(Math.round(consultSum / 7));
+      consultUserAvgCell = fmtUsers(Math.round(consultUserSum / 7));
+      convCell = fmtPercent((consultSum / RECENT7_TOTAL) * 100);
+    } else if (CONSULT_STATE === 'error') {
+      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = '로드 실패';
+    } else {
+      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = '로딩 중…';
+    }
+
+    const sumRow = `<tr class="total-row">
+      <td>최근 7일 합계 (${RECENT7_RANGE.from.slice(5).replace('-', '/')}~${RECENT7_RANGE.to.slice(5).replace('-', '/')})</td>
+      ${groupCellsFor(1)}
+      <td>${fmtUsers(RECENT7_TOTAL)}</td><td>${consultSumCell}</td><td>${consultUserSumCell}</td><td>${convCell}</td>
+    </tr>`;
+    const avgRow = `<tr class="avg-sub-row">
+      <td>최근 7일 평균(1일)</td>
+      ${groupCellsFor(7)}
+      <td>${fmtUsers(Math.round(RECENT7_TOTAL / 7))}</td><td>${consultAvgCell}</td><td>${consultUserAvgCell}</td><td>${convCell}</td>
+    </tr>`;
+    return [sumRow, avgRow];
+  }
+
   function renderFirstUserTable() {
     const dates = rangeDates();
     const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th>`;
-    const bodyRows = [...dates]
+    const dayRows = [...dates]
       .reverse()
       .map((date) => {
         const cells = FIRST_USER_GROUPS
@@ -407,8 +462,9 @@
           .join('');
         const dateCell = `<td class="date-cell"><span>${fmtDateLabel(date)}</span><button type="button" class="copy-btn" onclick="copyFirstUserDay('${date}', this)">복사</button></td>`;
         return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
-      })
-      .join('');
+      });
+    if (dayRows.length >= 7) dayRows.splice(7, 0, ...recent7SubRows());
+    const bodyRows = dayRows.join('');
     const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
     let consultFoot = '–';
     let consultUserFoot = '–';

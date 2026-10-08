@@ -18,6 +18,11 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 3. **그룹별/기간 합계(`FIRST_USER_TOTALS`, `TOTAL_PERIOD`)는 새 창 전체를 다시 조회한
    값으로 통째로 교체**한다 — activeUsers는 비집계 지표라 오래된 값을 재사용할 수 없기
    때문이다.
+4. **표 중간에 삽입되는 "최근 7일 합계/평균" 행(`RECENT7_RANGE`/`RECENT7_TOTAL`/
+   `RECENT7_FIRST_USER_TOTALS`)도 새 윈도우의 가장 최근 7일(`new_to-6`~`new_to`) 구간을
+   별도로 재조회해 통째로 교체**한다(2026-10-08 신설) — 역시 비집계 지표라 이미 저장된
+   `TOTAL_DAILY`/`FIRST_USER_DAILY` 일별 값을 단순 합산하면 재방문자가 중복 집계되기
+   때문이다.
 
 이 문구는 §8에서 사용자에게 그대로 전달한다.
 
@@ -100,14 +105,30 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 > 원본 값 합산 자체가 정확하지만(§0), 그래도 "새 윈도우 전체" 기준으로 다시 합산해야 하는
 > 것은 동일하다 — 일별 합산은 기간 dedup과 다르다(재방문자 중복).
 
+## §3b 최근 7일 서브합계 쿼리 2건 (2026-10-08 신설, 기간: `recent7_from = new_to - 6일` ~ `new_to`)
+
+표 중간(최근 7일 일별 행 바로 아래)에 삽입되는 "최근 7일 합계/평균" 행용. §3과 똑같은
+이유(비집계 지표)로 `TOTAL_DAILY`/`FIRST_USER_DAILY` 일별 값을 단순 합산하면 안 되고, 이
+7일 구간만 **반드시 새로 재조회**해야 한다. `date_range_type='custom'`,
+`start_date=recent7_from`, `end_date=new_to`, **dimension에서 `date`를 뺀다**(§3과 동일 형태,
+기간만 7일로 좁힌 버전).
+
+**쿼리 5 — 사이트 전체, 최근 7일 기간 합계**: fields `activeUsers`, filter 없음
+
+**쿼리 6 — 첫 사용자 소스 전체, 최근 7일 기간 합계(firstUserSource)**
+- fields: `firstUserSource,activeUsers,sessions`
+- filter: 없음
+
 ## §4 임시 JSON 저장
 
-`mkdir -p /tmp/ga4-channel-update/<YYYYMMDD-HHMMSS>/` 후 아래 4개 파일을 Write:
+`mkdir -p /tmp/ga4-channel-update/<YYYYMMDD-HHMMSS>/` 후 아래 6개 파일을 Write:
 
 - `total_daily.json`: `{"rows":[{"date","activeUsers"}, ...]}` (쿼리1)
 - `firstuser_raw_incremental.json`: `{"rows":[{"date","source","activeUsers","sessions"}, ...]}` (쿼리2)
 - `total_period.json`: `{"rows":[{"activeUsers": N}]}` (쿼리3, **한 행만**)
 - `firstuser_raw_period.json`: `{"rows":[{"source","activeUsers","sessions"}, ...]}` (쿼리4)
+- `recent7_total.json`: `{"rows":[{"activeUsers": N}]}` (쿼리5, **한 행만**)
+- `recent7_firstuser_raw.json`: `{"rows":[{"source","activeUsers","sessions"}, ...]}` (쿼리6)
 
 `source` 필드는 GA4가 반환한 표시값 그대로 쓴다(예: `'LG'`, `'(not set)'`, `'(direct)'`,
 `'m.search.naver.com'` 등) — 가공하지 말 것. 값이 0이거나 GA4 응답에 없던 날짜/값은 행을
@@ -119,13 +140,15 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 ```
 python3 scripts/update_ga4_channel_unsedang.py --html html/ga4-channel-unsedang.html --indir <tmpdir> --dry-run
 ```
-출력된 요약(새 창 범위, 그룹별/전체 기간 합계, 경고)을 확인한 뒤 `--dry-run`을 떼고 재실행한다.
-신규 값 자동 분류는 "경고"로만 표시되고 실행을 막지 않는다(§0) — 정상 진행한다.
+출력된 요약(새 창 범위, 그룹별/전체 기간 합계, 최근 7일 서브합계, 경고)을 확인한 뒤
+`--dry-run`을 떼고 재실행한다. 신규 값 자동 분류는 "경고"로만 표시되고 실행을 막지
+않는다(§0) — 정상 진행한다.
 
 `[SafetyError]`로 중단되면 **절대 우회하지 말고** 에러 메시지를 그대로 사용자에게
 보고하고 원인을 파악한다. 신규 firstUserSource 값은 이 에러의 원인이 아니다(자동 분류로
 대체됨) — 남아있는 SafetyError는 HTML 블록을 못 찾음(예: 또 구조가 바뀜), 윈도우 밖 날짜
-잔존, 음수 값, 신규 일별 데이터 0건, 쿼리 결과 없음 등 실제 데이터 무결성 문제다.
+잔존, 음수 값, 신규 일별 데이터 0건, 쿼리 결과 없음, RECENT7_TOTAL이 TOTAL_PERIOD보다
+큼(최근 7일 쿼리 기간이 잘못됐을 가능성) 등 실제 데이터 무결성 문제다.
 
 ## §6 렌더 검증 — 기본 생략
 
@@ -135,9 +158,11 @@ python3 scripts/update_ga4_channel_unsedang.py --html html/ga4-channel-unsedang.
 ## §7 상담수/전환율 — 손대지 않는다
 
 `html/ga4-channel-unsedang.html`의 "상담수"/"전환율"/"상담인원" 열은 브라우저가 페이지를
-열 때마다 `CONSULT_API`(사내 DB API)에서 실시간으로 fetch한다. 이 커맨드/스크립트는
-정적 스냅샷인 GA4 데이터(`FIRST_USER_DAILY`/`FIRST_USER_TOTALS`/`TOTAL_DAILY`/
-`TOTAL_PERIOD`)만 다루며, 상담수 관련 코드는 절대 건드리지 않는다.
+열 때마다 `CONSULT_API`(사내 DB API)에서 실시간으로 fetch한다("최근 7일 합계/평균" 행의
+상담수/상담인원 셀도 동일 — 매번 `CONSULT_DAILY`에서 날짜만 걸러 그 자리에서 합산하므로
+정적 스냅샷이 아니다). 이 커맨드/스크립트는 정적 스냅샷인 GA4 데이터(`FIRST_USER_DAILY`/
+`FIRST_USER_TOTALS`/`TOTAL_DAILY`/`TOTAL_PERIOD`/`RECENT7_RANGE`/`RECENT7_TOTAL`/
+`RECENT7_FIRST_USER_TOTALS`)만 다루며, 상담수 관련 코드는 절대 건드리지 않는다.
 
 ## §8 무인 스케줄 실행 시 (routine으로 호출된 경우)
 
@@ -153,7 +178,7 @@ python3 scripts/update_ga4_channel_unsedang.py --html html/ga4-channel-unsedang.
 ## §9 보고 + daylog
 
 1. 스크립트 출력 요약(이전 창 → 새 창, 첫 사용자 소스 그룹별 기간 합계, 전체 기간 합계,
-   경고)을 사용자에게 전달한다.
+   최근 7일 서브합계, 경고)을 사용자에게 전달한다.
 2. §0의 원칙 문구를 함께 안내한다.
 3. **이 커맨드는 실행할 때마다** `daylog/<오늘 날짜>.md`에 append한다:
    ```markdown
