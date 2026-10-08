@@ -214,6 +214,7 @@
     font-variant-numeric: tabular-nums;
   }
   th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+  .ga4-summary-table th:first-child, .ga4-summary-table td:first-child { text-align: center; }
   th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.74rem; }
   tbody tr:nth-child(even) { background: var(--stripe); }
   tfoot td { font-weight: 400; border-top: 2px solid var(--border); border-bottom: none; }
@@ -311,9 +312,9 @@
   <div class="wrap">
     <nav class="site-nav">
       <a href="db-data-unsedang.html">운세당 매출 리포트</a>
+      <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
       <a href="ga4-ainote-kpi-unsedang.html">운세당 AI상담노트 KPI</a>
-      <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
       <a href="db-data-mindcare.html" class="active">마인드케어 리포트</a>
       <a href="db-data-today.html">투데이 리포트</a>
     </nav>
@@ -514,6 +515,10 @@
       <div class="check-row">출처 — 유료·프리미엄·무료 누적: 와이즈모니터</div>`;
   }
 
+  function fmtShortDate(dateStr) {
+    return dateStr.slice(2).replace(/-/g, '.');
+  }
+
   function renderGa4Summary() {
     const el = document.getElementById('ga4Summary');
     if (!el) return;
@@ -526,23 +531,23 @@
       { label: '오디오명상 (/careAudio)', key: 'careAudio' },
       { label: '게시판 상담 (/mtmTextInput)', key: 'mtmTextInput' },
     ];
-    const bodyRows = rows
-      .map((row) => `<tr>
-        <td>${row.label}</td>
-        <td>${num(r[row.key])}</td>
-        <td>${num(p[row.key])}</td>
-        <td>${fmtDelta(r[row.key] - p[row.key])}</td>
-      </tr>`)
-      .join('');
+    const headCells = rows.map((row) => `<th>${row.label}</th>`).join('');
+    const recentRow = rows.map((row) => `<td>${num(r[row.key])}</td>`).join('');
+    const prevRow = rows.map((row) => `<td>${num(p[row.key])}</td>`).join('');
+    const deltaRow = rows.map((row) => `<td>${fmtDelta(r[row.key] - p[row.key])}</td>`).join('');
     el.innerHTML = `
       <div class="card">
         <h2>GA4 활성 현황</h2>
         <div class="table-scroll">
-          <table>
+          <table class="ga4-summary-table">
             <thead>
-              <tr><th>지표</th><th>최근 7일 (${GA4_RANGE.recentFrom} ~ ${GA4_RANGE.recentTo})</th><th>이전 7일 (${GA4_RANGE.prevFrom} ~ ${GA4_RANGE.prevTo})</th><th>증감</th></tr>
+              <tr><th>구분</th>${headCells}</tr>
             </thead>
-            <tbody>${bodyRows}</tbody>
+            <tbody>
+              <tr><td>${fmtShortDate(GA4_RANGE.recentFrom)}~${fmtShortDate(GA4_RANGE.recentTo)}</td>${recentRow}</tr>
+              <tr><td>${fmtShortDate(GA4_RANGE.prevFrom)}~${fmtShortDate(GA4_RANGE.prevTo)}</td>${prevRow}</tr>
+              <tr><td>증감</td>${deltaRow}</tr>
+            </tbody>
           </table>
         </div>
         <div class="check-row">* 활성사용자(전체)는 /kpass/news2/·/kpass/recommend/(백그라운드성 호출 추정 페이지) 제외 기준. 통신사(KT/LGU+/SKT)별 구분은 GA4에서 신뢰 가능한 방법이 없어 서비스 전체 합계만 제공합니다.</div>
