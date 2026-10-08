@@ -10,8 +10,8 @@ argument-hint: "[--dry-run]"
 ## §0 목적과 범위 (반드시 읽을 것)
 
 `html/db-data-mindcare.html`의 `<div id="ga4Summary">` 카드는 GA4 MINDCARE 계정(Supermetrics
-`ds_id='GAWA'`, `ds_accounts='295084110'`) 데이터로 "최근 7일 vs 이전 7일" 4개 지표
-(활성사용자 전체 / 숨명상 / 필사명상 / 오디오명상)를 보여준다. **일별 누적이나 윈도우
+`ds_id='GAWA'`, `ds_accounts='295084110'`) 데이터로 "최근 7일 vs 이전 7일" 5개 지표
+(활성사용자 전체 / 숨명상 / 필사명상 / 오디오명상 / 게시판 상담)를 보여준다. **일별 누적이나 윈도우
 슬라이딩이 아니다** — 매 실행마다 두 7일 기간을 처음부터 다시 조회해서 `GA4_RANGE`/
 `GA4_TOTALS`/`GA4_GENERATED_AT` 세 상수를 통째로 교체한다. `activeUsers`는 비집계 지표라
 이렇게 할 수밖에 없다.
@@ -31,11 +31,11 @@ argument-hint: "[--dry-run]"
 3. `prevTo` = recentFrom - 1일, `prevFrom` = prevTo - 6일.
 4. (총 14일 구간, 공백/중복 없이 정확히 7일+7일이어야 한다.)
 
-## §2 GA4 쿼리 8건 (ds_id='GAWA', ds_accounts='295084110')
+## §2 GA4 쿼리 10건 (ds_id='GAWA', ds_accounts='295084110')
 
-각 기간(최근 7일 / 이전 7일)마다 아래 4개 쿼리를 `date_range_type='custom'`,
+각 기간(최근 7일 / 이전 7일)마다 아래 5개 쿼리를 `date_range_type='custom'`,
 `start_date`/`end_date`로 실행한다(dimension 없이 집계값만 — 비집계 지표이므로 날짜로
-쪼개지 않는다). 8건 전부 `fields: ["activeUsers"]`.
+쪼개지 않는다). 10건 전부 `fields: ["activeUsers"]`.
 
 | 지표 | filters |
 |---|---|
@@ -43,13 +43,17 @@ argument-hint: "[--dry-run]"
 | 숨명상 | `pagePathWithoutQueryString == '/breathing'` |
 | 필사명상 | `pagePathWithoutQueryString == '/transcription01' OR pagePathWithoutQueryString == '/transcription02' OR pagePathWithoutQueryString == '/transcription03'` |
 | 오디오명상 | `pagePathWithoutQueryString =@ '/careAudio'` |
+| 게시판 상담 | `pagePathWithoutQueryString =@ '/mtmTextInput'` |
 
 **주의**: `/kpass/news2/`, `/kpass/recommend/`는 백그라운드성 호출로 추정되는 페이지라
 활성사용자(전체) 집계에서 반드시 제외한다(`docs/ga4_guide.md` MINDCARE 섹션 참고). 숨명상은
 `/breathing`만(⚠️ `/breathmain`, `/breathlist`는 다른 페이지라 포함하지 않음 — 가이드
 문서가 명시적으로 혼동 주의를 준 부분). 필사명상은 `/transcription01~03`만(`/transcriptionCalender`는
-제외). `!=` 필터는 dimension 없이도 정상 작동하지만(가이드 2-2), `[]`(in list) 연산자는
-이 소스에서 빈 결과를 반환하는 버그가 있었음이 확인됐으니 `OR` + `==` 조합으로 대체한다.
+제외). 게시판 상담은 실제 경로가 `/mtmTextInput`이 아니라 `/mtmTextInput/DEPRESS`,
+`/mtmTextInput/LOVE` 등 하위 카테고리로 쪼개져 있으므로 반드시 `=@`(contains)로 잡는다
+(`==`로 정확히 잡으면 항상 빈 결과가 나온다 — 2026-10-08 실제로 겪은 증상). `!=` 필터는
+dimension 없이도 정상 작동하지만(가이드 2-2), `[]`(in list) 연산자는 이 소스에서 빈
+결과를 반환하는 버그가 있었음이 확인됐으니 `OR` + `==` 조합으로 대체한다.
 
 응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다. 결과가
 `[]`(빈 배열)로 오면 그 지표는 0건이 아니라 **쿼리/필터 자체가 잘못됐을 가능성**이 높다
@@ -63,8 +67,8 @@ argument-hint: "[--dry-run]"
 ```json
 {
   "range": {"recentFrom": "YYYY-MM-DD", "recentTo": "YYYY-MM-DD", "prevFrom": "YYYY-MM-DD", "prevTo": "YYYY-MM-DD"},
-  "recent": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N},
-  "prev": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N}
+  "recent": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N, "mtmTextInput": N},
+  "prev": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N, "mtmTextInput": N}
 }
 ```
 

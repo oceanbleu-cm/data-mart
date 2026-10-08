@@ -20,8 +20,8 @@ activeUsers는 비집계 지표라 날짜를 밀어내고 더하는 방식 자�
     {
       "range": {"recentFrom": "YYYY-MM-DD", "recentTo": "YYYY-MM-DD",
                  "prevFrom": "YYYY-MM-DD", "prevTo": "YYYY-MM-DD"},
-      "recent": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N},
-      "prev":   {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N}
+      "recent": {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N, "mtmTextInput": N},
+      "prev":   {"activeUsers": N, "breathing": N, "transcription": N, "careAudio": N, "mtmTextInput": N}
     }
 """
 import argparse
@@ -32,7 +32,7 @@ import sys
 import tempfile
 from datetime import date, datetime, timedelta, timezone
 
-METRIC_KEYS = ['activeUsers', 'breathing', 'transcription', 'careAudio']
+METRIC_KEYS = ['activeUsers', 'breathing', 'transcription', 'careAudio', 'mtmTextInput']
 
 GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
 
