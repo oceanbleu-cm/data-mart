@@ -23,7 +23,8 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
    아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다(activeUsers는 비집계
    지표).
 2. **운세당 DB API**(`consultation-stats/monthly`) — ALIMTALK/AINOTE_CONSULT_CNT/
-   AINOTE_CONSULT_USR/AINOTE_REPEAT_USR(전부 선불 전용, 후불은 항상 0). 이 API는 인증
+   AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/AINOTE_AFTER_REPEAT_CNT(전부
+   선불 전용, 후불은 항상 0). 이 API는 인증
    없는 공개 CORS API라 **스크립트가 직접 호출**한다 — 이 커맨드가 따로 조회할 필요
    없다. 네트워크 문제 등으로 DB 쪽만 건너뛰어야 하면 `--skip-db`를 전달한다.
 

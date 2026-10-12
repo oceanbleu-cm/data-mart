@@ -13,7 +13,8 @@ AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, �
      미리 JSON 파일로 떠서 `--indir`에 넣어두면 이 스크립트가 읽는다. 기간 합계는 "새 날짜만
      반영"이 아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다.
   2) 운세당 DB API(consultation-stats/monthly) — ALIMTALK/AINOTE_CONSULT_CNT/
-     AINOTE_CONSULT_USR/AINOTE_REPEAT_USR(전부 선불 전용, 후불은 항상 0). 이 API는 인증 없는
+     AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/AINOTE_AFTER_REPEAT_CNT(전부
+     선불 전용, 후불은 항상 0). 이 API는 인증 없는
      공개 CORS API라(html/db-data-unsedang.html 등 기존 코드에서 브라우저가 직접 fetch하는
      선례 확인됨) 이 스크립트가 **직접 호출**한다 — 별도 JSON 스테이징 불필요. 월 단위
      (baseMonth)로만 조회 가능해 기간이 두 달에 걸치면 두 번 호출해 날짜별 dailyStats를
@@ -59,7 +60,8 @@ AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, �
          정확히 일치하는 이름이 없다. eventName =@ 'callnote_reco_click' (contains)로 전체
          선생님번호를 합산해 하나의 지표로 집계한다.)
 
-DB 쪽(ALIMTALK/AINOTE_CONSULT_CNT/AINOTE_CONSULT_USR/AINOTE_REPEAT_USR)은 파일 스테이징이
+DB 쪽(ALIMTALK/AINOTE_CONSULT_CNT/AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/
+AINOTE_AFTER_REPEAT_CNT)은 파일 스테이징이
 필요 없다 — 이 스크립트가 adm.unsedang.com을 직접 호출한다. 네트워크 접근이 없는 환경(또는
 이미 별도로 처리했을 때)은 `--skip-db`로 DB 쪽 갱신을 건너뛸 수 있다.
 """
@@ -268,8 +270,9 @@ def load_engagement_period(indir):
 
 def fetch_db_daily(d_from, d_to, timeout=15):
     """[d_from, d_to] 구간에 걸치는 baseMonth들을 조회해 날짜별
-    {alimtalk, consultCnt, consultUsr, repeatUsr} 딕셔너리로 반환한다(선불 전용 필드만 추출).
-    postpaid 쪽은 AI상담노트 기능이 없어 집계하지 않는다(항상 0 — API 응답으로 확인됨)."""
+    {alimtalk, consultCnt, consultUsr, repeatUsr, repeatCnt, afterRepeatCnt} 딕셔너리로
+    반환한다(선불 전용 필드만 추출). postpaid 쪽은 AI상담노트 기능이 없어 집계하지 않는다
+    (항상 0 — API 응답으로 확인됨)."""
     daily = {}
     for month in months_between(d_from, d_to):
         url = DB_API_TEMPLATE.format(month=month)
@@ -291,6 +294,8 @@ def fetch_db_daily(d_from, d_to, timeout=15):
                 'consultCnt': prepaid_cc.get('aiNoteConsultation', 0) or 0,
                 'consultUsr': prepaid_uc.get('aiNoteConsultation', 0) or 0,
                 'repeatUsr': prepaid_uc.get('aiNoteRepeatConsultation', 0) or 0,
+                'repeatCnt': prepaid_cc.get('aiNoteRepeatConsultation', 0) or 0,
+                'afterRepeatCnt': prepaid_cc.get('afterAiNoteRepeatConsultation', 0) or 0,
             }
     return daily
 
@@ -407,6 +412,8 @@ FLAT_SERIES = [
     ('DAILY_AINOTE_CONSULT_CNT', 'AINOTE_CONSULT_CNT_TOTAL', None, 'db'),
     ('DAILY_AINOTE_CONSULT_USR', 'AINOTE_CONSULT_USR_TOTAL', None, 'db'),
     ('DAILY_AINOTE_REPEAT_USR', 'AINOTE_REPEAT_USR_TOTAL', None, 'db'),
+    ('DAILY_AINOTE_REPEAT_CNT', 'AINOTE_REPEAT_CNT_TOTAL', None, 'db'),
+    ('DAILY_AINOTE_AFTER_REPEAT_CNT', 'AINOTE_AFTER_REPEAT_CNT_TOTAL', None, 'db'),
 ]
 
 DB_FIELD_MAP = {
@@ -414,6 +421,8 @@ DB_FIELD_MAP = {
     'DAILY_AINOTE_CONSULT_CNT': 'consultCnt',
     'DAILY_AINOTE_CONSULT_USR': 'consultUsr',
     'DAILY_AINOTE_REPEAT_USR': 'repeatUsr',
+    'DAILY_AINOTE_REPEAT_CNT': 'repeatCnt',
+    'DAILY_AINOTE_AFTER_REPEAT_CNT': 'afterRepeatCnt',
 }
 
 
@@ -598,9 +607,10 @@ def main():
     print(f'SUBEVENT_TOTALS: {new_subevent_totals}')
     print(f'ENGAGEMENT_TOTAL: {new_engagement_total}')
     if not args.skip_db:
-        print(f'ALIMTALK/AINOTE_CONSULT_CNT/CONSULT_USR/REPEAT_USR 기간 합계: '
+        print(f'ALIMTALK/AINOTE_CONSULT_CNT/CONSULT_USR/REPEAT_USR/REPEAT_CNT/AFTER_REPEAT_CNT 기간 합계: '
               f'{new_total["ALIMTALK_TOTAL"]}/{new_total["AINOTE_CONSULT_CNT_TOTAL"]}/'
-              f'{new_total["AINOTE_CONSULT_USR_TOTAL"]}/{new_total["AINOTE_REPEAT_USR_TOTAL"]}')
+              f'{new_total["AINOTE_CONSULT_USR_TOTAL"]}/{new_total["AINOTE_REPEAT_USR_TOTAL"]}/'
+              f'{new_total["AINOTE_REPEAT_CNT_TOTAL"]}/{new_total["AINOTE_AFTER_REPEAT_CNT_TOTAL"]}')
     if warnings:
         print('경고:')
         for w in warnings:

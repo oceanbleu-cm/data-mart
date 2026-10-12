@@ -376,13 +376,21 @@
   const AINOTE_CONSULT_CNT_TOTAL = 460;
 
   // 06 전체 재상담율의 분모(userCount.prepaid.aiNoteConsultation)·분자(userCount.prepaid.
-  // aiNoteRepeatConsultation, "전체 재상담" 유저수 — afterAiNoteRepeatConsultation은 현재 미사용).
-  // 유저수는 날짜 간 중복제거가 보장되지 않아 일별 합산은 근사값(API가 baseMonth 단위만
-  // 지원해 09월/10월에 걸친 이 구간의 단일 정확값을 재조회할 방법이 없음).
+  // aiNoteRepeatConsultation, "전체 재상담" 유저수). 유저수는 날짜 간 중복제거가 보장되지
+  // 않아 일별 합산은 근사값(API가 baseMonth 단위만 지원해 09월/10월에 걸친 이 구간의 단일
+  // 정확값을 재조회할 방법이 없음).
   const DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28,"2026-10-06":32,"2026-10-07":29,"2026-10-08":25,"2026-10-09":28,"2026-10-10":24,"2026-10-11":26};
   const AINOTE_CONSULT_USR_TOTAL = 291;
   const DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17,"2026-10-06":15,"2026-10-07":12,"2026-10-08":11,"2026-10-09":13,"2026-10-10":10,"2026-10-11":17};
   const AINOTE_REPEAT_USR_TOTAL = 137;
+
+  // 핵심 퍼널 8단계 — consultationCount.prepaid 기준 건수(위 06화면 유저수 지표와는 분모가
+  // 다른 별도 지표). aiNoteRepeatConsultation="전체 재상담 건수", afterAiNoteRepeatConsultation
+  // ="AI 노트이용 재상담 건수"(AI 상담노트 알림톡을 받은 뒤 재상담한 건수). 신규 추가.
+  const DAILY_AINOTE_REPEAT_CNT = {"2026-09-30":17,"2026-10-01":12,"2026-10-02":22,"2026-10-03":18,"2026-10-04":17,"2026-10-05":30,"2026-10-06":25,"2026-10-07":24,"2026-10-08":19,"2026-10-09":20,"2026-10-10":18,"2026-10-11":24};
+  const AINOTE_REPEAT_CNT_TOTAL = 246; // 전체 기간 정확값(placeholder)
+  const DAILY_AINOTE_AFTER_REPEAT_CNT = {"2026-09-30":13,"2026-10-01":5,"2026-10-02":18,"2026-10-03":13,"2026-10-04":11,"2026-10-05":20,"2026-10-06":16,"2026-10-07":11,"2026-10-08":15,"2026-10-09":11,"2026-10-10":12,"2026-10-11":11};
+  const AINOTE_AFTER_REPEAT_CNT_TOTAL = 156; // 전체 기간 정확값(placeholder)
 
   // AI 상담노트 사용자수 — 운영진이 직접 전달한 실집계(DB 기준, GA4 비연동). 참고용으로만 표시하며
   // 목표/달성 판정에는 쓰지 않는다. 이 상수는 scripts/update_ga4_unsedang.py가 관리하는 블록
@@ -394,7 +402,7 @@
   const DATE_RANGE = { from: '2026-09-30', to: '2026-10-11' };
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
-  const GENERATED_AT = '2026-10-12 00:31 UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)';
+  const GENERATED_AT = '2026-10-12 02:23 UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)';
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
@@ -439,6 +447,8 @@
   const aiNoteConsultCntValue = (from, to) => rangeSum(DAILY_AINOTE_CONSULT_CNT, AINOTE_CONSULT_CNT_TOTAL, from, to);
   const aiNoteConsultUsrValue = (from, to) => rangeSum(DAILY_AINOTE_CONSULT_USR, AINOTE_CONSULT_USR_TOTAL, from, to);
   const aiNoteRepeatUsrValue = (from, to) => rangeSum(DAILY_AINOTE_REPEAT_USR, AINOTE_REPEAT_USR_TOTAL, from, to);
+  const aiNoteRepeatCntValue = (from, to) => rangeSum(DAILY_AINOTE_REPEAT_CNT, AINOTE_REPEAT_CNT_TOTAL, from, to);
+  const aiNoteAfterRepeatCntValue = (from, to) => rangeSum(DAILY_AINOTE_AFTER_REPEAT_CNT, AINOTE_AFTER_REPEAT_CNT_TOTAL, from, to);
   function engagementValue(from, to) {
     const durDict = {}, userDict = {};
     for (const [d, v] of Object.entries(DAILY_ENGAGEMENT)) { durDict[d] = v[0]; userDict[d] = v[1]; }
@@ -472,12 +482,14 @@
     const aiNoteConsultCnt = aiNoteConsultCntValue(from, to).value;
     const aiNoteConsultUsr = aiNoteConsultUsrValue(from, to).value;
     const aiNoteRepeatUsr = aiNoteRepeatUsrValue(from, to).value;
+    const aiNoteRepeatCnt = aiNoteRepeatCntValue(from, to).value;
+    const aiNoteAfterRepeatCnt = aiNoteAfterRepeatCntValue(from, to).value;
     const eng = engagementValue(from, to);
     const avgSec = eng.users > 0 ? eng.duration / eng.users : null;
     const reviewBase = next + skip;
 
     return {
-      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, recoClick, aiNoteUsage, alimtalk, aiNoteConsultCnt, aiNoteConsultUsr, aiNoteRepeatUsr },
+      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, recoClick, aiNoteUsage, alimtalk, aiNoteConsultCnt, aiNoteConsultUsr, aiNoteRepeatUsr, aiNoteRepeatCnt, aiNoteAfterRepeatCnt },
       // 핵심 퍼널 — 1단계(AI 상담노트 상담 건수, DB aiNoteConsultCnt = consultationCount.
       // prepaid.aiNoteConsultation, "AI 상담노트가 만들어진 상담 건수") 대비 전환율로 통일.
       // alimtalk(발송)과 1단계 모두 활성사용자가 아니라 DB 건수(txn)지만, 퍼널 흐름을
@@ -492,6 +504,7 @@
         { no: 5, label: 'AI 상담노트 후기 작성 완료 수', value: submit, unit: 'count' },
         { no: 6, label: '재상담하기 클릭 수', value: councel, unit: 'count' },
         { no: 7, label: '추천 선생님 클릭 수 (2026-10-07부터 집계)', value: recoClick, unit: 'count' },
+        { no: 8, label: 'AI 노트이용 재상담 건수 / 전체 재상담 건수', values: [{ value: aiNoteAfterRepeatCnt, unit: 'txn' }, { value: aiNoteRepeatCnt, unit: 'txn' }] },
       ],
       screens: [
         {
@@ -702,8 +715,9 @@
     5: (d) => DAILY_SUBEVENTS['ai-note-review-submit'][d] || 0,
     6: (d) => DAILY_SUBEVENTS['ai-note-councel-click'][d] || 0,
     7: (d) => DAILY_RECO_CLICK[d] || 0,
+    8: (d) => [DAILY_AINOTE_AFTER_REPEAT_CNT[d] || 0, DAILY_AINOTE_REPEAT_CNT[d] || 0],
   };
-  const FUNNEL_CHART_TITLE = { 3: 'AI 상담노트 알림톡 유입 수' };
+  const FUNNEL_CHART_TITLE = { 3: 'AI 상담노트 알림톡 유입 수', 8: 'AI 노트이용 재상담 건수' };
   // 일자별 수치 표 전용 짧은 열 제목 — "AI 상담노트" 접두어와 7단계의 집계시작일 안내를
   // 뺀 축약형(핵심 퍼널 요약표/차트 제목은 그대로 유지).
   const FUNNEL_SHORT_LABEL = {
@@ -722,7 +736,10 @@
     const body = dates.map((d) => {
       const cells = data.funnel.map((f) => {
         const raw = FUNNEL_DAILY[f.no](d);
-        if (Array.isArray(raw)) return `<td>${raw.map((v) => fmtUsers(v)).join(' / ')}</td>`;
+        if (Array.isArray(raw)) {
+          const units = f.values ? f.values.map((v) => v.unit) : [];
+          return `<td>${raw.map((v, i) => (units[i] === 'txn' ? fmtTxn(v) : fmtUsers(v))).join(' / ')}</td>`;
+        }
         return `<td>${f.unit === 'txn' ? fmtTxn(raw) : fmtUsers(raw)}</td>`;
       }).join('');
       return `<tr><td>${d}</td>${cells}</tr>`;
@@ -776,7 +793,8 @@
         return Array.isArray(raw) ? raw[0] : raw;
       });
       const title = FUNNEL_CHART_TITLE[f.no] || f.label;
-      const unitLabel = f.no === 3 ? '명(활성사용자)' : (f.unit === 'txn' ? '건' : '명(활성사용자)');
+      const chartUnit = f.values ? f.values[0].unit : f.unit;
+      const unitLabel = chartUnit === 'txn' ? '건' : '명(활성사용자)';
       return `
         <div class="chart-card">
           <div class="chart-title">${f.no}. ${title}</div>
