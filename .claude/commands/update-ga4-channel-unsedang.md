@@ -1,5 +1,5 @@
 ---
-description: 운세당 매체별 유입 리포트(html/ga4-channel-unsedang.html)를 "최근 2주" 롤링 윈도우로 매일 갱신한다(오래된 날짜는 밀려나고 최신 날짜가 추가됨). 퍼널 리포트와 달리 누적형이 아니다.
+description: 운세당 매체별 유입 리포트(html/ga4-channel-unsedang.html)를 "최근 28일" 롤링 윈도우로 매일 갱신한다(오래된 날짜는 밀려나고 최신 날짜가 추가됨). 퍼널 리포트와 달리 누적형이 아니다. 화면에서는 7/14/21/28일 칩(기본 14일)+커스텀 기간으로 이 28일 윈도우 안에서 다시 필터링할 수 있다.
 argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 ---
 
@@ -9,12 +9,12 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run]"
 
 ## §0 목적과 절대 원칙 (반드시 지킬 것)
 
-이 커맨드는 `html/ga4-channel-unsedang.html`을 **항상 "최근 14일" 창으로 유지**한다.
+이 커맨드는 `html/ga4-channel-unsedang.html`을 **항상 "최근 28일" 창으로 유지**한다(2026-10-12부터 14일→28일로 확장 — 화면의 조회기간 필터가 7/14/21/28일 중 고를 수 있게 되면서, 가장 넓은 28일 선택지를 커버하려면 내장 데이터 자체가 28일이어야 하기 때문).
 `html/ga4-funnel-unsedang.html`(퍼널 리포트, `/update-ga4-unsedang`)과는 갱신 철학이
 근본적으로 다르다 — 그 리포트는 날짜를 영구 누적하지만, 이 리포트는 매 실행마다:
 
 1. 새로 확정된 날짜(들)를 추가하고
-2. 창 밖으로 밀려난 오래된 날짜를 제거하고(항상 14일 유지)
+2. 창 밖으로 밀려난 오래된 날짜를 제거하고(항상 28일 유지)
 3. **그룹별/기간 합계(`FIRST_USER_TOTALS`, `TOTAL_PERIOD`)는 새 창 전체를 다시 조회한
    값으로 통째로 교체**한다 — activeUsers는 비집계 지표라 오래된 값을 재사용할 수 없기
    때문이다.
@@ -63,7 +63,7 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 2. `grep -n "const DATE_RANGE" html/ga4-channel-unsedang.html`로 현재 창(`DATE_RANGE.from`
    ~ `DATE_RANGE.to`)을 읽는다.
 3. 종료일 결정: `$ARGUMENTS`에 `--to YYYY-MM-DD`가 있으면 그 값, 없으면 **어제**
-   (`new_to`). `new_from = new_to - 13일`.
+   (`new_to`). `new_from = new_to - 27일`.
 4. `incr_from = (기존 DATE_RANGE.to) + 1일`. `incr_from > new_to`이면 **"이미 최신
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
 5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
@@ -100,7 +100,7 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
   `scripts/update_ga4_channel_unsedang.py`가 자동 분류까지 포함해 정확히 처리한다.)
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
-> 실제보다 부풀려진다. 이 리포트는 누적이 아니라 "최근 14일" 롤링 창이므로, 창이 하루
+> 실제보다 부풀려진다. 이 리포트는 누적이 아니라 "최근 28일" 롤링 창이므로, 창이 하루
 > 밀릴 때마다 그룹별·전체 순사용자 수를 처음부터 다시 계산해야 정확하다. firstUserSource는
 > 원본 값 합산 자체가 정확하지만(§0), 그래도 "새 윈도우 전체" 기준으로 다시 합산해야 하는
 > 것은 동일하다 — 일별 합산은 기간 dedup과 다르다(재방문자 중복).

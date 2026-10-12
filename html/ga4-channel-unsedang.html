@@ -140,6 +140,20 @@
   .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
   .copy-btn:disabled { color: var(--accent); border-color: var(--accent); cursor: default; }
   td.date-cell { display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; }
+
+  /* --- 조회 기간 필터 --- */
+  .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .preset-btn {
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+    padding: 6px 13px; border-radius: 999px; font-size: 0.8rem; cursor: pointer; font-family: inherit;
+  }
+  .preset-btn:hover { border-color: var(--accent); }
+  .preset-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .custom-range { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--text-dim); margin-left: 4px; padding-left: 10px; border-left: 1px solid var(--border); }
+  .custom-range input[type="date"] {
+    font-size: 0.78rem; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--card-bg); color: var(--text); font-family: inherit;
+  }
   @media (max-width: 860px) {
     body { padding-left: 16px; }
     .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
@@ -157,6 +171,22 @@
     </nav>
     <h1>운세당 매체별 유입 리포트 (GA4)</h1>
 
+    <div class="card">
+      <h2>조회 기간</h2>
+      <div class="filter-row" id="filterRow">
+        <button type="button" class="preset-btn" data-preset="7">최근 7일</button>
+        <button type="button" class="preset-btn" data-preset="14">최근 14일</button>
+        <button type="button" class="preset-btn" data-preset="21">최근 21일</button>
+        <button type="button" class="preset-btn" data-preset="28">전체(28일)</button>
+        <div class="custom-range">
+          <span>커스텀</span>
+          <input type="date" id="customFrom">
+          <span>~</span>
+          <input type="date" id="customTo">
+        </div>
+      </div>
+    </div>
+
     <div id="content"></div>
     <footer id="footer"></footer>
   </div>
@@ -165,8 +195,8 @@
   // 일자별 "합계" 열 — 그룹 6개를 단순히 더한 값이 아니라, 소스 필터 없이 사이트 전체를
   // 별도로 재조회한 진짜 활성사용자(중복 없음). 그룹 합산치와는 소폭 다를 수 있다(동일인이
   // 같은 날 여러 소스를 통해 방문한 경우).
-  const TOTAL_DAILY = {"2026-09-28":680,"2026-09-29":489,"2026-09-30":545,"2026-10-01":639,"2026-10-02":572,"2026-10-03":989,"2026-10-04":830,"2026-10-05":802,"2026-10-06":757,"2026-10-07":792,"2026-10-08":742,"2026-10-09":946,"2026-10-10":911,"2026-10-11":876};
-  const TOTAL_PERIOD = 8902;
+  const TOTAL_DAILY = {"2026-09-14":741,"2026-09-15":631,"2026-09-16":697,"2026-09-17":577,"2026-09-18":552,"2026-09-19":770,"2026-09-20":580,"2026-09-21":775,"2026-09-22":510,"2026-09-23":599,"2026-09-24":585,"2026-09-25":466,"2026-09-26":608,"2026-09-27":494,"2026-09-28":673,"2026-09-29":483,"2026-09-30":545,"2026-10-01":636,"2026-10-02":569,"2026-10-03":989,"2026-10-04":830,"2026-10-05":795,"2026-10-06":751,"2026-10-07":785,"2026-10-08":735,"2026-10-09":939,"2026-10-10":905,"2026-10-11":871};
+  const TOTAL_PERIOD = 15002;
 
   // --- 두 번째 섹션: 첫 사용자 소스(firstUserSource, 최초 유입 시점의 소스) 기준 ---
   // firstUserSource는 사용자당 평생 단 하나뿐인 값(최초 유입 시점에 고정)이라, sessionSource와
@@ -174,26 +204,28 @@
   // dimension은 필터만 걸고 dimension을 빼면 재조회 자체를 거부함 — "summing deduplicated
   // values" 에러). 그래서 아래 일별/기간 합계는 모두 원본 값 합산으로 계산했다(정확함).
   const FIRST_USER_DAILY = {
-    lg: {"2026-09-28":[347,459],"2026-09-29":[171,269],"2026-09-30":[239,345],"2026-10-01":[287,379],"2026-10-02":[171,246],"2026-10-03":[388,467],"2026-10-04":[167,244],"2026-10-05":[160,228],"2026-10-06":[127,197],"2026-10-07":[182,252],"2026-10-08":[134,209],"2026-10-09":[157,246],"2026-10-10":[145,222],"2026-10-11":[135,203]},
-    notSet: {"2026-09-28":[225,253],"2026-09-29":[213,238],"2026-09-30":[209,232],"2026-10-01":[230,255],"2026-10-02":[183,211],"2026-10-03":[181,205],"2026-10-04":[197,228],"2026-10-05":[192,228],"2026-10-06":[145,171],"2026-10-07":[163,208],"2026-10-08":[167,200],"2026-10-09":[172,199],"2026-10-10":[160,199],"2026-10-11":[162,205]},
-    direct: {"2026-09-28":[65,116],"2026-09-29":[62,120],"2026-09-30":[62,102],"2026-10-01":[75,156],"2026-10-02":[82,158],"2026-10-03":[73,156],"2026-10-04":[72,146],"2026-10-05":[90,138],"2026-10-06":[89,167],"2026-10-07":[88,172],"2026-10-08":[72,130],"2026-10-09":[81,134],"2026-10-10":[87,153],"2026-10-11":[71,141]},
-    naverGrp: {"2026-09-28":[7,16],"2026-09-29":[11,16],"2026-09-30":[7,19],"2026-10-01":[9,19],"2026-10-02":[106,123],"2026-10-03":[319,342],"2026-10-04":[376,385],"2026-10-05":[325,341],"2026-10-06":[272,297],"2026-10-07":[307,326],"2026-10-08":[319,343],"2026-10-09":[340,360],"2026-10-10":[328,344],"2026-10-11":[292,309]},
-    googleGrp: {"2026-09-28":[34,64],"2026-09-29":[25,54],"2026-09-30":[25,41],"2026-10-01":[32,54],"2026-10-02":[20,47],"2026-10-03":[20,61],"2026-10-04":[17,48],"2026-10-05":[21,36],"2026-10-06":[26,61],"2026-10-07":[25,61],"2026-10-08":[31,53],"2026-10-09":[28,47],"2026-10-10":[27,50],"2026-10-11":[30,60]},
-    kakaoGrp: {"2026-09-28":[1,1],"2026-09-29":[7,8],"2026-09-30":[3,3],"2026-10-01":[7,9],"2026-10-02":[10,11],"2026-10-03":[8,8],"2026-10-04":[3,4],"2026-10-05":[16,21],"2026-10-06":[10,12],"2026-10-07":[23,29],"2026-10-08":[17,20],"2026-10-09":[17,19],"2026-10-10":[9,12],"2026-10-11":[16,22]},
-    etcGrp: {"2026-09-28":[1,2],"2026-10-03":[1,1],"2026-10-06":[96,97],"2026-10-07":[5,6],"2026-10-08":[3,5],"2026-10-09":[162,181],"2026-10-10":[157,183],"2026-10-11":[171,209]},
+    lg: {"2026-09-14":[471,555],"2026-09-15":[341,465],"2026-09-16":[420,534],"2026-09-17":[279,382],"2026-09-18":[276,393],"2026-09-19":[521,686],"2026-09-20":[318,466],"2026-09-21":[463,604],"2026-09-22":[213,337],"2026-09-23":[302,414],"2026-09-24":[301,420],"2026-09-25":[171,267],"2026-09-26":[330,437],"2026-09-27":[161,242],"2026-09-28":[340,459],"2026-09-29":[165,271],"2026-09-30":[239,345],"2026-10-01":[284,379],"2026-10-02":[169,247],"2026-10-03":[388,467],"2026-10-04":[167,244],"2026-10-05":[153,228],"2026-10-06":[132,208],"2026-10-07":[175,252],"2026-10-08":[128,209],"2026-10-09":[152,248],"2026-10-10":[141,222],"2026-10-11":[131,204]},
+    notSet: {"2026-09-14":[187,211],"2026-09-15":[213,242],"2026-09-16":[173,195],"2026-09-17":[208,233],"2026-09-18":[183,213],"2026-09-19":[173,184],"2026-09-20":[191,213],"2026-09-21":[222,249],"2026-09-22":[215,253],"2026-09-23":[208,237],"2026-09-24":[207,229],"2026-09-25":[207,229],"2026-09-26":[184,208],"2026-09-27":[243,270],"2026-09-28":[224,251],"2026-09-29":[213,237],"2026-09-30":[209,232],"2026-10-01":[229,254],"2026-10-02":[182,210],"2026-10-03":[181,205],"2026-10-04":[197,228],"2026-10-05":[191,227],"2026-10-06":[158,183],"2026-10-07":[162,207],"2026-10-08":[167,200],"2026-10-09":[159,186],"2026-10-10":[157,194],"2026-10-11":[161,203]},
+    direct: {"2026-09-14":[50,93],"2026-09-15":[51,89],"2026-09-16":[63,110],"2026-09-17":[59,91],"2026-09-18":[54,102],"2026-09-19":[49,79],"2026-09-20":[46,67],"2026-09-21":[59,99],"2026-09-22":[54,104],"2026-09-23":[57,89],"2026-09-24":[52,73],"2026-09-25":[66,93],"2026-09-26":[69,94],"2026-09-27":[64,101],"2026-09-28":[66,117],"2026-09-29":[62,121],"2026-09-30":[62,102],"2026-10-01":[73,152],"2026-10-02":[82,158],"2026-10-03":[73,156],"2026-10-04":[72,145],"2026-10-05":[89,135],"2026-10-06":[90,166],"2026-10-07":[87,170],"2026-10-08":[72,130],"2026-10-09":[82,135],"2026-10-10":[86,151],"2026-10-11":[71,141]},
+    naverGrp: {"2026-09-14":[10,27],"2026-09-15":[7,15],"2026-09-16":[16,25],"2026-09-17":[7,15],"2026-09-18":[14,26],"2026-09-19":[8,14],"2026-09-20":[8,12],"2026-09-21":[7,19],"2026-09-22":[5,6],"2026-09-23":[6,10],"2026-09-24":[7,9],"2026-09-25":[5,6],"2026-09-26":[7,12],"2026-09-27":[4,8],"2026-09-28":[7,16],"2026-09-29":[11,16],"2026-09-30":[7,19],"2026-10-01":[9,19],"2026-10-02":[106,124],"2026-10-03":[319,342],"2026-10-04":[376,385],"2026-10-05":[325,341],"2026-10-06":[332,359],"2026-10-07":[308,327],"2026-10-08":[318,341],"2026-10-09":[341,361],"2026-10-10":[327,343],"2026-10-11":[292,307]},
+    googleGrp: {"2026-09-14":[22,41],"2026-09-15":[18,35],"2026-09-16":[25,59],"2026-09-17":[23,41],"2026-09-18":[25,39],"2026-09-19":[19,30],"2026-09-20":[16,28],"2026-09-21":[24,43],"2026-09-22":[23,51],"2026-09-23":[24,38],"2026-09-24":[18,26],"2026-09-25":[17,27],"2026-09-26":[18,29],"2026-09-27":[21,36],"2026-09-28":[34,64],"2026-09-29":[25,54],"2026-09-30":[25,41],"2026-10-01":[34,57],"2026-10-02":[20,47],"2026-10-03":[20,61],"2026-10-04":[17,48],"2026-10-05":[22,40],"2026-10-06":[28,64],"2026-10-07":[26,64],"2026-10-08":[31,53],"2026-10-09":[28,47],"2026-10-10":[29,53],"2026-10-11":[30,60]},
+    kakaoGrp: {"2026-09-28":[1,1],"2026-09-29":[7,8],"2026-09-30":[3,3],"2026-10-01":[7,9],"2026-10-02":[10,11],"2026-10-03":[8,8],"2026-10-04":[3,4],"2026-10-05":[16,21],"2026-10-06":[12,14],"2026-10-07":[23,29],"2026-10-08":[17,20],"2026-10-09":[17,19],"2026-10-10":[9,12],"2026-10-11":[16,22]},
+    etcGrp: {"2026-09-14":[1,1],"2026-09-15":[1,1],"2026-09-16":[1,1],"2026-09-17":[1,2],"2026-09-20":[1,1],"2026-09-23":[2,2],"2026-09-27":[1,2],"2026-09-28":[1,2],"2026-10-03":[1,1],"2026-10-06":[96,97],"2026-10-07":[4,5],"2026-10-08":[3,5],"2026-10-09":[160,180],"2026-10-10":[156,185],"2026-10-11":[170,209]},
   };
   const FIRST_USER_TOTALS = {
-    lg: 2263,
-    notSet: 2416,
-    direct: 542,
-    naverGrp: 2946,
-    googleGrp: 126,
+    lg: 5464,
+    notSet: 4963,
+    direct: 831,
+    naverGrp: 3012,
+    googleGrp: 168,
     kakaoGrp: 127,
-    etcGrp: 483,
+    etcGrp: 486,
   };
+  // 표시용 그룹 목록 — notSet("미확인")은 별도 열로 두지 않고 etcGrp("기타")에 합쳐서
+  // 표기한다(원본 데이터/자동 라우틴 스크립트의 GROUP_KEYS는 그대로 notSet을 유지함 —
+  // 아래 firstUserTotal/firstUserDailyUsers/recent7SubRows에서 렌더링 시점에만 합산).
   const FIRST_USER_GROUPS = [
     { key: 'lg', label: 'LG' },
-    { key: 'notSet', label: '미확인' },
     { key: 'direct', label: '다이렉트' },
     { key: 'naverGrp', label: 'naver' },
     { key: 'googleGrp', label: 'google' },
@@ -209,28 +241,31 @@
   // 날짜 dimension 없이 재조회). 매일 자동 라우틴이 창이 밀릴 때마다 최근 7일 구간도 같이
   // 재계산해 덮어쓴다.
   const RECENT7_RANGE = { from: '2026-10-05', to: '2026-10-11' };
-  const RECENT7_TOTAL = 5114;
-  const RECENT7_FIRST_USER_TOTALS = { lg: 851, notSet: 1088, direct: 353, naverGrp: 2176, googleGrp: 91, kakaoGrp: 96, etcGrp: 481 };
+  const RECENT7_TOTAL = 5109;
+  const RECENT7_FIRST_USER_TOTALS = { lg: 847, notSet: 1070, direct: 353, naverGrp: 2176, googleGrp: 91, kakaoGrp: 96, etcGrp: 480 };
 </script>
 <script>
 (function () {
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
-  const GENERATED_AT = '2026-10-12 03:09 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
-  const DATE_RANGE = { from: '2026-09-28', to: '2026-10-11' };
+  const GENERATED_AT = '2026-10-12 09:53 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const DATE_RANGE = { from: '2026-09-14', to: '2026-10-11' };
 
   const FETCH_TIMEOUT_MS = 10000;
   let CONSULT_DAILY = null; // {date: 상담수} — fetch 성공 시 채워짐
   let CONSULT_USER_DAILY = null; // {date: 상담인원(userCount, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
+  let REPEAT_USER_DAILY = null; // {date: 재상담인원(userCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
+  let REPEAT_COUNT_DAILY = null; // {date: 재상담건(consultationCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
   function consultApiUrl(baseMonth) {
     return `https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=${baseMonth}`;
   }
-  // DATE_RANGE(14일 창)가 월 경계를 넘나들 수 있어(예: 09-25~10-08), 걸쳐 있는 모든
-  // 월(baseMonth)을 구해 각각 fetch 후 합친다 — 한 달만 고정 조회하면 다른 달 날짜의
-  // 상담수/상담인원/전환율이 영영 비게 된다.
-  const CONSULT_MONTHS = [...new Set(rangeDates().map((d) => d.slice(0, 7)))];
+  // DATE_RANGE(28일 창, 내장 데이터 전체)가 월 경계를 넘나들 수 있어(예: 09-14~10-11),
+  // 걸쳐 있는 모든 월(baseMonth)을 구해 각각 fetch 후 합친다 — 조회기간 필터가 어떤 구간을
+  // 선택하든(7/14/21/28일 또는 커스텀) 전부 DATE_RANGE 안에서 골라 쓰므로, 필터와 무관하게
+  // 페이지 로드 시 한 번만 전체 창 기준으로 fetch해두면 된다.
+  const CONSULT_MONTHS = [...new Set(rangeDates(DATE_RANGE.from, DATE_RANGE.to).map((d) => d.slice(0, 7)))];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => (n == null ? '–' : numFmt.format(n) + '명');
@@ -242,18 +277,23 @@
     const [, m, day] = dateStr.split('-');
     return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
   }
-  function rangeDates() {
+  function toUTC(dateStr) { const [y, m, d] = dateStr.split('-').map(Number); return Date.UTC(y, m - 1, d); }
+  function fromUTC(ts) {
+    const d = new Date(ts);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
+  function addDays(dateStr, delta) { return fromUTC(toUTC(dateStr) + delta * 86400000); }
+  function clamp(dateStr) {
+    if (dateStr < DATE_RANGE.from) return DATE_RANGE.from;
+    if (dateStr > DATE_RANGE.to) return DATE_RANGE.to;
+    return dateStr;
+  }
+  function rangeDates(from, to) {
     const dates = [];
-    const [fy, fm, fd] = DATE_RANGE.from.split('-').map(Number);
-    const [ty, tm, td] = DATE_RANGE.to.split('-').map(Number);
-    let cur = Date.UTC(fy, fm - 1, fd);
-    const end = Date.UTC(ty, tm - 1, td);
+    let cur = toUTC(from);
+    const end = toUTC(to);
     while (cur <= end) {
-      const d = new Date(cur);
-      const y = d.getUTCFullYear();
-      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      dates.push(`${y}-${m}-${day}`);
+      dates.push(fromUTC(cur));
       cur += 86400000;
     }
     return dates;
@@ -270,14 +310,20 @@
       }));
       const map = {};
       const userMap = {};
+      const repeatUserMap = {};
+      const repeatCountMap = {};
       for (const data of results) {
         for (const day of data.dailyStats || []) {
           map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
           userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
+          repeatUserMap[day.date] = day.userCount.prepaid.repeatConsultation + day.userCount.postpaid.repeatConsultation;
+          repeatCountMap[day.date] = day.consultationCount.prepaid.repeatConsultation + day.consultationCount.postpaid.repeatConsultation;
         }
       }
       CONSULT_DAILY = map;
       CONSULT_USER_DAILY = userMap;
+      REPEAT_USER_DAILY = repeatUserMap;
+      REPEAT_COUNT_DAILY = repeatCountMap;
       CONSULT_STATE = 'ok';
     } catch (e) {
       CONSULT_STATE = 'error';
@@ -285,7 +331,7 @@
       console.error('상담 데이터 로드 실패', e);
     } finally {
       clearTimeout(timer);
-      document.getElementById('content').innerHTML = renderFirstUserSectionCard();
+      document.getElementById('content').innerHTML = renderFirstUserSectionCard(SEL_FROM, SEL_TO);
       updateFooter();
     }
   }
@@ -309,6 +355,38 @@
     if (v == null || !total) return '–';
     return fmtPercent((v / total) * 100);
   }
+  // "재상담건"(consultationCount, 건수 — 동일인 중복상담도 매번 집계)과 "재상담인원"
+  // (userCount, 유저수 — 중복제거)은 분모가 다른 별도 지표다. 운세당 매출 리포트
+  // (db-data-unsedang.html)가 재상담 건수를 consultationCount.prepaid/postpaid.
+  // repeatConsultation 합산으로 집계하는 것과 동일한 필드를 쓴다.
+  function repeatCountCell(date) {
+    if (CONSULT_STATE === 'loading') return '로딩 중…';
+    if (CONSULT_STATE === 'error') return '로드 실패';
+    const v = REPEAT_COUNT_DAILY[date];
+    return v == null ? '–' : fmtCount(v);
+  }
+  function repeatCountConvRateCell(date) {
+    if (CONSULT_STATE !== 'ok') return '–';
+    const v = REPEAT_COUNT_DAILY[date];
+    const total = TOTAL_DAILY[date];
+    if (v == null || !total) return '–';
+    return fmtPercent((v / total) * 100);
+  }
+  function repeatUserCell(date) {
+    if (CONSULT_STATE === 'loading') return '로딩 중…';
+    if (CONSULT_STATE === 'error') return '로드 실패';
+    const v = REPEAT_USER_DAILY[date];
+    return v == null ? '–' : fmtUsers(v);
+  }
+  // "재상담전환율" = 재상담인원 ÷ 합계(전체 활성사용자) × 100 — 기존 "전환율"(상담수÷합계)과
+  // 같은 분모 패턴을 그대로 따른다.
+  function repeatConvRateCell(date) {
+    if (CONSULT_STATE !== 'ok') return '–';
+    const v = REPEAT_USER_DAILY[date];
+    const total = TOTAL_DAILY[date];
+    if (v == null || !total) return '–';
+    return fmtPercent((v / total) * 100);
+  }
 
   function renderConsultFootnote() {
     const statusText = CONSULT_STATE === 'error'
@@ -321,14 +399,48 @@
       한 사람이 여러 번 상담하면 "상담수"보다 작게 나옵니다(참고용 근사치 — prepaid/postpaid
       userCount를 그대로 더한 값이라 두 결제방식을 모두 쓴 사람은 중복 집계될 수 있습니다).
       "전환율" = 상담수 ÷ "합계"(사이트 전체 활성사용자) × 100으로, 유입 대비 상담 전환 정도를
-      보는 참고 지표입니다.${statusText}</div>`;
+      보는 참고 지표입니다. "재상담건"은 동일 API의 consultationCount.repeatConsultation
+      (선불+후불 단순 합산, <b>건수</b> — 같은 사람이 여러 번 재상담하면 매번 집계), "재상담건전환율"
+      = 재상담건 ÷ "합계" × 100입니다. "재상담인원"은 userCount.repeatConsultation(선불+후불
+      단순 합산, <b>유저수</b> — 중복제거)이고, "재상담전환율" = 재상담인원 ÷ "합계" × 100으로
+      "전환율"과 같은 분모를 씁니다. 건수와 유저수는 분모가 다른 별도 지표라 "재상담건" ≥
+      "재상담인원"입니다(운세당 매출 리포트의 재상담 집계 방식과 동일).${statusText}</div>`;
   }
 
   // --- 합계 열은 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 사용(어느 기준으로 쪼개든 사이트
   // 전체 활성사용자 수 자체는 같기 때문). 상담수/전환율은 CONSULT_DAILY(실시간 fetch)/
   // TOTAL_DAILY 기준으로 계산한다. ---
-  function firstUserDailyUsers(g, date) { const v = FIRST_USER_DAILY[g.key][date]; return v ? v[0] : 0; }
-  function firstUserTotal(g) { return FIRST_USER_TOTALS[g.key]; }
+  function firstUserDailyUsers(g, date) {
+    const v = FIRST_USER_DAILY[g.key][date];
+    const base = v ? v[0] : 0;
+    if (g.key !== 'etcGrp') return base;
+    const nv = FIRST_USER_DAILY.notSet[date];
+    return base + (nv ? nv[0] : 0);
+  }
+  function firstUserTotal(g) {
+    const base = FIRST_USER_TOTALS[g.key];
+    return g.key === 'etcGrp' ? base + FIRST_USER_TOTALS.notSet : base;
+  }
+  function firstUserRecent7(g) {
+    const base = RECENT7_FIRST_USER_TOTALS[g.key];
+    return g.key === 'etcGrp' ? base + RECENT7_FIRST_USER_TOTALS.notSet : base;
+  }
+
+  // --- 선택 기간(from~to)의 합계 — activeUsers는 비집계 지표라, 미리 재조회해둔 두 구간
+  // (DATE_RANGE 전체=28일, RECENT7_RANGE=최근 7일)만 정확한 값이고, 그 외 선택(14/21일
+  // 칩이나 임의의 커스텀 범위)은 일별 값을 단순 합산한 값이다(재방문자 중복 가능). ---
+  const isFullRange = (from, to) => from === DATE_RANGE.from && to === DATE_RANGE.to;
+  const isRecent7Range = (from, to) => from === RECENT7_RANGE.from && to === RECENT7_RANGE.to;
+  function totalForRange(from, to) {
+    if (isFullRange(from, to)) return TOTAL_PERIOD;
+    if (isRecent7Range(from, to)) return RECENT7_TOTAL;
+    return rangeDates(from, to).reduce((acc, d) => acc + (TOTAL_DAILY[d] || 0), 0);
+  }
+  function groupTotalForRange(g, from, to) {
+    if (isFullRange(from, to)) return firstUserTotal(g);
+    if (isRecent7Range(from, to)) return firstUserRecent7(g);
+    return rangeDates(from, to).reduce((acc, d) => acc + firstUserDailyUsers(g, d), 0);
+  }
 
   function renderFirstUserLegend() {
     return `<div class="legend">${FIRST_USER_GROUPS
@@ -336,16 +448,27 @@
       .join('')}</div>`;
   }
 
-  function renderFirstUserSummary() {
-    const dates = rangeDates();
-    const items = FIRST_USER_GROUPS.map((g) => `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(firstUserTotal(g))}</div></div>`);
-    items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(TOTAL_PERIOD)}</div></div>`);
+  function renderFirstUserSummary(from, to) {
+    const dates = rangeDates(from, to);
+    const periodLabel = `${dates.length}일 합계`;
+    const items = FIRST_USER_GROUPS.map((g) => {
+      const v = groupTotalForRange(g, from, to);
+      return `<div class="stat"><div class="label">${g.label}</div><div class="value">${fmtUsers(v)}</div></div>`;
+    });
+    const total = totalForRange(from, to);
+    items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(total)}</div></div>`);
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
-      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${fmtCount(consultSum)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">전환율(2주 합계)</div><div class="value">${fmtPercent((consultSum / TOTAL_PERIOD) * 100)}</div></div>`);
+      const repeatCountSum = dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
+      const repeatUserSum = dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
+      items.push(`<div class="stat"><div class="label">상담수(${periodLabel})</div><div class="value">${fmtCount(consultSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">전환율(${periodLabel})</div><div class="value">${fmtPercent((consultSum / total) * 100)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담건(${periodLabel})</div><div class="value">${fmtCount(repeatCountSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담건전환율(${periodLabel})</div><div class="value">${fmtPercent((repeatCountSum / total) * 100)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담인원(${periodLabel})</div><div class="value">${fmtUsers(repeatUserSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담전환율(${periodLabel})</div><div class="value">${fmtPercent((repeatUserSum / total) * 100)}</div></div>`);
     } else {
-      items.push(`<div class="stat"><div class="label">상담수(2주 합계)</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
+      items.push(`<div class="stat"><div class="label">상담수(${periodLabel})</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
     }
     return `<div class="summary-grid">${items.join('')}</div>`;
   }
@@ -357,14 +480,17 @@
     FIRST_USER_GROUPS.forEach((g) => { byGroup[g.key] = firstUserDailyUsers(g, date); });
     const consult = CONSULT_STATE === 'ok' ? CONSULT_DAILY[date] : null;
     const consultUser = CONSULT_STATE === 'ok' ? CONSULT_USER_DAILY[date] : null;
+    const repeatCount = CONSULT_STATE === 'ok' ? REPEAT_COUNT_DAILY[date] : null;
+    const repeatUser = CONSULT_STATE === 'ok' ? REPEAT_USER_DAILY[date] : null;
     const rate = (consult != null && total) ? (consult / total) * 100 : null;
+    const repeatCountRate = (repeatCount != null && total) ? (repeatCount / total) * 100 : null;
+    const repeatRate = (repeatUser != null && total) ? (repeatUser / total) * 100 : null;
     const n = (v) => (v == null ? '–' : numFmt.format(v));
     const pct = (v) => (v == null ? '–' : v.toFixed(1) + '%');
     return [
       `${fmtDateLabel(date)} (${date})`,
       `총 방문자: ${n(total)}`,
       `LG: ${n(byGroup.lg)}`,
-      `미확인: ${n(byGroup.notSet)}`,
       `다이렉트: ${n(byGroup.direct)}`,
       `naver: ${n(byGroup.naverGrp)}`,
       `google: ${n(byGroup.googleGrp)}`,
@@ -373,6 +499,10 @@
       `상담수: ${n(consult)}`,
       `상담인원: ${n(consultUser)}`,
       `전환율: ${pct(rate)}`,
+      `재상담건: ${n(repeatCount)}`,
+      `재상담건전환율: ${pct(repeatCountRate)}`,
+      `재상담인원: ${n(repeatUser)}`,
+      `재상담전환율: ${pct(repeatRate)}`,
     ].join('\n');
   }
 
@@ -414,46 +544,59 @@
   // 지표라 일별 값 단순 합산이 아님). 상담수/상담인원은 CONSULT_DAILY가 매출·건수류라
   // 안전하게 합산 가능해 최근 7일 날짜만 골라 그 자리에서 합산한다.
   function recent7SubRows() {
-    const dates = rangeDates();
-    const last7Dates = dates.slice(-7);
+    const last7Dates = rangeDates(RECENT7_RANGE.from, RECENT7_RANGE.to);
     const groupCellsFor = (divisor) =>
-      FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(Math.round(RECENT7_FIRST_USER_TOTALS[g.key] / divisor))}</td>`).join('');
+      FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(Math.round(firstUserRecent7(g) / divisor))}</td>`).join('');
 
     let consultSumCell = '–';
     let consultUserSumCell = '–';
     let consultAvgCell = '–';
     let consultUserAvgCell = '–';
     let convCell = '–';
+    let repeatCountSumCell = '–';
+    let repeatCountAvgCell = '–';
+    let repeatCountConvCell = '–';
+    let repeatUserSumCell = '–';
+    let repeatUserAvgCell = '–';
+    let repeatConvCell = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = last7Dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
       const consultUserSum = last7Dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
+      const repeatCountSum = last7Dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
+      const repeatUserSum = last7Dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
       consultSumCell = fmtCount(consultSum);
       consultUserSumCell = fmtUsers(consultUserSum);
       consultAvgCell = fmtCount(Math.round(consultSum / 7));
       consultUserAvgCell = fmtUsers(Math.round(consultUserSum / 7));
       convCell = fmtPercent((consultSum / RECENT7_TOTAL) * 100);
+      repeatCountSumCell = fmtCount(repeatCountSum);
+      repeatCountAvgCell = fmtCount(Math.round(repeatCountSum / 7));
+      repeatCountConvCell = fmtPercent((repeatCountSum / RECENT7_TOTAL) * 100);
+      repeatUserSumCell = fmtUsers(repeatUserSum);
+      repeatUserAvgCell = fmtUsers(Math.round(repeatUserSum / 7));
+      repeatConvCell = fmtPercent((repeatUserSum / RECENT7_TOTAL) * 100);
     } else if (CONSULT_STATE === 'error') {
-      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = '로드 실패';
+      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = repeatCountSumCell = repeatCountAvgCell = repeatUserSumCell = repeatUserAvgCell = '로드 실패';
     } else {
-      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = '로딩 중…';
+      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = repeatCountSumCell = repeatCountAvgCell = repeatUserSumCell = repeatUserAvgCell = '로딩 중…';
     }
 
     const sumRow = `<tr class="total-row">
-      <td>최근 7일 합계 (${RECENT7_RANGE.from.slice(5).replace('-', '/')}~${RECENT7_RANGE.to.slice(5).replace('-', '/')})</td>
+      <td>최근 7일 합계</td>
       ${groupCellsFor(1)}
-      <td>${fmtUsers(RECENT7_TOTAL)}</td><td>${consultSumCell}</td><td>${consultUserSumCell}</td><td>${convCell}</td>
+      <td>${fmtUsers(RECENT7_TOTAL)}</td><td>${consultSumCell}</td><td>${consultUserSumCell}</td><td>${convCell}</td><td>${repeatCountSumCell}</td><td>${repeatCountConvCell}</td><td>${repeatUserSumCell}</td><td>${repeatConvCell}</td>
     </tr>`;
     const avgRow = `<tr class="avg-sub-row">
       <td>최근 7일 평균(1일)</td>
       ${groupCellsFor(7)}
-      <td>${fmtUsers(Math.round(RECENT7_TOTAL / 7))}</td><td>${consultAvgCell}</td><td>${consultUserAvgCell}</td><td>${convCell}</td>
+      <td>${fmtUsers(Math.round(RECENT7_TOTAL / 7))}</td><td>${consultAvgCell}</td><td>${consultUserAvgCell}</td><td>${convCell}</td><td>${repeatCountAvgCell}</td><td>${repeatCountConvCell}</td><td>${repeatUserAvgCell}</td><td>${repeatConvCell}</td>
     </tr>`;
     return [sumRow, avgRow];
   }
 
-  function renderFirstUserTable() {
-    const dates = rangeDates();
-    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th>`;
+  function renderFirstUserTable(from, to) {
+    const dates = rangeDates(from, to);
+    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th><th>재상담건</th><th>재상담건전환율</th><th>재상담인원</th><th>재상담전환율</th>`;
     const dayRows = [...dates]
       .reverse()
       .map((date) => {
@@ -461,46 +604,68 @@
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
           .join('');
         const dateCell = `<td class="date-cell"><span>${fmtDateLabel(date)}</span><button type="button" class="copy-btn" onclick="copyFirstUserDay('${date}', this)">복사</button></td>`;
-        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td></tr>`;
+        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td><td>${repeatCountCell(date)}</td><td>${repeatCountConvRateCell(date)}</td><td>${repeatUserCell(date)}</td><td>${repeatConvRateCell(date)}</td></tr>`;
       });
-    if (dayRows.length >= 7) dayRows.splice(7, 0, ...recent7SubRows());
+    // "최근 7일 합계/평균" 서브행은 선택 구간이 전체 창의 최신 끝(DATE_RANGE.to)을 포함하고
+    // 7일보다 길 때만 끼워 넣는다 — "최근 7일" 칩처럼 정확히 7일을 고르면 푸터 합계 행과
+    // 중복이라 생략하고, 과거 쪽으로 치우친 커스텀 구간(끝이 DATE_RANGE.to가 아님)에는
+    // "최근 7일"이라는 개념 자체가 안 맞아 생략한다.
+    if (to === DATE_RANGE.to && dayRows.length > 7) dayRows.splice(7, 0, ...recent7SubRows());
     const bodyRows = dayRows.join('');
-    const footCells = FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserTotal(g))}</td>`).join('');
+    const total = totalForRange(from, to);
+    const footCells = FIRST_USER_GROUPS.map((g, i) => {
+      const v = groupTotalForRange(g, from, to);
+      return `<td class="col-s${i}">${fmtUsers(v)}</td>`;
+    }).join('');
     let consultFoot = '–';
     let consultUserFoot = '–';
     let convFoot = '–';
+    let repeatCountFoot = '–';
+    let repeatCountConvFoot = '–';
+    let repeatUserFoot = '–';
+    let repeatConvFoot = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
       const consultUserSum = dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
+      const repeatCountSum = dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
+      const repeatUserSum = dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
       consultFoot = fmtCount(consultSum);
       consultUserFoot = fmtUsers(consultUserSum);
-      convFoot = fmtPercent((consultSum / TOTAL_PERIOD) * 100);
+      convFoot = fmtPercent((consultSum / total) * 100);
+      repeatCountFoot = fmtCount(repeatCountSum);
+      repeatCountConvFoot = fmtPercent((repeatCountSum / total) * 100);
+      repeatUserFoot = fmtUsers(repeatUserSum);
+      repeatConvFoot = fmtPercent((repeatUserSum / total) * 100);
     } else if (CONSULT_STATE === 'error') {
       consultFoot = '로드 실패';
       consultUserFoot = '로드 실패';
+      repeatCountFoot = '로드 실패';
+      repeatUserFoot = '로드 실패';
     } else {
       consultFoot = '로딩 중…';
       consultUserFoot = '로딩 중…';
+      repeatCountFoot = '로딩 중…';
+      repeatUserFoot = '로딩 중…';
     }
     return `<div class="table-scroll"><table>
       <thead><tr>${headRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${DATE_RANGE.from.slice(5).replace('-', '/')}~${DATE_RANGE.to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(TOTAL_PERIOD)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td></tr></tfoot>
+      <tfoot><tr><td>합계(${from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(total)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td><td>${repeatCountFoot}</td><td>${repeatCountConvFoot}</td><td>${repeatUserFoot}</td><td>${repeatConvFoot}</td></tr></tfoot>
     </table></div>`;
   }
 
   function renderFirstUserFootnote() {
-    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다. "합계" 열은 소스 구분 없이 사이트 전체를 별도로 재조회한 활성사용자이며, 같은 날 여러 경로로 방문한 사람이 있으면 그룹 합산치보다 작을 수 있습니다.</div>`;
+    return `<div class="note">ℹ firstUserSource는 사용자당 평생 하나뿐인 값(최초 유입 시점에 고정)이라, 같은 도메인 계열 원본 값을 합산해도 중복 집계가 없습니다. "합계" 열은 소스 구분 없이 사이트 전체를 별도로 재조회한 활성사용자이며, 같은 날 여러 경로로 방문한 사람이 있으면 그룹 합산치보다 작을 수 있습니다. "기타"에는 미확인(firstUserSource가 (not set)·빈 값인 활성사용자)이 함께 포함돼 있습니다.</div>`;
   }
 
-  function renderFirstUserSectionCard() {
+  function renderFirstUserSectionCard(from, to) {
     return `
       <div class="card">
-        <h2>매체별 유입 (첫 사용자 소스 그룹) <span class="hint">최근 2주 일별 활성사용자 (${DATE_RANGE.from} ~ ${DATE_RANGE.to})</span></h2>
+        <h2>매체별 유입 (첫 사용자 소스 그룹) <span class="hint">일별 활성사용자 (${from} ~ ${to})</span></h2>
         <div class="path-hint">firstUserSource</div>
-        ${renderFirstUserSummary()}
+        ${renderFirstUserSummary(from, to)}
         ${renderFirstUserLegend()}
-        ${renderFirstUserTable()}
+        ${renderFirstUserTable(from, to)}
         ${renderFirstUserFootnote()}
         ${renderConsultFootnote()}
       </div>`;
@@ -508,20 +673,67 @@
 
   function updateFooter() {
     const consultStatusLine = CONSULT_STATE === 'ok'
-      ? '상담수/전환율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
+      ? '상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
       : CONSULT_STATE === 'error'
-        ? `상담수/전환율 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
-        : '상담수/전환율 실시간 fetch 중…';
+        ? `상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
+        : '상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 실시간 fetch 중…';
     document.getElementById('footer').innerHTML =
-      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 조회 기간 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}<br>` +
+      `데이터 출처: Supermetrics(GAWA) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 28일)<br>` +
       `매체 유입(활성사용자) 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — GA4는 공개 API 엔드포인트가 없어 조회 시점 값을 임베드했습니다. 갱신하려면 Supermetrics로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
-      `상담수/전환율 열은 예외적으로 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 ${consultStatusLine}<br>` +
-      `표에 표시되는 활성사용자는 비집계 지표입니다 — 일별 값은 그날 실측치, 합계 행/열(그룹별·전체)은 항상 해당 범위로 별도 재조회한 순사용자 수이며 일별 값을 단순히 더한 것이 아닙니다.<br>` +
+      `상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 열은 예외적으로 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 ${consultStatusLine}<br>` +
+      `표에 표시되는 활성사용자는 비집계 지표입니다 — 일별 값은 그날 실측치입니다.<br>` +
+      `조회기간 필터는 이미 내장된 28일 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
       `생성 시각: ${GENERATED_AT}`;
   }
 
+  let SEL_FROM, SEL_TO;
+
+  function render(from, to) {
+    SEL_FROM = from;
+    SEL_TO = to;
+    document.getElementById('content').innerHTML = renderFirstUserSectionCard(from, to);
+  }
+
+  function setActivePreset(days) {
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
+      btn.classList.toggle('active', Number(btn.dataset.preset) === days);
+    });
+  }
+
+  function applyRange(from, to, presetDays) {
+    from = clamp(from);
+    to = clamp(to);
+    document.getElementById('customFrom').value = from;
+    document.getElementById('customTo').value = to;
+    setActivePreset(presetDays || null);
+    render(from, to);
+  }
+
   function init() {
-    document.getElementById('content').innerHTML = renderFirstUserSectionCard();
+    document.getElementById('customFrom').min = DATE_RANGE.from;
+    document.getElementById('customFrom').max = DATE_RANGE.to;
+    document.getElementById('customTo').min = DATE_RANGE.from;
+    document.getElementById('customTo').max = DATE_RANGE.to;
+
+    document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const days = Number(btn.dataset.preset);
+        const to = DATE_RANGE.to;
+        const from = days >= 28 ? DATE_RANGE.from : clamp(addDays(to, -(days - 1)));
+        applyRange(from, to, days);
+      });
+    });
+    const onCustomChange = () => {
+      const from = document.getElementById('customFrom').value || DATE_RANGE.from;
+      const to = document.getElementById('customTo').value || DATE_RANGE.to;
+      if (from > to) return;
+      applyRange(from, to, null);
+    };
+    document.getElementById('customFrom').addEventListener('change', onCustomChange);
+    document.getElementById('customTo').addEventListener('change', onCustomChange);
+
+    // 기본 선택: 최근 14일
+    applyRange(addDays(DATE_RANGE.to, -13), DATE_RANGE.to, 14);
     updateFooter();
     loadConsultStats();
   }

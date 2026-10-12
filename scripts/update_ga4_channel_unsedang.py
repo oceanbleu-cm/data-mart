@@ -3,10 +3,10 @@
 운세당 매체별 유입 리포트(html/ga4-channel-unsedang.html) 롤링-윈도우 업데이트 스크립트.
 
 `html/ga4-funnel-unsedang.html`(퍼널 리포트)과는 갱신 철학이 다르다 — 그 리포트는
-"기존 날짜 절대 불변, 새 날짜만 추가"하는 누적형이지만, 이 리포트는 헤더에 "최근 2주"라고
+"기존 날짜 절대 불변, 새 날짜만 추가"하는 누적형이지만, 이 리포트는 헤더에 "최근 28일"이라고
 명시된 **롤링(sliding) 윈도우**다. 그래서 매 실행마다:
   1) 새로 확정된 날짜(들)를 각 일별 시리즈에 추가하고
-  2) 윈도우 밖으로 밀려난 오래된 날짜를 제거하고(윈도우 항상 14일 유지)
+  2) 윈도우 밖으로 밀려난 오래된 날짜를 제거하고(윈도우 항상 28일 유지)
   3) 그룹별/기간 합계(FIRST_USER_TOTALS, TOTAL_PERIOD)는 "새 날짜만 반영"이 아니라
      **매번 새 윈도우 전체를 재조회한 값으로 통째로 교체**한다 — activeUsers는 비집계 지표라
      날짜를 밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
@@ -62,7 +62,7 @@ import sys
 import tempfile
 from datetime import date, datetime, timedelta, timezone
 
-WINDOW_DAYS = 14
+WINDOW_DAYS = 28
 
 GROUP_KEYS = ['lg', 'notSet', 'direct', 'naverGrp', 'googleGrp', 'kakaoGrp', 'etcGrp']
 
@@ -228,7 +228,7 @@ def load_firstuser_period(indir, fname='firstuser_raw_period.json'):
 def merge_and_slide(old_series, incr_series, new_from, new_to):
     """old_series: {date:[u,s]} 또는 {date:u}. incr_series의 값으로 덮어쓰기 허용(최근 며칠은
     재확정되며 값이 바뀔 수 있음 — 퍼널 리포트와 달리 이 리포트는 덮어쓰기를 막지 않는다).
-    그 다음 new_from~new_to 범위 밖 날짜는 전부 제거해 윈도우를 정확히 14일로 유지한다."""
+    그 다음 new_from~new_to 범위 밖 날짜는 전부 제거해 윈도우를 정확히 28일로 유지한다."""
     combined = dict(old_series)
     combined.update(incr_series)
     return {d: v for d, v in combined.items() if new_from <= d <= new_to}
@@ -422,7 +422,7 @@ def main():
     if new_recent7_total > new_total_period:
         raise SafetyError(
             f'RECENT7_TOTAL({new_recent7_total})이 TOTAL_PERIOD({new_total_period})보다 큽니다 — '
-            f'최근 7일은 14일 전체의 부분집합이라 있을 수 없는 값입니다. 쿼리 기간을 재확인하세요.'
+            f'최근 7일은 28일 전체의 부분집합이라 있을 수 없는 값입니다. 쿼리 기간을 재확인하세요.'
         )
 
     warnings = extra_warnings
@@ -463,7 +463,7 @@ def main():
     warnings = [w for w in warnings if not (w in seen_warnings or seen_warnings.add(w))]
 
     print('=== update_ga4_channel_unsedang.py 요약 ===')
-    print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (14일 유지, 롤링)')
+    print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (28일 유지, 롤링)')
     print(f'[첫 사용자 소스] 그룹별 기간 합계(활성사용자): {new_fu_totals}')
     print(f'전체 기간 합계(활성사용자): {new_total_period}')
     print(f'최근 7일 서브합계 {recent7_from}~{recent7_to}: 전체 {new_recent7_total}, 그룹별 {new_recent7_fu_totals}')
