@@ -271,8 +271,11 @@ def load_engagement_period(indir):
 def fetch_db_daily(d_from, d_to, timeout=15):
     """[d_from, d_to] 구간에 걸치는 baseMonth들을 조회해 날짜별
     {alimtalk, consultCnt, consultUsr, repeatUsr, repeatCnt, afterRepeatCnt} 딕셔너리로
-    반환한다(선불 전용 필드만 추출). postpaid 쪽은 AI상담노트 기능이 없어 집계하지 않는다
-    (항상 0 — API 응답으로 확인됨)."""
+    반환한다(선불 전용 필드만 추출). postpaid 쪽 aiNoteConsultation류·aiNoteRepeatConsultation은
+    AI상담노트가 선불 전용 기능이라 집계하지 않는다(항상 0 — API 응답으로 확인됨). 단,
+    afterAiNoteRepeatConsultation(알림톡을 받은 뒤 "아무" 재상담, AI노트 생성 여부 무관)은
+    postpaid에도 값이 존재함(2026-09-30~2026-10-11 기준 23건 확인) — 리포트 전체가
+    "AI상담노트=선불 전용" 원칙을 따르기로 사용자가 확정해 의도적으로 선불만 쓴다."""
     daily = {}
     for month in months_between(d_from, d_to):
         url = DB_API_TEMPLATE.format(month=month)
