@@ -105,6 +105,34 @@
     background: var(--card-bg); color: var(--text); font-family: inherit;
   }
 
+  /* --- 메인 탭(핵심 퍼널 / 화면별 KPI) --- */
+  .main-tabs { display: flex; gap: 6px; margin: -4px 0 14px; }
+  .main-tab-btn {
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--text);
+    padding: 8px 16px; border-radius: 8px; font-size: 0.84rem; cursor: pointer; font-family: inherit;
+  }
+  .main-tab-btn:hover { border-color: var(--accent); }
+  .main-tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+  /* --- 일자별 수치 표 --- */
+  table.daily-tbl { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; font-size: 0.76rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  table.daily-tbl th, table.daily-tbl td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 6px 8px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.daily-tbl th:first-child, table.daily-tbl td:first-child { text-align: left; }
+  table.daily-tbl th:last-child, table.daily-tbl td:last-child { border-right: none; }
+  table.daily-tbl tr:last-child td { border-bottom: none; }
+  table.daily-tbl th { background: var(--table-head-bg); font-weight: 700; color: var(--text-dim); font-size: 0.68rem; }
+
+  /* --- 일자별 차트(스몰 멀티플) --- */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .chart-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 6px; background: var(--card-bg); }
+  .chart-card .chart-title { font-size: 0.78rem; font-weight: 700; margin-bottom: 1px; }
+  .chart-card .chart-sub { font-size: 0.66rem; color: var(--text-dim); margin-bottom: 4px; }
+  .chart-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .chart-dot { fill: var(--accent); }
+  .chart-axis { stroke: var(--border); stroke-width: 1; }
+  .chart-tick { font-size: 8.5px; fill: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .chart-val-label { font-size: 9px; fill: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+
   /* --- 스코어보드 --- */
   .score-tiles { display: flex; gap: 6px; margin-bottom: 10px; }
   .score-tile {
@@ -281,6 +309,11 @@
       </div>
     </div>
 
+    <div class="main-tabs" id="mainTabs">
+      <button type="button" class="main-tab-btn active" data-tab="funnel">핵심 퍼널</button>
+      <button type="button" class="main-tab-btn" data-tab="screens">화면별 KPI</button>
+    </div>
+
     <div id="content"></div>
     <footer id="footer"></footer>
   </div>
@@ -290,60 +323,66 @@
   // AI 상담노트 기능은 2026-09-30부터 신규 집계이고 이전 데이터는 의미가 없어, 내장 범위를
   // 2026-09-30부터로 제한했다(그 이전 날짜는 아예 담지 않음 — 집계 대상 자체가 아니었음).
   // 상담하기(= pre_tel_click OR post_tel_click, activeUsers)
-  const DAILY_CALL = {"2026-09-30":43,"2026-10-01":43,"2026-10-02":55,"2026-10-03":66,"2026-10-04":58,"2026-10-05":70,"2026-10-06":76,"2026-10-07":73};
-  const CALL_TOTAL = 401; // 전체 기간 재조회한 정확값
+  const DAILY_CALL = {"2026-09-30":43,"2026-10-01":43,"2026-10-02":55,"2026-10-03":66,"2026-10-04":58,"2026-10-05":70,"2026-10-06":76,"2026-10-07":73,"2026-10-08":57,"2026-10-09":72,"2026-10-10":58,"2026-10-11":63};
+  const CALL_TOTAL = 595; // 전체 기간 재조회한 정확값
 
   // 상담하기(선불만, pre_tel_click) — AI 상담노트는 선불 상담에만 제공되는 기능이라
   // "AI 상담노트 옵션 유지율"의 분모는 선불+후불을 합친 DAILY_CALL이 아니라 이걸 써야 한다.
-  const DAILY_PRETEL = {"2026-09-30":19,"2026-10-01":23,"2026-10-02":29,"2026-10-03":31,"2026-10-04":31,"2026-10-05":40,"2026-10-06":42,"2026-10-07":40};
-  const PRETEL_TOTAL = 233; // 전체 기간 재조회한 정확값
+  const DAILY_PRETEL = {"2026-09-30":19,"2026-10-01":23,"2026-10-02":29,"2026-10-03":31,"2026-10-04":31,"2026-10-05":40,"2026-10-06":42,"2026-10-07":40,"2026-10-08":35,"2026-10-09":45,"2026-10-10":35,"2026-10-11":35};
+  const PRETEL_TOTAL = 365; // 전체 기간 재조회한 정확값
 
   // AI 상담목록(/view/ai-note), AI 상담보기=노트 상세(/view/ai-note/noteInfo) 페이지뷰 activeUsers
-  const DAILY_AINOTE = {"2026-09-30":11,"2026-10-01":20,"2026-10-02":18,"2026-10-03":25,"2026-10-04":17,"2026-10-05":21,"2026-10-06":22,"2026-10-07":30};
-  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13,"2026-10-05":26,"2026-10-06":25,"2026-10-07":35};
-  const PAGE_TOTALS = { aiNote: 129, noteInfo: 134 }; // 전체 기간 정확값
+  const DAILY_AINOTE = {"2026-09-30":11,"2026-10-01":20,"2026-10-02":18,"2026-10-03":25,"2026-10-04":17,"2026-10-05":21,"2026-10-06":22,"2026-10-07":30,"2026-10-08":28,"2026-10-09":24,"2026-10-10":29,"2026-10-11":25};
+  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13,"2026-10-05":26,"2026-10-06":25,"2026-10-07":35,"2026-10-08":26,"2026-10-09":27,"2026-10-10":26,"2026-10-11":27};
+  const PAGE_TOTALS = { aiNote: 207, noteInfo: 210 }; // 전체 기간 정확값
 
   // 추적 이벤트 7종 (전부 2026-09-30부터 신규 집계)
   const DAILY_SUBEVENTS = {
-    "ai-note-agree-pop": {"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34,"2026-10-05":41,"2026-10-06":43,"2026-10-07":42},
-    "ai-note-agree-click": {"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31,"2026-10-05":40,"2026-10-06":40,"2026-10-07":40},
-    "ai-note-cancel-click": {"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8,"2026-10-05":11,"2026-10-06":8,"2026-10-07":13},
-    "ai-note-review-skip": {"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8,"2026-10-05":12,"2026-10-06":15,"2026-10-07":11},
-    "ai-note-review-next": {"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1,"2026-10-05":6,"2026-10-06":4,"2026-10-07":8},
-    "ai-note-review-submit": {"2026-10-01":3,"2026-10-02":4,"2026-10-03":3,"2026-10-05":2,"2026-10-07":7},
-    "ai-note-councel-click": {"2026-09-30":1,"2026-10-01":2,"2026-10-03":1,"2026-10-06":2,"2026-10-07":1}
+    "ai-note-agree-pop": {"2026-09-30":18,"2026-10-01":26,"2026-10-02":33,"2026-10-03":33,"2026-10-04":34,"2026-10-05":41,"2026-10-06":43,"2026-10-07":42,"2026-10-08":40,"2026-10-09":44,"2026-10-10":36,"2026-10-11":41},
+    "ai-note-agree-click": {"2026-09-30":13,"2026-10-01":23,"2026-10-02":28,"2026-10-03":29,"2026-10-04":31,"2026-10-05":40,"2026-10-06":40,"2026-10-07":40,"2026-10-08":37,"2026-10-09":43,"2026-10-10":35,"2026-10-11":38},
+    "ai-note-cancel-click": {"2026-09-30":7,"2026-10-01":10,"2026-10-02":6,"2026-10-03":12,"2026-10-04":8,"2026-10-05":11,"2026-10-06":8,"2026-10-07":13,"2026-10-08":7,"2026-10-09":6,"2026-10-10":3,"2026-10-11":9},
+    "ai-note-review-skip": {"2026-09-30":5,"2026-10-01":9,"2026-10-02":12,"2026-10-03":10,"2026-10-04":8,"2026-10-05":12,"2026-10-06":15,"2026-10-07":11,"2026-10-08":13,"2026-10-09":11,"2026-10-10":12,"2026-10-11":13},
+    "ai-note-review-next": {"2026-09-30":2,"2026-10-01":5,"2026-10-02":7,"2026-10-03":4,"2026-10-04":1,"2026-10-05":6,"2026-10-06":4,"2026-10-07":8,"2026-10-08":7,"2026-10-09":6,"2026-10-10":5,"2026-10-11":6},
+    "ai-note-review-submit": {"2026-10-01":3,"2026-10-02":4,"2026-10-03":3,"2026-10-05":2,"2026-10-07":7,"2026-10-08":2,"2026-10-09":3,"2026-10-10":3,"2026-10-11":2},
+    "ai-note-councel-click": {"2026-09-30":1,"2026-10-01":2,"2026-10-03":1,"2026-10-06":2,"2026-10-07":1,"2026-10-08":1,"2026-10-09":1,"2026-10-10":1}
   };
   const SUBEVENT_TOTALS = {
-    "ai-note-agree-pop": 243, "ai-note-agree-click": 222, "ai-note-cancel-click": 69, "ai-note-review-skip": 65, "ai-note-review-next": 37, "ai-note-review-submit": 19, "ai-note-councel-click": 7
+    "ai-note-agree-pop": 385, "ai-note-agree-click": 357, "ai-note-cancel-click": 91, "ai-note-review-skip": 102, "ai-note-review-next": 60, "ai-note-review-submit": 28, "ai-note-councel-click": 9
   };
 
   // 노트 상세(/view/ai-note/noteInfo) 참여시간 — [총 참여시간(초), 활성사용자]
   const DAILY_ENGAGEMENT = {
-    "2026-09-30":[685,11],"2026-10-01":[2212,17],"2026-10-02":[2118,24],"2026-10-03":[2552,22],"2026-10-04":[1047,13],"2026-10-05":[3035,26],"2026-10-06":[3750,25],"2026-10-07":[5935,35]
+    "2026-09-30":[685,11],"2026-10-01":[2212,17],"2026-10-02":[2118,24],"2026-10-03":[2552,22],"2026-10-04":[1047,13],"2026-10-05":[3035,26],"2026-10-06":[3750,25],"2026-10-07":[5935,35],"2026-10-08":[6533,26],"2026-10-09":[2675,27],"2026-10-10":[5398,26],"2026-10-11":[6229,27]
   };
-  const ENGAGEMENT_TOTAL = { duration: 21334, users: 134 }; // 전체 기간 정확값(=PAGE_TOTALS.noteInfo와 동일 모집단)
+  const ENGAGEMENT_TOTAL = { duration: 42169, users: 210 }; // 전체 기간 정확값(=PAGE_TOTALS.noteInfo와 동일 모집단)
 
   // 알림톡 "운세당 바로가기" 클릭 — UTM(utm_source=kakao_alimtalk&utm_medium=push&utm_campaign=callnote_created)로 식별
-  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9,"2026-10-05":20,"2026-10-06":14,"2026-10-07":19};
-  const UTM_CLICK_TOTAL = 79; // 전체 기간 정확값(activeUsers). 참고: 세션(클릭수)은 56.
+  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9,"2026-10-05":20,"2026-10-06":14,"2026-10-07":19,"2026-10-08":19,"2026-10-09":20,"2026-10-10":13,"2026-10-11":19};
+  const UTM_CLICK_TOTAL = 132; // 전체 기간 정확값(activeUsers). 참고: 세션(클릭수)은 56.
+
+  // 선생님 추천 버튼 클릭 — eventName이 선생님마다 callnote_reco_click_{번호}로 달라져 7종
+  // 추적 이벤트와 달리 정확히 일치하는 이름이 없다. eventName contains 'callnote_reco_click'로
+  // 전체 선생님번호를 합산해 하나의 지표로 집계(06 보조지표, 목표 없음).
+  const DAILY_RECO_CLICK = {"2026-10-07":2,"2026-10-08":2,"2026-10-09":1,"2026-10-10":2,"2026-10-11":2};
+  const RECO_CLICK_TOTAL = 8; // 전체 기간 정확값(activeUsers)
 
   // 운세당 DB API(consultation-stats/monthly, baseMonth=2026-09·2026-10 조회) — 2026-10-06 조회.
   // AI 상담노트는 선불 전용 기능이라 후불 값은 전부 0(API로 실측 확인). 03 발송성공률의
   // 분자(알림톡 발송 성공건수, 최상위 aiNoteAlimtalkCount)와 분모(발송 시도 근사치로 쓰는
   // consultationCount.prepaid.aiNoteConsultation).
-  const DAILY_ALIMTALK = {"2026-09-30":23,"2026-10-01":22,"2026-10-02":40,"2026-10-03":38,"2026-10-04":44,"2026-10-05":60};
-  const ALIMTALK_TOTAL = 227;
-  const DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50};
-  const AINOTE_CONSULT_CNT_TOTAL = 208;
+  const DAILY_ALIMTALK = {"2026-09-30":23,"2026-10-01":22,"2026-10-02":40,"2026-10-03":38,"2026-10-04":44,"2026-10-05":60,"2026-10-06":52,"2026-10-07":73,"2026-10-08":63,"2026-10-09":57,"2026-10-10":59,"2026-10-11":54};
+  const ALIMTALK_TOTAL = 585;
+  const DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50,"2026-10-06":46,"2026-10-07":48,"2026-10-08":38,"2026-10-09":40,"2026-10-10":39,"2026-10-11":41};
+  const AINOTE_CONSULT_CNT_TOTAL = 460;
 
   // 06 전체 재상담율의 분모(userCount.prepaid.aiNoteConsultation)·분자(userCount.prepaid.
   // aiNoteRepeatConsultation, "전체 재상담" 유저수 — afterAiNoteRepeatConsultation은 현재 미사용).
   // 유저수는 날짜 간 중복제거가 보장되지 않아 일별 합산은 근사값(API가 baseMonth 단위만
   // 지원해 09월/10월에 걸친 이 구간의 단일 정확값을 재조회할 방법이 없음).
-  const DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28};
-  const AINOTE_CONSULT_USR_TOTAL = 127;
-  const DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17};
-  const AINOTE_REPEAT_USR_TOTAL = 59;
+  const DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28,"2026-10-06":32,"2026-10-07":29,"2026-10-08":25,"2026-10-09":28,"2026-10-10":24,"2026-10-11":26};
+  const AINOTE_CONSULT_USR_TOTAL = 291;
+  const DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17,"2026-10-06":15,"2026-10-07":12,"2026-10-08":11,"2026-10-09":13,"2026-10-10":10,"2026-10-11":17};
+  const AINOTE_REPEAT_USR_TOTAL = 137;
 
   // AI 상담노트 사용자수 — 운영진이 직접 전달한 실집계(DB 기준, GA4 비연동). 참고용으로만 표시하며
   // 목표/달성 판정에는 쓰지 않는다. 이 상수는 scripts/update_ga4_unsedang.py가 관리하는 블록
@@ -352,10 +391,10 @@
   // 그 배치 스크립트가 실행돼도 건드리지 않는다.
   const DAILY_AINOTE_USAGE = {"2026-09-30":23,"2026-10-01":24,"2026-10-02":38,"2026-10-03":39,"2026-10-04":32};
 
-  const DATE_RANGE = { from: '2026-09-30', to: '2026-10-07' };
+  const DATE_RANGE = { from: '2026-09-30', to: '2026-10-11' };
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
-  const GENERATED_AT = '2026-10-08 03:06 UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)';
+  const GENERATED_AT = '2026-10-12 00:31 UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)';
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
@@ -393,6 +432,7 @@
   const noteInfoValue = (from, to) => rangeSum(DAILY_NOTEINFO, PAGE_TOTALS.noteInfo, from, to);
   const subEventValue = (name, from, to) => rangeSum(DAILY_SUBEVENTS[name] || {}, SUBEVENT_TOTALS[name] || 0, from, to);
   const utmClickValue = (from, to) => rangeSum(DAILY_UTM_CLICK, UTM_CLICK_TOTAL, from, to);
+  const recoClickValue = (from, to) => rangeSum(DAILY_RECO_CLICK, RECO_CLICK_TOTAL, from, to);
   // GA4가 아니라 운영진이 직접 전달한 일별 실집계라 비집계 지표 문제가 없어 그냥 합산한다.
   const aiNoteUsageValue = (from, to) => rangeDates(from, to).reduce((acc, d) => acc + (DAILY_AINOTE_USAGE[d] || 0), 0);
   const alimtalkValue = (from, to) => rangeSum(DAILY_ALIMTALK, ALIMTALK_TOTAL, from, to);
@@ -426,6 +466,7 @@
     const submit = subEventValue('ai-note-review-submit', from, to).value;
     const councel = subEventValue('ai-note-councel-click', from, to).value;
     const utmClick = utmClickValue(from, to).value;
+    const recoClick = recoClickValue(from, to).value;
     const aiNoteUsage = aiNoteUsageValue(from, to);
     const alimtalk = alimtalkValue(from, to).value;
     const aiNoteConsultCnt = aiNoteConsultCntValue(from, to).value;
@@ -436,7 +477,22 @@
     const reviewBase = next + skip;
 
     return {
-      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, aiNoteUsage, alimtalk, aiNoteConsultCnt, aiNoteConsultUsr, aiNoteRepeatUsr },
+      counts: { call, pretel, aiNote, noteInfo, pop, agree, cancel, skip, next, submit, councel, utmClick, recoClick, aiNoteUsage, alimtalk, aiNoteConsultCnt, aiNoteConsultUsr, aiNoteRepeatUsr },
+      // 핵심 퍼널 — 1단계(AI 상담노트 상담 건수, DB aiNoteConsultCnt = consultationCount.
+      // prepaid.aiNoteConsultation, "AI 상담노트가 만들어진 상담 건수") 대비 전환율로 통일.
+      // alimtalk(발송)과 1단계 모두 활성사용자가 아니라 DB 건수(txn)지만, 퍼널 흐름을
+      // 보여주기 위해 기획 의도대로 1단계 대비 비율을 그대로 계산한다(집계 오류 아님).
+      // 3단계는 "알림톡 유입 수"(utmClick)와 "총 사용자 수"(noteInfo, 노트 진입페이지 전체
+      // 방문자)를 한 행에 병기한다(values 배열) — 사용자 요청으로 두 수치를 한 행으로 합쳐서 봄.
+      funnel: [
+        { no: 1, label: 'AI 상담노트 상담 건수', value: aiNoteConsultCnt, unit: 'txn' },
+        { no: 2, label: 'AI 상담노트 알림톡 발송 수', value: alimtalk, unit: 'txn' },
+        { no: 3, label: 'AI 상담노트 알림톡 유입 수 / 총 사용자 수', values: [{ value: utmClick, unit: 'count' }, { value: noteInfo, unit: 'count' }] },
+        { no: 4, label: 'AI 상담노트 후기 팝업 노출 수', value: reviewBase, unit: 'count' },
+        { no: 5, label: 'AI 상담노트 후기 작성 완료 수', value: submit, unit: 'count' },
+        { no: 6, label: '재상담하기 클릭 수', value: councel, unit: 'count' },
+        { no: 7, label: '추천 선생님 클릭 수 (2026-10-07부터 집계)', value: recoClick, unit: 'count' },
+      ],
       screens: [
         {
           no: '01', name: '상담 클릭', file: '상담하기 바텀시트',
@@ -512,8 +568,12 @@
             { key: 'recallCtr', label: '재상담 버튼 CTR', calc: '재상담 버튼 클릭 ÷ AI 상담보기(노트 진입)', target: 0.15, dir: 'up', kind: 'measured', value: ratio(councel, noteInfo) },
             { key: 'sameTeacher', label: '동일 선생님 재상담율', calc: '상담사 매칭 로그 연동 필요', target: 0.2, dir: 'up', kind: 'off', value: null },
             { key: 'totalRecall', label: '전체 재상담율', calc: 'AI 상담노트 재상담 유저수 ÷ AI 상담노트 생성 유저수', target: 0.3, dir: 'up', kind: 'measured', value: ratio(aiNoteRepeatUsr, aiNoteConsultUsr) },
+            { key: 'recoClick', label: '↳ 참고: 선생님 추천 버튼 클릭', calc: 'GA4 activeUsers(eventName contains callnote_reco_click_{선생님번호}, 전체 선생님 합산)', target: null, kind: 'aux', value: recoClick, unit: 'count' },
           ],
-          events: [{ label: '재상담 버튼 클릭', key: 'ai-note-councel-click', value: councel }],
+          events: [
+            { label: '재상담 버튼 클릭', key: 'ai-note-councel-click', value: councel },
+            { label: '선생님 추천 버튼 클릭', key: 'callnote_reco_click_*', value: recoClick },
+          ],
         },
       ],
     };
@@ -632,6 +692,138 @@
     if (status === 'aux') return '참고용';
     return '측정불가';
   }
+  // 일자별 상세/차트용 접근자 — 3단계는 표에서는 유입수/총사용자수 둘 다, 차트에서는
+  // 알림톡 유입 수(utmClick)만 쓴다(사용자 요청: "차트에 3번은 알림톡 유입 수 수치로").
+  const FUNNEL_DAILY = {
+    1: (d) => DAILY_AINOTE_CONSULT_CNT[d] || 0,
+    2: (d) => DAILY_ALIMTALK[d] || 0,
+    3: (d) => [DAILY_UTM_CLICK[d] || 0, DAILY_NOTEINFO[d] || 0],
+    4: (d) => (DAILY_SUBEVENTS['ai-note-review-next'][d] || 0) + (DAILY_SUBEVENTS['ai-note-review-skip'][d] || 0),
+    5: (d) => DAILY_SUBEVENTS['ai-note-review-submit'][d] || 0,
+    6: (d) => DAILY_SUBEVENTS['ai-note-councel-click'][d] || 0,
+    7: (d) => DAILY_RECO_CLICK[d] || 0,
+  };
+  const FUNNEL_CHART_TITLE = { 3: 'AI 상담노트 알림톡 유입 수' };
+  // 일자별 수치 표 전용 짧은 열 제목 — "AI 상담노트" 접두어와 7단계의 집계시작일 안내를
+  // 뺀 축약형(핵심 퍼널 요약표/차트 제목은 그대로 유지).
+  const FUNNEL_SHORT_LABEL = {
+    1: 'AI 노트 상담건수',
+    2: '알림톡 발송 수',
+    3: '상담노트 알림톡 유입 수 / 총 사용자 수',
+    4: '후기 팝업 노출 수',
+    5: '후기 작성 완료 수',
+    6: '재상담하기 클릭 수',
+    7: '추천 선생님 클릭 수',
+  };
+
+  function renderFunnelDailyTable(data, from, to) {
+    const dates = [...rangeDates(from, to)].reverse();
+    const head = `<th>일자</th>` + data.funnel.map((f) => `<th>${FUNNEL_SHORT_LABEL[f.no] || f.label}</th>`).join('');
+    const body = dates.map((d) => {
+      const cells = data.funnel.map((f) => {
+        const raw = FUNNEL_DAILY[f.no](d);
+        if (Array.isArray(raw)) return `<td>${raw.map((v) => fmtUsers(v)).join(' / ')}</td>`;
+        return `<td>${f.unit === 'txn' ? fmtTxn(raw) : fmtUsers(raw)}</td>`;
+      }).join('');
+      return `<tr><td>${d}</td>${cells}</tr>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h2>일자별 수치</h2>
+        <div class="table-scroll">
+        <table class="daily-tbl">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+        </div>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin:8px 0 0;">최신 날짜부터 표시합니다. 3단계는 "알림톡 유입 수 / 총 사용자 수" 순서입니다.</p>
+      </div>`;
+  }
+
+  function renderSparkline(dates, values) {
+    const w = 300, h = 86, padT = 10, padB = 8, padX = 4;
+    const innerW = w - padX * 2, innerH = h - padT - padB;
+    const n = values.length;
+    const maxV = Math.max(1, ...values);
+    const x = (i) => (n <= 1 ? padX + innerW / 2 : padX + (innerW * i) / (n - 1));
+    const y = (v) => padT + innerH - (innerH * v) / maxV;
+    const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const dots = values.map((v, i) =>
+      `<circle class="chart-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.8"><title>${dates[i]}: ${numFmt.format(v)}</title></circle>`
+    ).join('');
+    const lastIdx = n - 1;
+    const lastLabel = n > 0
+      ? `<text class="chart-val-label" x="${x(lastIdx).toFixed(1)}" y="${Math.max(10, y(values[lastIdx]) - 6).toFixed(1)}" text-anchor="end">${numFmt.format(values[lastIdx])}</text>`
+      : '';
+    return `
+      <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+        <polyline class="chart-line" points="${pts}" />
+        ${dots}
+        ${lastLabel}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:0.64rem;color:var(--text-dim);margin-top:2px;">
+        <span>${dates[0] || ''}</span><span>${dates[n - 1] || ''}</span>
+      </div>`;
+  }
+
+  // 지표마다 단위/규모가 달라(건 vs 명, 585건 vs 8명) 한 차트에 겹치면 작은 값이 눌린다 —
+  // 스몰 멀티플(지표별 독립 y축 미니 차트)로 쪼갠다. 단일 시리즈라 범례는 두지 않는다.
+  function renderFunnelCharts(data, from, to) {
+    const dates = rangeDates(from, to);
+    const cards = data.funnel.map((f) => {
+      const values = dates.map((d) => {
+        const raw = FUNNEL_DAILY[f.no](d);
+        return Array.isArray(raw) ? raw[0] : raw;
+      });
+      const title = FUNNEL_CHART_TITLE[f.no] || f.label;
+      const unitLabel = f.no === 3 ? '명(활성사용자)' : (f.unit === 'txn' ? '건' : '명(활성사용자)');
+      return `
+        <div class="chart-card">
+          <div class="chart-title">${f.no}. ${title}</div>
+          <div class="chart-sub">일자별 ${unitLabel} 추이</div>
+          ${renderSparkline(dates, values)}
+        </div>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h2>일자별 추이 차트</h2>
+        <div class="chart-grid">${cards}</div>
+      </div>`;
+  }
+
+  function renderCoreFunnel(data) {
+    const base = data.funnel[0].value;
+    const fmtFig = (v, unit) => unit === 'txn' ? fmtTxn(v) : fmtUsers(v);
+    const fmtFigPct = (v) => base > 0 ? fmtPct(v / base) : '–';
+    const rows = data.funnel.map((f) => {
+      let figTxt, pctTxt;
+      if (f.values) {
+        figTxt = f.values.map((v) => fmtFig(v.value, v.unit)).join(' / ');
+        pctTxt = f.values.map((v) => fmtFigPct(v.value)).join(' / ');
+      } else {
+        figTxt = fmtFig(f.value, f.unit);
+        pctTxt = f.no === 1 ? '기준' : fmtFigPct(f.value);
+      }
+      return `
+        <tr>
+          <td class="figcell">${f.no}</td>
+          <td>${f.label}</td>
+          <td class="figcell">${figTxt}</td>
+          <td class="figcell">${pctTxt}</td>
+        </tr>`;
+    }).join('');
+    return `
+      <div class="card">
+        <h2>핵심 퍼널 <span class="hint">1단계(AI 상담노트 상담 건수) 대비 전환율</span></h2>
+        <div class="table-scroll">
+        <table class="kpi">
+          <thead><tr><th>단계</th><th>지표</th><th>수치</th><th>1단계 대비</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        </div>
+      </div>`;
+  }
+
   function renderScoreboard(data) {
     let good = 0, bad = 0, off = 0;
     data.screens.forEach((s) => s.metrics.forEach((m) => {
@@ -711,9 +903,13 @@
       </div>`;
   }
 
+  let activeMainTab = 'funnel'; // 기본 선택 탭
+
   function render(from, to) {
     const data = buildMetrics(from, to);
-    const html = renderScoreboard(data) + data.screens.map(renderScreenCard).join('');
+    const html = activeMainTab === 'screens'
+      ? renderScoreboard(data) + data.screens.map(renderScreenCard).join('')
+      : renderCoreFunnel(data) + renderFunnelCharts(data, from, to) + renderFunnelDailyTable(data, from, to);
     document.getElementById('content').innerHTML = html;
   }
 
@@ -771,6 +967,17 @@
     };
     document.getElementById('customFrom').addEventListener('change', onCustomChange);
     document.getElementById('customTo').addEventListener('change', onCustomChange);
+
+    document.querySelectorAll('.main-tab-btn[data-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.tab === activeMainTab) return;
+        activeMainTab = btn.dataset.tab;
+        document.querySelectorAll('.main-tab-btn[data-tab]').forEach((b) => b.classList.toggle('active', b === btn));
+        const from = document.getElementById('customFrom').value || DATE_RANGE.from;
+        const to = document.getElementById('customTo').value || DATE_RANGE.to;
+        render(from, to);
+      });
+    });
 
     applyRange(DATE_RANGE.from, DATE_RANGE.to, 90);
     updateFooter();

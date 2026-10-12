@@ -16,7 +16,8 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 
 데이터 출처가 **두 종류**다:
 1. **GA4(Supermetrics/GAWA)** — CALL/PRETEL/PAGES(aiNote·noteInfo)/SUBEVENTS(7종)/
-   ENGAGEMENT/UTM_CLICK. `scripts/update_ga4_ainote_kpi_unsedang.py`는 Supermetrics를
+   ENGAGEMENT/UTM_CLICK/RECO_CLICK(선생님 추천 버튼 클릭, 06 보조지표).
+   `scripts/update_ga4_ainote_kpi_unsedang.py`는 Supermetrics를
    직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능) — 이 커맨드(에이전트)가 미리 JSON
    파일로 떠서 `--indir`에 넣어두면 스크립트가 읽는다. 기간 합계는 "새 날짜만 반영"이
    아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다(activeUsers는 비집계
@@ -46,7 +47,7 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
 5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
-## §2 증분 쿼리 6건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
+## §2 증분 쿼리 7건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
 `ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
 `start_date=incr_from`, `end_date=new_to`.
@@ -78,9 +79,14 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 - fields: `date,activeUsers`
 - filter: `sessionSource == 'kakao_alimtalk' AND sessionMedium == 'push' AND sessionCampaignName == 'callnote_created'`
 
+**쿼리 13 — 선생님 추천 버튼 클릭(06 보조지표, 선생님번호 전체 합산)**
+- fields: `date,activeUsers`
+- filter: `eventName =@ 'callnote_reco_click'` (eventName이 `callnote_reco_click_{선생님번호}`로
+  선생님마다 달라져 IN-list 불가 — contains로 전체 합산)
+
 응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
 
-## §3 기간 전체 쿼리 6건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from`(2026-09-30) ~ `new_to`)
+## §3 기간 전체 쿼리 7건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from`(2026-09-30) ~ `new_to`)
 
 `date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
 `date`를 뺀다.**
@@ -91,6 +97,7 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 **쿼리 10 — 추적 이벤트 7종 기간 합계**: fields `eventName,activeUsers`, filter는 쿼리 4와 동일
 **쿼리 11 — 참여시간 기간 합계**: fields `userEngagementDuration,activeUsers`, filter는 쿼리 5와 동일
 **쿼리 12 — UTM 클릭 기간 합계**: fields `activeUsers`, filter는 쿼리 6과 동일
+**쿼리 14 — 선생님 추천 버튼 클릭 기간 합계**: fields `activeUsers`, filter는 쿼리 13과 동일
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다. 창이 하루 늘 때마다 전체 누적 기간 기준으로 순사용자 수를 처음부터
@@ -98,7 +105,7 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 
 ## §4 임시 JSON 저장
 
-`mkdir -p /tmp/ga4-ainote-kpi-update/<YYYYMMDD-HHMMSS>/` 후 아래 12개 파일을 Write
+`mkdir -p /tmp/ga4-ainote-kpi-update/<YYYYMMDD-HHMMSS>/` 후 아래 14개 파일을 Write
 (DB API 쪽 4개 필드는 스크립트가 직접 호출하므로 여기서 스테이징하지 않는다):
 
 - `call_incremental.json` / `call_period.json`: `{"rows":[{"date","activeUsers"}]}` (쿼리1/7)
@@ -112,6 +119,8 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 - `engagement_period.json`: `{"rows":[{"totalEngagementDuration","activeUsers"}]}` (쿼리11, 한 행)
 - `utmclick_incremental.json` / `utmclick_period.json`: `{"rows":[{"date","activeUsers"}]}` /
   `{"rows":[{"activeUsers"}]}` (쿼리6/12, period는 한 행)
+- `recoclick_incremental.json` / `recoclick_period.json`: 동일 스키마 (쿼리13/14, 선생님
+  추천 버튼 클릭, 06 보조지표 — 트래픽이 적어 결측일이 정상)
 
 값이 0이거나 GA4 응답에 없던 날짜/경로/이벤트는 행을 만들지 않아도 된다(희소 저장 방식 —
 특히 추적 이벤트 7종은 트래픽이 적어 결측이 정상).

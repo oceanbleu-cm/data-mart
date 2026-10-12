@@ -53,6 +53,11 @@ AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, �
     utmclick_incremental.json / utmclick_period.json
         {"rows":[{"date","activeUsers"}]} / {"rows":[{"activeUsers"}]} (한 행)
         (utm_source=kakao_alimtalk AND utm_medium=push AND utm_campaign=callnote_created 필터.)
+    recoclick_incremental.json / recoclick_period.json
+        {"rows":[{"date","activeUsers"}]} / {"rows":[{"activeUsers"}]} (한 행)
+        (선생님 추천 버튼 클릭 — eventName이 callnote_reco_click_{선생님번호}로 선생님마다 달라져
+         정확히 일치하는 이름이 없다. eventName =@ 'callnote_reco_click' (contains)로 전체
+         선생님번호를 합산해 하나의 지표로 집계한다.)
 
 DB 쪽(ALIMTALK/AINOTE_CONSULT_CNT/AINOTE_CONSULT_USR/AINOTE_REPEAT_USR)은 파일 스테이징이
 필요 없다 — 이 스크립트가 adm.unsedang.com을 직접 호출한다. 네트워크 접근이 없는 환경(또는
@@ -397,6 +402,7 @@ FLAT_SERIES = [
     ('DAILY_CALL', 'CALL_TOTAL', 'call', 'ga4'),
     ('DAILY_PRETEL', 'PRETEL_TOTAL', 'pretel', 'ga4'),
     ('DAILY_UTM_CLICK', 'UTM_CLICK_TOTAL', 'utmclick', 'ga4'),
+    ('DAILY_RECO_CLICK', 'RECO_CLICK_TOTAL', 'recoclick', 'ga4'),
     ('DAILY_ALIMTALK', 'ALIMTALK_TOTAL', None, 'db'),
     ('DAILY_AINOTE_CONSULT_CNT', 'AINOTE_CONSULT_CNT_TOTAL', None, 'db'),
     ('DAILY_AINOTE_CONSULT_USR', 'AINOTE_CONSULT_USR_TOTAL', None, 'db'),
