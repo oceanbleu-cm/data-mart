@@ -1,0 +1,348 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 상담노트 5대 지표 비교 — 운세당</title>
+<style>
+  :root {
+    --bg: #f9f9f7;
+    --card-bg: #fcfcfb;
+    --text: #0b0b0b;
+    --text-dim: #52514e;
+    --text-mute: #898781;
+    --border: #e1e0d9;
+    --baseline: #c3c2b7;
+    --stripe: #f3f2ef;
+    --s1: #2a78d6; /* AI 노트 상담건수 */
+    --s2: #eb6834; /* 상담노트 알림톡 유입 수 */
+    --s3: #1baf7a; /* 총 사용자 수(노트 진입) */
+    --s4: #eda100; /* AI 노트이용 재상담 건수(선불) */
+    --s5: #e87ba4; /* 전체 재상담 건수(선불) */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d0d0d;
+      --card-bg: #1a1a19;
+      --text: #ffffff;
+      --text-dim: #c3c2b7;
+      --text-mute: #898781;
+      --border: #2c2c2a;
+      --baseline: #383835;
+      --stripe: #202020;
+      --s1: #3987e5;
+      --s2: #d95926;
+      --s3: #199e70;
+      --s4: #c98500;
+      --s5: #d55181;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d0d0d;
+    --card-bg: #1a1a19;
+    --text: #ffffff;
+    --text-dim: #c3c2b7;
+    --text-mute: #898781;
+    --border: #2c2c2a;
+    --baseline: #383835;
+    --stripe: #202020;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --s5: #d55181;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 56px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; margin: 4px 0 2px; }
+  .subtitle { font-size: 0.82rem; color: var(--text-dim); margin: 0 0 18px; }
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .card h2 { font-size: 0.9rem; font-weight: 700; margin: 0 0 10px; }
+  .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
+  footer { color: var(--text-mute); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
+
+  /* --- 범례 --- */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 0.74rem; color: var(--text-dim); }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* --- 비교(지수화) 차트 --- */
+  .idx-chart-wrap { position: relative; }
+  .idx-chart-wrap svg { display: block; width: 100%; height: 300px; }
+  .grid-line { stroke: var(--border); stroke-width: 1; }
+  .baseline-line { stroke: var(--baseline); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .axis-tick { font-size: 9.5px; fill: var(--text-mute); font-variant-numeric: tabular-nums; }
+  .idx-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .idx-dot { r: 2.6; }
+  .crosshair { stroke: var(--text-dim); stroke-width: 1; opacity: 0; pointer-events: none; }
+  .hit-rect { fill: transparent; }
+  .tooltip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.08s;
+    background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 0.72rem; box-shadow: 0 4px 12px rgba(0,0,0,0.12); min-width: 190px; z-index: 10;
+  }
+  .tooltip .t-date { font-weight: 700; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+  .tooltip .t-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; padding: 1.5px 0; }
+  .tooltip .t-row .lbl { display: flex; align-items: center; gap: 5px; color: var(--text-dim); white-space: nowrap; }
+  .tooltip .t-row .dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .tooltip .t-row .val { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: 8px; }
+
+  /* --- 스몰 멀티플(지표별 실측값) --- */
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .chart-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 6px; background: var(--card-bg); }
+  .chart-card .chart-title { font-size: 0.78rem; font-weight: 700; margin-bottom: 1px; display: flex; align-items: center; gap: 6px; }
+  .chart-card .chart-title .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .chart-card .chart-sub { font-size: 0.66rem; color: var(--text-mute); margin-bottom: 4px; }
+  .sm-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .sm-dot { r: 2.8; }
+  .sm-val-label { font-size: 9px; fill: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* --- 데이터 테이블 --- */
+  .table-scroll { overflow-x: auto; }
+  table.daily-tbl { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; font-size: 0.78rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  table.daily-tbl th, table.daily-tbl td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); padding: 7px 9px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  table.daily-tbl th:first-child, table.daily-tbl td:first-child { text-align: left; }
+  table.daily-tbl th:last-child, table.daily-tbl td:last-child { border-right: none; }
+  table.daily-tbl tr:last-child td { border-bottom: none; }
+  table.daily-tbl th { background: var(--stripe); font-weight: 700; color: var(--text-dim); font-size: 0.7rem; }
+  table.daily-tbl th .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+  table.daily-tbl tbody tr:nth-child(even) { background: var(--stripe); }
+  table.daily-tbl tfoot td { font-weight: 800; background: var(--stripe); border-top: 2px solid var(--border); }
+  table.daily-tbl tfoot .approx { display: block; font-weight: 500; font-size: 0.64rem; color: var(--text-mute); }
+</style>
+<body>
+  <div class="wrap">
+    <h1>AI 상담노트 핵심 5지표 비교</h1>
+    <p class="subtitle">2026-09-30 ~ 2026-10-12 (전체 13일) · Supermetrics GA4(GAWA) + 운세당 DB API, 정적 스냅샷 · 원본: ga4-ainote-kpi-unsedang.html</p>
+
+    <div class="card">
+      <h2>추이 비교 <span class="hint">일별 값 ÷ 13일 평균 × 100 (지표별 자체 평균 기준 지수화)</span></h2>
+      <div class="legend" id="legend"></div>
+      <div class="idx-chart-wrap" id="idxChartWrap"></div>
+      <p style="font-size:0.7rem;color:var(--text-mute);margin:8px 0 0;">
+        집계 시작일(09-30)은 신규 기능 런칭 첫날이라 값이 작아 기준(100=첫날)으로 잡으면 다른 날이 일괄적으로
+        과대 팽창돼 보입니다 — 그래서 "첫날=100" 대신 "지표 자체의 13일 평균=100"으로 지수화해 다섯 지표의
+        상대적 등락만 공정하게 비교합니다. 차트에 마우스를 올리면 해당 날짜의 5개 지표 실측값을 볼 수 있습니다.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>지표별 일별 추이(실측값)</h2>
+      <div class="chart-grid" id="chartGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>일자별 수치표</h2>
+      <div class="table-scroll" id="tableWrap"></div>
+    </div>
+
+    <footer>
+      생성: 2026-10-13 · AI상담노트 KPI 리포트(ga4-ainote-kpi-unsedang.html)의 5개 핵심 지표를 13일 전체 기준으로
+      뽑아 비교한 별도 스냅샷입니다 — 원본 리포트와 별개로 갱신되지 않습니다.<br>
+      용어: "건"=상담/상담노트 생성 등 이벤트 발생 건수(DB API, 중복 포함). "명"=GA4 activeUsers(동일 기간 내
+      중복 제거된 순사용자 수).
+    </footer>
+  </div>
+
+<script>
+  const numFmt = new Intl.NumberFormat('ko-KR');
+
+  const DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50,"2026-10-06":46,"2026-10-07":48,"2026-10-08":38,"2026-10-09":40,"2026-10-10":39,"2026-10-11":41,"2026-10-12":90};
+  const DAILY_UTM_CLICK = {"2026-09-30":3,"2026-10-01":10,"2026-10-02":12,"2026-10-03":11,"2026-10-04":9,"2026-10-05":20,"2026-10-06":14,"2026-10-07":19,"2026-10-08":19,"2026-10-09":20,"2026-10-10":13,"2026-10-11":19,"2026-10-12":34};
+  const DAILY_NOTEINFO = {"2026-09-30":11,"2026-10-01":17,"2026-10-02":24,"2026-10-03":22,"2026-10-04":13,"2026-10-05":26,"2026-10-06":25,"2026-10-07":35,"2026-10-08":26,"2026-10-09":27,"2026-10-10":26,"2026-10-11":27,"2026-10-12":46};
+  const DAILY_AINOTE_AFTER_REPEAT_CNT = {"2026-09-30":13,"2026-10-01":5,"2026-10-02":18,"2026-10-03":13,"2026-10-04":11,"2026-10-05":20,"2026-10-06":16,"2026-10-07":11,"2026-10-08":15,"2026-10-09":11,"2026-10-10":12,"2026-10-11":11,"2026-10-12":27};
+  const DAILY_AINOTE_REPEAT_CNT = {"2026-09-30":17,"2026-10-01":12,"2026-10-02":22,"2026-10-03":18,"2026-10-04":17,"2026-10-05":30,"2026-10-06":25,"2026-10-07":24,"2026-10-08":19,"2026-10-09":20,"2026-10-10":18,"2026-10-11":24,"2026-10-12":45};
+
+  // 기간 전체 정확값(GA4 비집계 지표는 일별합산이 아닌 기간 재조회값, 건수 지표는 일별합산과 일치)
+  const PERIOD_TOTALS = {
+    consultCnt: 550,   // DB API 건수 — 일별 합산과 일치
+    utmClick: 160,     // GA4 activeUsers — 기간 재조회 정확값(일별 합산 203과 다름)
+    noteInfo: 248,     // GA4 activeUsers — 기간 재조회 정확값(일별 합산 325와 다름)
+    afterRepeatCnt: 183, // DB API 건수 — 일별 합산과 일치
+    repeatCnt: 291,    // DB API 건수 — 일별 합산과 일치
+  };
+
+  const DATES = Object.keys(DAILY_AINOTE_CONSULT_CNT); // 2026-09-30 ~ 2026-10-12, 오름차순
+
+  const METRICS = [
+    { key: 'consultCnt', label: 'AI 노트 상담건수', unit: '건', color: 'var(--s1)', daily: DAILY_AINOTE_CONSULT_CNT, total: PERIOD_TOTALS.consultCnt, additive: true },
+    { key: 'utmClick', label: '상담노트 알림톡 유입 수', unit: '명', color: 'var(--s2)', daily: DAILY_UTM_CLICK, total: PERIOD_TOTALS.utmClick, additive: false },
+    { key: 'noteInfo', label: '총 사용자 수(노트 진입)', unit: '명', color: 'var(--s3)', daily: DAILY_NOTEINFO, total: PERIOD_TOTALS.noteInfo, additive: false },
+    { key: 'afterRepeatCnt', label: 'AI 노트이용 재상담 건수(선불)', unit: '건', color: 'var(--s4)', daily: DAILY_AINOTE_AFTER_REPEAT_CNT, total: PERIOD_TOTALS.afterRepeatCnt, additive: true },
+    { key: 'repeatCnt', label: '전체 재상담 건수(선불)', unit: '건', color: 'var(--s5)', daily: DAILY_AINOTE_REPEAT_CNT, total: PERIOD_TOTALS.repeatCnt, additive: true },
+  ];
+
+  function mmdd(d) { return d.slice(5); }
+
+  // ---------- 2) 범례 ----------
+  document.getElementById('legend').innerHTML = METRICS.map((m) =>
+    `<div class="item"><span class="dot" style="background:${m.color};"></span>${m.label}</div>`
+  ).join('');
+
+  // ---------- 3) 비교(지수화) 차트 ----------
+  function renderIndexChart() {
+    const w = 900, h = 300, padL = 34, padR = 12, padT = 14, padB = 26;
+    const innerW = w - padL - padR, innerH = h - padT - padB;
+    const n = DATES.length;
+    const x = (i) => padL + (innerW * i) / (n - 1);
+
+    const series = METRICS.map((m) => {
+      const values = DATES.map((d) => m.daily[d] || 0);
+      const avg = values.reduce((a, v) => a + v, 0) / values.length;
+      const idx = values.map((v) => (avg > 0 ? (v / avg) * 100 : 0));
+      return { ...m, values, idx };
+    });
+
+    const allIdx = series.flatMap((s) => s.idx);
+    const rawMax = Math.max(...allIdx, 100);
+    const rawMin = Math.min(...allIdx, 100);
+    const niceMax = Math.ceil((rawMax * 1.08) / 25) * 25;
+    const niceMin = Math.max(0, Math.floor((rawMin * 0.9) / 25) * 25);
+    const y = (v) => padT + innerH - (innerH * (v - niceMin)) / (niceMax - niceMin);
+
+    const ticks = [];
+    for (let t = niceMin; t <= niceMax; t += 50) ticks.push(t);
+
+    const gridLines = ticks.map((t) =>
+      `<line class="${t === 100 ? 'baseline-line' : 'grid-line'}" x1="${padL}" y1="${y(t).toFixed(1)}" x2="${w - padR}" y2="${y(t).toFixed(1)}" />
+       <text class="axis-tick" x="${padL - 6}" y="${(y(t) + 3).toFixed(1)}" text-anchor="end">${t}</text>`
+    ).join('');
+
+    const xTicks = DATES.map((d, i) => {
+      const anchor = i === 0 ? 'start' : (i === n - 1 ? 'end' : 'middle');
+      return `<text class="axis-tick" x="${x(i).toFixed(1)}" y="${h - 8}" text-anchor="${anchor}">${mmdd(d)}</text>`;
+    }).join('');
+
+    const lines = series.map((s) => {
+      const pts = s.idx.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+      const dots = s.idx.map((v, i) =>
+        `<circle class="idx-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.6" fill="${s.color}" />`
+      ).join('');
+      return `<polyline class="idx-line" points="${pts}" stroke="${s.color}" />${dots}`;
+    }).join('');
+
+    const xPositions = DATES.map((_, i) => x(i));
+
+    const hitRects = DATES.map((_, i) => {
+      const bw = innerW / n;
+      const bx = padL + bw * i;
+      return `<rect class="hit-rect" data-idx="${i}" x="${bx.toFixed(1)}" y="${padT}" width="${bw.toFixed(1)}" height="${innerH}" />`;
+    }).join('');
+
+    const svg = `
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        ${gridLines}
+        ${lines}
+        <line class="crosshair" id="crosshairLine" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" />
+        ${xTicks}
+        ${hitRects}
+      </svg>
+      <div class="tooltip" id="idxTooltip"></div>`;
+
+    document.getElementById('idxChartWrap').innerHTML = svg;
+
+    const wrap = document.getElementById('idxChartWrap');
+    const tooltip = document.getElementById('idxTooltip');
+    const crosshairLine = document.getElementById('crosshairLine');
+
+    function showIdx(i) {
+      const xPix = xPositions[i];
+      crosshairLine.setAttribute('x1', xPix.toFixed(1));
+      crosshairLine.setAttribute('x2', xPix.toFixed(1));
+      crosshairLine.style.opacity = '1';
+
+      const rows = series.map((s) =>
+        `<div class="t-row">
+           <span class="lbl"><span class="dot" style="background:${s.color};"></span>${s.label}</span>
+           <span class="val">${numFmt.format(s.values[i])}${s.unit} <span style="color:var(--text-mute);font-weight:500;">(${s.idx[i].toFixed(0)})</span></span>
+         </div>`
+      ).join('');
+      tooltip.innerHTML = `<div class="t-date">${DATES[i]}</div>${rows}`;
+      tooltip.style.opacity = '1';
+
+      const wrapRect = wrap.getBoundingClientRect();
+      const svgEl = wrap.querySelector('svg');
+      const svgRect = svgEl.getBoundingClientRect();
+      const pixelX = svgRect.left - wrapRect.left + (xPix / w) * svgRect.width;
+      let left = pixelX + 14;
+      const ttWidth = tooltip.offsetWidth || 190;
+      if (left + ttWidth > wrapRect.width) left = pixelX - ttWidth - 14;
+      tooltip.style.left = Math.max(0, left) + 'px';
+      tooltip.style.top = '6px';
+    }
+
+    function hideIdx() {
+      tooltip.style.opacity = '0';
+      crosshairLine.style.opacity = '0';
+    }
+
+    wrap.querySelectorAll('.hit-rect').forEach((rect) => {
+      const i = Number(rect.getAttribute('data-idx'));
+      rect.addEventListener('mouseenter', () => showIdx(i));
+      rect.addEventListener('mousemove', () => showIdx(i));
+    });
+    wrap.addEventListener('mouseleave', hideIdx);
+  }
+  renderIndexChart();
+
+  // ---------- 4) 스몰 멀티플(지표별 실측값) ----------
+  function renderSmallMultiple(m) {
+    const w = 320, h = 90, padT = 10, padB = 16, padX = 6;
+    const innerW = w - padX * 2, innerH = h - padT - padB;
+    const values = DATES.map((d) => m.daily[d] || 0);
+    const n = values.length;
+    const maxV = Math.max(1, ...values);
+    const x = (i) => (n <= 1 ? padX + innerW / 2 : padX + (innerW * i) / (n - 1));
+    const y = (v) => padT + innerH - (innerH * v) / maxV;
+    const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const dots = values.map((v, i) =>
+      `<circle class="sm-dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.8" fill="${m.color}"><title>${DATES[i]}: ${numFmt.format(v)}${m.unit}</title></circle>`
+    ).join('');
+    const lastIdx = n - 1;
+    const lastLabel = `<text class="sm-val-label" x="${x(lastIdx).toFixed(1)}" y="${Math.max(10, y(values[lastIdx]) - 6).toFixed(1)}" text-anchor="end">${numFmt.format(values[lastIdx])}</text>`;
+    return `
+      <div class="chart-card">
+        <div class="chart-title"><span class="dot" style="background:${m.color};"></span>${m.label}</div>
+        <div class="chart-sub">단위: ${m.unit} · 기간 합계 ${numFmt.format(m.total)}${m.unit}</div>
+        <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+          <polyline class="sm-line" points="${pts}" stroke="${m.color}" />
+          ${dots}
+          ${lastLabel}
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:0.64rem;color:var(--text-mute);margin-top:2px;">
+          <span>${mmdd(DATES[0])}</span><span>${mmdd(DATES[n - 1])}</span>
+        </div>
+      </div>`;
+  }
+  document.getElementById('chartGrid').innerHTML = METRICS.map(renderSmallMultiple).join('');
+
+  // ---------- 5) 일자별 수치표 ----------
+  function renderTable() {
+    const head = `<th>일자</th>` + METRICS.map((m) =>
+      `<th><span class="dot" style="background:${m.color};"></span>${m.label}<br>(${m.unit})</th>`
+    ).join('');
+    const body = [...DATES].reverse().map((d) => {
+      const cells = METRICS.map((m) => `<td>${numFmt.format(m.daily[d] || 0)}</td>`).join('');
+      return `<tr><td>${d}</td>${cells}</tr>`;
+    }).join('');
+    const footCells = METRICS.map((m) => {
+      const dailySum = DATES.reduce((a, dd) => a + (m.daily[dd] || 0), 0);
+      const note = m.additive ? '' : `<span class="approx">(일별합산 ${numFmt.format(dailySum)} — 중복 포함)</span>`;
+      return `<td>${numFmt.format(m.total)}${note}</td>`;
+    }).join('');
+    document.getElementById('tableWrap').innerHTML = `
+      <table class="daily-tbl">
+        <thead><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td>합계(13일)</td>${footCells}</tr></tfoot>
+      </table>`;
+  }
+  renderTable();
+</script>
+</body>
