@@ -385,10 +385,11 @@
   const AINOTE_REPEAT_USR_TOTAL = 161;
 
   // 핵심 퍼널 8단계 — consultationCount.prepaid 기준 건수(위 06화면 유저수 지표와는 분모가
-  // 다른 별도 지표). aiNoteRepeatConsultation="전체 재상담 건수"(후불은 전 기간 0이라 선불만
-  // 읽어도 정확함). afterAiNoteRepeatConsultation="AI 노트이용 재상담 건수(선불)"(AI 상담노트
-  // 알림톡을 받은 뒤 재상담한 건수) — 이 필드는 후불에도 값이 존재하지만(이 기간 23건)
-  // 의도적으로 선불만 집계한다(리포트 전체가 "AI상담노트=선불 전용" 원칙을 따름).
+  // 다른 별도 지표). aiNoteRepeatConsultation="AI노트가 생성된 재상담 건수"(후불은 전 기간
+  // 0이라 선불만 읽어도 정확함). afterAiNoteRepeatConsultation="AI노트를 사용후 재상담
+  // 건수(선불)"(AI 상담노트 알림톡을 받은 뒤 재상담한 건수) — 이 필드는 후불에도 값이
+  // 존재하지만(이 기간 23건) 의도적으로 선불만 집계한다(리포트 전체가 "AI상담노트=선불 전용"
+  // 원칙을 따름).
   const DAILY_AINOTE_REPEAT_CNT = {"2026-09-30":17,"2026-10-01":12,"2026-10-02":22,"2026-10-03":18,"2026-10-04":17,"2026-10-05":30,"2026-10-06":25,"2026-10-07":24,"2026-10-08":19,"2026-10-09":20,"2026-10-10":18,"2026-10-11":24,"2026-10-12":45};
   const AINOTE_REPEAT_CNT_TOTAL = 291; // 전체 기간 정확값
   const DAILY_AINOTE_AFTER_REPEAT_CNT = {"2026-09-30":13,"2026-10-01":5,"2026-10-02":18,"2026-10-03":13,"2026-10-04":11,"2026-10-05":20,"2026-10-06":16,"2026-10-07":11,"2026-10-08":15,"2026-10-09":11,"2026-10-10":12,"2026-10-11":11,"2026-10-12":27};
@@ -506,7 +507,7 @@
         { no: 5, label: 'AI 상담노트 후기 작성 완료 수', value: submit, unit: 'count' },
         { no: 6, label: '재상담하기 클릭 수', value: councel, unit: 'count' },
         { no: 7, label: '추천 선생님 클릭 수 (2026-10-07부터 집계)', value: recoClick, unit: 'count' },
-        { no: 8, label: 'AI 노트이용 재상담 건수(선불) / 전체 재상담 건수(선불)', values: [{ value: aiNoteAfterRepeatCnt, unit: 'txn' }, { value: aiNoteRepeatCnt, unit: 'txn' }] },
+        { no: 8, label: 'AI노트를 사용후 재상담 건수(선불) / AI노트가 생성된 재상담 건수(선불)', values: [{ value: aiNoteAfterRepeatCnt, unit: 'txn' }, { value: aiNoteRepeatCnt, unit: 'txn' }] },
       ],
       screens: [
         {
@@ -719,7 +720,7 @@
     7: (d) => DAILY_RECO_CLICK[d] || 0,
     8: (d) => [DAILY_AINOTE_AFTER_REPEAT_CNT[d] || 0, DAILY_AINOTE_REPEAT_CNT[d] || 0],
   };
-  const FUNNEL_CHART_TITLE = { 3: 'AI 상담노트 알림톡 유입 수', 8: 'AI 노트이용 재상담 건수(선불)' };
+  const FUNNEL_CHART_TITLE = { 3: 'AI 상담노트 알림톡 유입 수', 8: 'AI노트를 사용후 재상담 건수(선불)' };
   // 일자별 수치 표 전용 짧은 열 제목 — "AI 상담노트" 접두어와 7단계의 집계시작일 안내를
   // 뺀 축약형(핵심 퍼널 요약표/차트 제목은 그대로 유지).
   const FUNNEL_SHORT_LABEL = {
@@ -841,7 +842,7 @@
           <tbody>${rows}</tbody>
         </table>
         </div>
-        <p style="font-size:0.72rem;color:var(--text-dim);margin:8px 0 0;">8단계(AI 노트이용 재상담 건수(선불) / 전체 재상담 건수(선불))는 <span style="color:var(--bad);">AI상담노트가 생성된 상담건 기준입니다.</span></p>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin:8px 0 0;">8단계(AI노트를 사용후 재상담 건수(선불) / AI노트가 생성된 재상담 건수(선불))는 <span style="color:var(--bad);">AI상담노트가 생성된 상담건 기준입니다.</span></p>
       </div>`;
   }
 
