@@ -15,8 +15,8 @@
     --s1: #2a78d6; /* AI 노트 상담건수 */
     --s2: #eb6834; /* 상담노트 알림톡 유입 수 */
     --s3: #1baf7a; /* 총 사용자 수(노트 진입) */
-    --s4: #eda100; /* AI 노트이용 재상담 건수(선불) */
-    --s5: #e87ba4; /* 전체 재상담 건수(선불) */
+    --s4: #eda100; /* AI노트를 사용후 재상담 건수(선불) */
+    --s5: #e87ba4; /* AI노트가 생성된 재상담 건수(선불) */
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -174,8 +174,8 @@
     { key: 'consultCnt', label: 'AI 노트 상담건수', unit: '건', color: 'var(--s1)', daily: DAILY_AINOTE_CONSULT_CNT, total: PERIOD_TOTALS.consultCnt, additive: true },
     { key: 'utmClick', label: '상담노트 알림톡 유입 수', unit: '명', color: 'var(--s2)', daily: DAILY_UTM_CLICK, total: PERIOD_TOTALS.utmClick, additive: false },
     { key: 'noteInfo', label: '총 사용자 수(노트 진입)', unit: '명', color: 'var(--s3)', daily: DAILY_NOTEINFO, total: PERIOD_TOTALS.noteInfo, additive: false },
-    { key: 'afterRepeatCnt', label: 'AI 노트이용 재상담 건수(선불)', unit: '건', color: 'var(--s4)', daily: DAILY_AINOTE_AFTER_REPEAT_CNT, total: PERIOD_TOTALS.afterRepeatCnt, additive: true },
-    { key: 'repeatCnt', label: '전체 재상담 건수(선불)', unit: '건', color: 'var(--s5)', daily: DAILY_AINOTE_REPEAT_CNT, total: PERIOD_TOTALS.repeatCnt, additive: true },
+    { key: 'afterRepeatCnt', label: 'AI노트를 사용후 재상담 건수(선불)', unit: '건', color: 'var(--s4)', daily: DAILY_AINOTE_AFTER_REPEAT_CNT, total: PERIOD_TOTALS.afterRepeatCnt, additive: true },
+    { key: 'repeatCnt', label: 'AI노트가 생성된 재상담 건수(선불)', unit: '건', color: 'var(--s5)', daily: DAILY_AINOTE_REPEAT_CNT, total: PERIOD_TOTALS.repeatCnt, additive: true },
   ];
 
   function mmdd(d) { return d.slice(5); }
