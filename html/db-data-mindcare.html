@@ -836,7 +836,10 @@
       lastMonthNoData = !!e.noData; // resCd 8888(해당 월 데이터 없음)이면 탭을 숨긴다
       lastMonthData = undefined; // 그 외 진짜 조회 실패는 탭을 그대로 두고 월 뷰에서 재시도하게 둔다
     }
-    const lastMonthEmpty = lastMonthData && (!lastMonthData.dailyStats || lastMonthData.dailyStats.length === 0);
+    const lastMonthEmpty = lastMonthData && (
+      !lastMonthData.carrierStats ||
+      lastMonthData.carrierStats.every((c) => !c.monthly || !c.monthly.dailyStats || c.monthly.dailyStats.length === 0)
+    );
     if ((lastMonthNoData || lastMonthEmpty) && months.length > 1) {
       months = months.slice(0, -1);
     }
