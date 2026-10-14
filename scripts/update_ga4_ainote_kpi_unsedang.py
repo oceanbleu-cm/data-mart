@@ -30,6 +30,15 @@ AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, �
 사용법:
     python3 update_ga4_ainote_kpi_unsedang.py --html <path> --indir <tmpdir> [--dry-run]
                                                [--generated-at STR] [--no-backup] [--skip-db]
+    python3 update_ga4_ainote_kpi_unsedang.py --html <path> --db-only [--to YYYY-MM-DD]
+                                               [--dry-run] [--generated-at STR] [--no-backup]
+
+`--db-only`: GA4 쪽(DATE_RANGE 포함)은 전혀 건드리지 않고 DB API 쪽 6개 지표
+(ALIMTALK/AINOTE_CONSULT_CNT/AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/
+AINOTE_AFTER_REPEAT_CNT)만 START_DATE~(--to 또는 기존 DATE_RANGE.to)로 다시 조회해 채운다.
+직전 실행이 DB API 장애로 `--skip-db`를 썼을 때 GA4 쪽은 이미 최신이라 일반 증분 실행으로는
+재시도 트리거가 안 걸리는 경우(증분 GA4 신규 날짜가 없어 조기 종료됨)를 메우기 위한
+땜빵용 모드다 — `--indir` 불필요.
 
 입력 디렉터리(--indir) 안의 GA4 JSON 파일 12개:
     call_incremental.json / call_period.json
@@ -429,16 +438,107 @@ DB_FIELD_MAP = {
 }
 
 
+def db_only_main(args, src, date_range, old_daily):
+    """GA4/DATE_RANGE는 그대로 두고 DB API 6개 지표만 START_DATE~new_to로 재조회해 채운다."""
+    new_to = args.to or date_range['to']
+    new_from = START_DATE
+    if date.fromisoformat(new_to) > date.fromisoformat(date_range['to']):
+        raise SafetyError(
+            f'--db-only에서 --to({new_to})가 기존 DATE_RANGE.to({date_range["to"]})보다 미래입니다 — '
+            'DB만 GA4보다 앞서갈 수 없습니다. GA4도 같이 갱신하려면 --db-only 없이 일반 모드로 실행하세요.'
+        )
+
+    db_daily = fetch_db_daily(new_from, new_to)
+    new_daily = {}
+    new_total = {}
+    for daily_name, field in DB_FIELD_MAP.items():
+        merged = dict(old_daily[daily_name])
+        for d, rec in db_daily.items():
+            merged[d] = rec[field]
+        new_daily[daily_name] = dict(sorted(merged.items()))
+
+    total_name_map = {name: total for name, total, _prefix, src_ in FLAT_SERIES if src_ == 'db'}
+    for daily_name, total_name in total_name_map.items():
+        new_total[total_name] = sum(new_daily[daily_name].values())
+
+    warnings = []
+    missing_db_dates = set(window_dates(new_from, new_to)) - set(db_daily)
+    if missing_db_dates:
+        warnings.append(f'DB API dailyStats에 누락된 날짜: {sorted(missing_db_dates)[:5]}...')
+    for daily_name, total_name in total_name_map.items():
+        warnings += validate_flat(daily_name, new_daily[daily_name], new_total[total_name], new_from, new_to,
+                                   check_period_range=False)
+
+    generated_at = args.generated_at or datetime.now(timezone.utc).strftime(GENERATED_AT_FMT)
+
+    new_src = src
+    for daily_name, total_name in total_name_map.items():
+        s, e, _ = extract_single_line_block(new_src, daily_name)
+        new_src = replace_block_text(new_src, s, e, render_flat(daily_name, new_daily[daily_name]))
+        new_src = patch_scalar(new_src, total_name, new_total[total_name])
+    new_src = patch_generated_at(new_src, generated_at)
+
+    # --- 스모크 테스트 ---
+    for daily_name, total_name in total_name_map.items():
+        _, _, chk = extract_single_line_block(new_src, daily_name)
+        assert parse_flat_dict(chk) == new_daily[daily_name]
+        assert extract_scalar(new_src, total_name)[2] == new_total[total_name]
+    assert parse_scalars(new_src) == date_range  # DATE_RANGE 불변 확인
+
+    print('=== update_ga4_ainote_kpi_unsedang.py --db-only 요약 ===')
+    print(f'DB 재조회 범위: {new_from}~{new_to} (GA4/DATE_RANGE는 변경 없음: {date_range["from"]}~{date_range["to"]})')
+    print(f'ALIMTALK/AINOTE_CONSULT_CNT/CONSULT_USR/REPEAT_USR/REPEAT_CNT/AFTER_REPEAT_CNT 기간 합계: '
+          f'{new_total["ALIMTALK_TOTAL"]}/{new_total["AINOTE_CONSULT_CNT_TOTAL"]}/'
+          f'{new_total["AINOTE_CONSULT_USR_TOTAL"]}/{new_total["AINOTE_REPEAT_USR_TOTAL"]}/'
+          f'{new_total["AINOTE_REPEAT_CNT_TOTAL"]}/{new_total["AINOTE_AFTER_REPEAT_CNT_TOTAL"]}')
+    if warnings:
+        print('경고:')
+        for w in warnings:
+            print(f'  - {w}')
+    else:
+        print('경고: (없음)')
+
+    if args.dry_run:
+        print('\n--dry-run 이므로 파일을 쓰지 않았습니다.')
+        return
+
+    if not args.no_backup:
+        ts = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')
+        backup_path = f'{args.html}.bak-{ts}'
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            f.write(src)
+        print(f'백업: {backup_path}')
+
+    dir_ = os.path.dirname(os.path.abspath(args.html))
+    fd, tmp_path = tempfile.mkstemp(dir=dir_, prefix='.ga4-ainote-kpi-', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(new_src)
+        os.replace(tmp_path, args.html)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        raise
+
+    print(f'완료: {args.html} 갱신됨')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--html', required=True)
-    ap.add_argument('--indir', required=True, help='GA4 증분/기간 JSON이 들어있는 디렉터리')
-    ap.add_argument('--to', default=None, help='새 종료일(YYYY-MM-DD). 기본: GA4 증분 데이터의 최댓값')
+    ap.add_argument('--indir', default=None, help='GA4 증분/기간 JSON이 들어있는 디렉터리 (--db-only면 불필요)')
+    ap.add_argument('--to', default=None, help='새 종료일(YYYY-MM-DD). 기본: GA4 증분 데이터의 최댓값(--db-only는 기존 DATE_RANGE.to)')
     ap.add_argument('--generated-at', default=None)
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--no-backup', action='store_true')
     ap.add_argument('--skip-db', action='store_true', help='DB API 호출을 건너뛴다(네트워크 불가 시)')
+    ap.add_argument('--db-only', action='store_true', help='GA4/DATE_RANGE는 건드리지 않고 DB API 6개 지표만 재조회해 채운다')
     args = ap.parse_args()
+
+    if not args.db_only and not args.indir:
+        ap.error('--indir은 --db-only가 아닌 한 필수입니다.')
+    if args.db_only and args.skip_db:
+        ap.error('--db-only와 --skip-db는 동시에 쓸 수 없습니다(할 일이 없어집니다).')
 
     with open(args.html, encoding='utf-8') as f:
         src = f.read()
@@ -452,6 +552,10 @@ def main():
         _, _, body = extract_single_line_block(src, daily_name)
         old_daily[daily_name] = parse_flat_dict(body)
         old_total[total_name] = extract_scalar(src, total_name)[2]
+
+    if args.db_only:
+        db_only_main(args, src, date_range, old_daily)
+        return
 
     _, _, pages_ai_body = extract_single_line_block(src, 'DAILY_AINOTE')
     _, _, pages_note_body = extract_single_line_block(src, 'DAILY_NOTEINFO')

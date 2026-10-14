@@ -37,6 +37,19 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 `scripts/update_ga4_ainote_kpi_unsedang.py`는 GA4 쪽 병합/재작성만 담당하고, DB API
 쪽은 스크립트 자신이 직접 호출한다.
 
+**⚠️ DB만 뒤처지는 상황(복구법)**: 직전 실행이 `--skip-db`로 DB 쪽을 건너뛰었는데 GA4는
+이미 D-1까지 최신인 경우, §1-4의 "이미 최신" 조기 종료 조건(`incr_from > new_to`)이
+GA4 기준으로만 판단하기 때문에 **일반 재실행으로는 DB가 영영 안 채워진다**(다음날 GA4
+범위가 하루 더 늘어나면 그때는 전체 기간 재조회에 DB도 묻어가면서 저절로 채워지지만,
+당일 안에 채우려면 일반 재실행으로는 안 됨). 이럴 때는 §1-§5 전체를 건너뛰고 바로:
+```
+python3 scripts/update_ga4_ainote_kpi_unsedang.py --html html/ga4-ainote-kpi-unsedang.html --db-only
+```
+를 실행한다(`--indir` 불필요, GA4/DATE_RANGE는 전혀 건드리지 않고 DB API 6개 지표만
+START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 확인:
+`curl -s -o /dev/null -w '%{http_code}\n' "https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=<YYYY-MM>"`
+가 200이면 시도할 가치가 있다.
+
 ## §1 사전 확인
 
 1. `get_today` 툴을 호출해 오늘 날짜를 확정한다.
