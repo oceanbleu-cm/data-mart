@@ -568,6 +568,13 @@
     { label: '게시판 상담 (/mtmTextInput)', key: 'mtmTextInput' },
   ];
 
+  function shiftDateStr(dateStr, days) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.toISOString().slice(0, 10);
+  }
+
   function renderGa4Daily(fromDate, toDate) {
     const body = document.getElementById('ga4DailyBody');
     if (!body) return;
@@ -596,12 +603,14 @@
     const el = document.getElementById('ga4Summary');
     if (!el) return;
     const DAY_COUNT = GA4_DAILY.length;
+    const defaultFromRaw = shiftDateStr(GA4_RANGE.to, -6);
+    const defaultFrom = defaultFromRaw > GA4_RANGE.from ? defaultFromRaw : GA4_RANGE.from;
 
     el.innerHTML = `
       <div class="card">
         <h2>GA4 활성 현황 <span class="hint">최근 ${DAY_COUNT}일 · ${fmtShortDate(GA4_RANGE.from)}~${fmtShortDate(GA4_RANGE.to)}</span></h2>
         <div class="ga4-range-picker">
-          <label>시작일<input type="date" id="ga4FromInput" value="${GA4_RANGE.from}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
+          <label>시작일<input type="date" id="ga4FromInput" value="${defaultFrom}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
           <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
         </div>
         <div id="ga4DailyBody"></div>
