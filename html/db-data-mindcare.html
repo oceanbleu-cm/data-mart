@@ -190,6 +190,25 @@
   }
   .stat-group-title:first-of-type { margin-top: 0; }
   .section-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .ga4-range-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin: 8px 0 12px;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+  .ga4-range-picker input[type="date"] {
+    font-family: inherit;
+    font-size: 0.82rem;
+    padding: 5px 8px;
+    margin-left: 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text);
+  }
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -335,16 +354,38 @@
   const FETCH_TIMEOUT_MS = 15000;
   const CARRIER_ORDER = ['KT', 'LGU+', 'SKT'];
 
-  // --- GA4(MINDCARE) 활성 현황 — 정적 스냅샷, 매일 12시(KST) 자동 라우틴이 갱신 ---
+  // --- GA4(MINDCARE) 활성 현황 — 최근 21일 정적 스냅샷, 매일 자동 라우틴이 갱신 ---
   // 통신사(KT/LGU+/SKT) 구분은 GA4에서 신뢰 가능한 방법을 찾지 못해(호스트명/소스/경로 모두
   // 가입자 규모와 불일치) 서비스 전체 합계만 제공한다. 활성사용자(전체)는 /kpass/news2/,
   // /kpass/recommend/(백그라운드성 호출, docs/ga4_guide.md MINDCARE 섹션 참고)를 제외한 값.
-  const GA4_GENERATED_AT = '2026-10-14 03:12 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
-  const GA4_RANGE = { recentFrom: '2026-10-07', recentTo: '2026-10-13', prevFrom: '2026-09-30', prevTo: '2026-10-06' };
-  const GA4_TOTALS = {
-    recent: { activeUsers: 7366, breathing: 2560, transcription: 928, careAudio: 40, mtmTextInput: 2 },
-    prev: { activeUsers: 9044, breathing: 3468, transcription: 985, careAudio: 47, mtmTextInput: 0 },
-  };
+  // 화면의 "선택 기간 합계"는 일별 값을 그대로 더한 단순 합산이다(activeUsers는 비집계
+  // 지표라 동일 사용자가 여러 날 중복 집계될 수 있어 실제 순사용자 수보다 클 수 있음 — 사용자
+  // 요청으로 별도 비집계 합계 조회는 넣지 않기로 함, 2026-10-14).
+  const GA4_GENERATED_AT = '2026-10-14 02:23 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const GA4_RANGE = { from: '2026-09-23', to: '2026-10-13' };
+  const GA4_DAILY = [
+    { date: '2026-09-23', activeUsers: 1316, breathing: 503, transcription: 199, careAudio: 8, mtmTextInput: 2 },
+    { date: '2026-09-24', activeUsers: 2419, breathing: 953, transcription: 243, careAudio: 11, mtmTextInput: 0 },
+    { date: '2026-09-25', activeUsers: 1548, breathing: 682, transcription: 225, careAudio: 8, mtmTextInput: 0 },
+    { date: '2026-09-26', activeUsers: 1327, breathing: 592, transcription: 227, careAudio: 10, mtmTextInput: 0 },
+    { date: '2026-09-27', activeUsers: 1356, breathing: 591, transcription: 255, careAudio: 10, mtmTextInput: 1 },
+    { date: '2026-09-28', activeUsers: 2063, breathing: 983, transcription: 287, careAudio: 8, mtmTextInput: 1 },
+    { date: '2026-09-29', activeUsers: 1640, breathing: 731, transcription: 270, careAudio: 11, mtmTextInput: 1 },
+    { date: '2026-09-30', activeUsers: 2417, breathing: 384, transcription: 232, careAudio: 8, mtmTextInput: 0 },
+    { date: '2026-10-01', activeUsers: 1428, breathing: 574, transcription: 230, careAudio: 9, mtmTextInput: 0 },
+    { date: '2026-10-02', activeUsers: 1349, breathing: 578, transcription: 237, careAudio: 9, mtmTextInput: 0 },
+    { date: '2026-10-03', activeUsers: 1097, breathing: 496, transcription: 254, careAudio: 5, mtmTextInput: 0 },
+    { date: '2026-10-04', activeUsers: 1006, breathing: 418, transcription: 226, careAudio: 8, mtmTextInput: 0 },
+    { date: '2026-10-05', activeUsers: 1226, breathing: 573, transcription: 274, careAudio: 15, mtmTextInput: 0 },
+    { date: '2026-10-06', activeUsers: 1734, breathing: 793, transcription: 277, careAudio: 12, mtmTextInput: 0 },
+    { date: '2026-10-07', activeUsers: 1024, breathing: 375, transcription: 220, careAudio: 7, mtmTextInput: 0 },
+    { date: '2026-10-08', activeUsers: 1054, breathing: 369, transcription: 221, careAudio: 14, mtmTextInput: 2 },
+    { date: '2026-10-09', activeUsers: 866, breathing: 341, transcription: 255, careAudio: 8, mtmTextInput: 0 },
+    { date: '2026-10-10', activeUsers: 1010, breathing: 409, transcription: 239, careAudio: 9, mtmTextInput: 0 },
+    { date: '2026-10-11', activeUsers: 1032, breathing: 440, transcription: 237, careAudio: 11, mtmTextInput: 0 },
+    { date: '2026-10-12', activeUsers: 1549, breathing: 726, transcription: 259, careAudio: 9, mtmTextInput: 0 },
+    { date: '2026-10-13', activeUsers: 1924, breathing: 259, transcription: 213, careAudio: 8, mtmTextInput: 0 },
+  ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const num = (n) => numFmt.format(n);
@@ -519,40 +560,62 @@
     return dateStr.slice(2).replace(/-/g, '.');
   }
 
+  const GA4_METRICS = [
+    { label: '활성사용자 (전체)', key: 'activeUsers' },
+    { label: '숨명상 (/breathing)', key: 'breathing' },
+    { label: '필사명상 (/transcription01~03)', key: 'transcription' },
+    { label: '오디오명상 (/careAudio)', key: 'careAudio' },
+    { label: '게시판 상담 (/mtmTextInput)', key: 'mtmTextInput' },
+  ];
+
+  function renderGa4Daily(fromDate, toDate) {
+    const body = document.getElementById('ga4DailyBody');
+    if (!body) return;
+    const [start, end] = fromDate <= toDate ? [fromDate, toDate] : [toDate, fromDate];
+    const headCells = GA4_METRICS.map((m) => `<th>${m.label}</th>`).join('');
+    const filtered = GA4_DAILY.filter((d) => d.date >= start && d.date <= end);
+    const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+    const rows = sorted
+      .map((d) => `<tr><td>${fmtDateLabel(d.date)}</td>${GA4_METRICS.map((m) => `<td>${num(d[m.key])}</td>`).join('')}</tr>`)
+      .join('');
+    const sumRow = GA4_METRICS
+      .map((m) => `<td>${num(filtered.reduce((s, d) => s + d[m.key], 0))}</td>`)
+      .join('');
+
+    body.innerHTML = `
+      <div class="table-scroll">
+        <table class="ga4-summary-table">
+          <thead><tr><th>날짜</th>${headCells}</tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td>선택 기간 합계 (${filtered.length}일)</td>${sumRow}</tr></tfoot>
+        </table>
+      </div>`;
+  }
+
   function renderGa4Summary() {
     const el = document.getElementById('ga4Summary');
     if (!el) return;
-    const r = GA4_TOTALS.recent;
-    const p = GA4_TOTALS.prev;
-    const rows = [
-      { label: '활성사용자 (전체)', key: 'activeUsers' },
-      { label: '숨명상 (/breathing)', key: 'breathing' },
-      { label: '필사명상 (/transcription01~03)', key: 'transcription' },
-      { label: '오디오명상 (/careAudio)', key: 'careAudio' },
-      { label: '게시판 상담 (/mtmTextInput)', key: 'mtmTextInput' },
-    ];
-    const headCells = rows.map((row) => `<th>${row.label}</th>`).join('');
-    const recentRow = rows.map((row) => `<td>${num(r[row.key])}</td>`).join('');
-    const prevRow = rows.map((row) => `<td>${num(p[row.key])}</td>`).join('');
-    const deltaRow = rows.map((row) => `<td>${fmtDelta(r[row.key] - p[row.key])}</td>`).join('');
+    const DAY_COUNT = GA4_DAILY.length;
+
     el.innerHTML = `
       <div class="card">
-        <h2>GA4 활성 현황</h2>
-        <div class="table-scroll">
-          <table class="ga4-summary-table">
-            <thead>
-              <tr><th>구분</th>${headCells}</tr>
-            </thead>
-            <tbody>
-              <tr><td>${fmtShortDate(GA4_RANGE.recentFrom)}~${fmtShortDate(GA4_RANGE.recentTo)}</td>${recentRow}</tr>
-              <tr><td>${fmtShortDate(GA4_RANGE.prevFrom)}~${fmtShortDate(GA4_RANGE.prevTo)}</td>${prevRow}</tr>
-              <tr><td>증감</td>${deltaRow}</tr>
-            </tbody>
-          </table>
+        <h2>GA4 활성 현황 <span class="hint">최근 ${DAY_COUNT}일 · ${fmtShortDate(GA4_RANGE.from)}~${fmtShortDate(GA4_RANGE.to)}</span></h2>
+        <div class="ga4-range-picker">
+          <label>시작일<input type="date" id="ga4FromInput" value="${GA4_RANGE.from}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
+          <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
         </div>
+        <div id="ga4DailyBody"></div>
         <div class="check-row">* 활성사용자(전체)는 /kpass/news2/·/kpass/recommend/(백그라운드성 호출 추정 페이지) 제외 기준. 통신사(KT/LGU+/SKT)별 구분은 GA4에서 신뢰 가능한 방법이 없어 서비스 전체 합계만 제공합니다.</div>
+        <div class="check-row">* 선택 기간 합계는 일별 값을 단순 합산한 값입니다 — activeUsers는 비집계 지표라 동일 사용자가 여러 날 중복 집계될 수 있어 실제 순사용자 수보다 클 수 있습니다.</div>
         <div class="check-row">출처 — GA4 MINDCARE 계정(Supermetrics), 정적 스냅샷 · 마지막 갱신: ${GA4_GENERATED_AT}</div>
       </div>`;
+
+    const fromInput = document.getElementById('ga4FromInput');
+    const toInput = document.getElementById('ga4ToInput');
+    const update = () => renderGa4Daily(fromInput.value, toInput.value);
+    fromInput.onchange = update;
+    toInput.onchange = update;
+    update();
   }
 
   // --- 통신사 서브탭 ---
