@@ -61,9 +61,16 @@ dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 �
 값이 나와도 `classify_source()`가 자동 분류하며 SafetyError로 중단하지 않는다(경고만
 남김, §8에서 그대로 전달).
 
-이 커맨드가 실제로 Supermetrics를 호출하는 건 여기(에이전트)뿐이다.
-`scripts/update_ga4_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 MCP를
-호출하지 않는다.
+이 커맨드가 실제로 BigQuery(`execute_sql_readonly`)를 호출하는 건 여기(에이전트)뿐이다.
+`scripts/update_ga4_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 BigQuery를
+호출하지 않는다. **2026-10-15에 Supermetrics MCP에서 전환했다**(검증 기록:
+`docs/bigquery-ga4-mapping.md`) — JSON 스키마(§4)는 전환 전과 완전히 동일하다.
+
+**⚠️ BigQuery GA4 export는 2026-08-27(첫 완전한 날)부터만 존재한다.** 2026-08-26은 export
+연동이 하루 중간에 시작된 부분일이라 제외한다(eventCount 전수 대조로 확인됨 —
+`docs/bigquery-ga4-mapping.md` §6-3). 목표 윈도우는 90일이지만, 그보다 짧게 클램프될 수
+있다 — 아래 §1-3 참고. 날짜가 쌓여 목표 90일이 전부 export 범위 안에 들어오면(2026-11-24
+이후) 자동으로 90일로 복원된다.
 
 ## §1 사전 확인
 
@@ -71,64 +78,60 @@ dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 �
 2. `grep -n "const DATE_RANGE" html/ga4-funnel-unsedang.html`로 현재 창(`DATE_RANGE.from`
    ~ `DATE_RANGE.to`)을 읽는다.
 3. 종료일 결정: `$ARGUMENTS`에 `--to YYYY-MM-DD`가 있으면 그 값, 없으면 **어제**
-   (`new_to`, GA4 당일 데이터는 아직 불완전할 수 있음). `new_from = new_to - 89일`.
+   (`new_to`, GA4 당일 데이터는 아직 불완전할 수 있음).
+   `target_from = new_to - 89일`. **`new_from = max(target_from, '2026-08-27')`**(BQ export
+   시작일 클램프 — `scripts/update_ga4_unsedang.py`의 `BQ_EXPORT_START`와 반드시 같은 값을
+   쓴다). `new_from != target_from`이면 창이 90일보다 짧다는 뜻 — §8 보고 시 그대로 알린다.
 4. `incr_from = (기존 DATE_RANGE.to) + 1일`. `incr_from > new_to`이면 **"이미 최신
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
-5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
+5. **샤드 가용성 확인** — `execute_sql_readonly`로 아래 쿼리 실행(메타데이터 조회라 비용 0):
+   ```sql
+   SELECT COUNT(*) AS n_shards, MIN(table_id) AS first_shard, MAX(table_id) AS last_shard
+   FROM `unsedang.analytics_488612198.__TABLES__`
+   WHERE REGEXP_CONTAINS(table_id, r'^events_\d{8}$')
+     AND SUBSTR(table_id, 8) BETWEEN '<incr_from을 YYYYMMDD로>' AND '<new_to를 YYYYMMDD로>'
+   ```
+   `last_shard`가 `events_<new_to의 YYYYMMDD>`가 아니면 **중단**하고 "BigQuery 일별 export가
+   아직 D-1(`new_to`) 샤드를 만들지 않았습니다. 잠시 후 재실행하거나 `--to <D-2>`로 명시
+   실행하세요."라고 보고한다. `n_shards`가 날짜 수와 다르면(구멍) 어느 날짜가 비었는지
+   목록을 뽑아 보고하고 **중단**한다. `events_intraday_*`는 이 정규식에 걸리지 않으므로
+   쓰지 않는다.
+6. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
-## §2 증분 쿼리 3건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
+## §2 증분 쿼리 4건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
-`ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
-`start_date=incr_from`, `end_date=new_to`.
+아래 SQL 파일을 Read하고 `{{FROM}}`/`{{TO}}`를 `incr_from`/`new_to`(YYYYMMDD, 대시 없이)로
+치환한 뒤 `execute_sql_readonly(projectId='unsedang', query=<치환된 SQL>)`로 실행한다.
 
-**쿼리 1 — 페이지 5종 (한 번에)**
-- fields: `date,pagePathWithoutQueryString,activeUsers,sessions`
-- filter (연산자 양쪽 공백 필수, 문자 그대로 복사):
-  ```
-  pagePathWithoutQueryString == '/view/home' OR pagePathWithoutQueryString == '/view/csl' OR pagePathWithoutQueryString == '/view/csl/cslInfo' OR pagePathWithoutQueryString == '/view/content' OR pagePathWithoutQueryString == '/view/csl/totalRatingComment'
-  ```
+**쿼리 1** = `scripts/sql/funnel_pages_daily.sql` → 열: `date, path, activeUsers, sessions`
+(5개 페이지 고정 — 파일 안에 하드코딩돼 있다)
 
-**쿼리 2 — 상담하기(선불+후불 합산)**
-- fields: `date,activeUsers,eventCount`
-- filter: `eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`
+**쿼리 2** = `scripts/sql/funnel_call_daily.sql` → 열: `date, activeUsers, eventCount`
+(선불+후불 합산, 파일 안에 필터 고정)
 
-**쿼리 5 — 전체 활성사용자수(사이트 전체, dimension 없음)**
-- fields: `date,activeUsers`
-- filter: 없음
+**쿼리 5** = `scripts/sql/site_active_users_daily.sql` → 열: `date, activeUsers`
 
-**쿼리 9 — 매체별 유입(firstUserSource, 그룹핑 없는 원본)**
-- fields: `date,firstUserSource,activeUsers,sessions`
-- filter: 없음
+**쿼리 9** = `scripts/sql/firstuser_daily.sql` → 열: `date, source, activeUsers, sessions`
 - (2026-10-08 기준 화면에서는 안 쓰이지만 자동 롤링은 계속 유지한다 — §0 참고.)
 
-응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
+## §3 기간 전체 쿼리 4건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
 
-## §3 기간 전체 쿼리 3건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
+대응하는 `_period.sql` 파일을 `{{FROM}}=new_from`, `{{TO}}=new_to`로 치환해 실행한다
+(이 파일들은 애초에 `date` dimension이 없다).
 
-`date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
-`date`를 뺀다.**
+**쿼리 3** = `scripts/sql/funnel_pages_period.sql` → 열: `path, activeUsers`
 
-**쿼리 3 — 페이지별 기간 합계**
-- fields: `pagePathWithoutQueryString,activeUsers`
-- filter: 쿼리 1과 동일
+**쿼리 4** = `scripts/sql/funnel_call_period.sql` → 열: `activeUsers, eventCount` (한 행)
 
-**쿼리 4 — 상담하기 기간 합계**
-- fields: `activeUsers,eventCount` (**dimension 없음** — 페이지/이벤트 구분 없이 이 필터에
-  해당하는 값 전체)
-- filter: 쿼리 2와 동일
+**쿼리 7** = `scripts/sql/site_active_users_period.sql` → 열: `activeUsers` (한 행)
 
-**쿼리 7 — 전체 활성사용자수 기간 합계**
-- fields: `activeUsers` (**dimension 없음**)
-- filter: 없음
-
-**쿼리 10 — 매체별 유입 기간 합계**
-- fields: `firstUserSource,activeUsers` (dimension은 `firstUserSource`만, `date` 뺌)
-- filter: 없음
+**쿼리 10** = `scripts/sql/firstuser_period.sql` → 열: `source, activeUsers` (sessions 열도
+같이 나오지만 JSON에 넣을 때 무시해도 무해 — §4 참고)
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다(`docs/ga4_guide.md` §2-4). 이 리포트는 누적이 아니라 "최근 90일"
-> 롤링 윈도우이므로, 창이 하루 밀릴 때마다 페이지별·상담하기·전체·매체별 유입 순사용자
-> 수를 처음부터 다시 계산해야 정확하다.
+> (또는 클램프된 짧은 윈도우) 롤링이므로, 창이 하루 밀릴 때마다 페이지별·상담하기·전체·
+> 매체별 유입 순사용자 수를 처음부터 다시 계산해야 정확하다.
 
 ## §4 임시 JSON 저장
 
@@ -143,10 +146,10 @@ dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 �
 - `firstuser_raw_incremental.json`: `{"rows":[{"date","source","activeUsers","sessions"}, ...]}` (쿼리9)
 - `firstuser_raw_period.json`: `{"rows":[{"source","activeUsers"}, ...]}` (쿼리10)
 
-`path` 필드는 `pagePathWithoutQueryString` 응답값 그대로 쓴다. `source` 필드는
-`firstUserSource` 응답값 그대로(예: `(not set)`, `m.search.naver.com`, `LG`) — 그룹핑은
-스크립트가 `FIRST_USER_LABEL_TO_GROUP`/`classify_source()`로 처리하므로 여기서는 원본
-그대로 저장한다. 값이 0이거나 GA4 응답에 없던 날짜/경로/소스는 행을 만들지 않아도 된다.
+`path`/`source` 필드는 SQL이 돌려준 값 그대로 쓴다(이미 GA4 원본 표시값으로 정규화됨 —
+예: `(not set)`, `m.search.naver.com`, `LG`) — 그룹핑은 스크립트가
+`FIRST_USER_LABEL_TO_GROUP`/`classify_source()`로 처리하므로 여기서는 원본 그대로 저장한다.
+값이 0이거나 BigQuery 응답에 없던 날짜/경로/소스는 행을 만들지 않아도 된다.
 
 ## §5 스크립트 실행
 
@@ -155,7 +158,10 @@ dimension에 넣지 않아야 같은 날 두 이벤트를 모두 발생시킨 �
 python3 scripts/update_ga4_unsedang.py --html html/ga4-funnel-unsedang.html --indir <tmpdir> --dry-run
 ```
 출력된 요약(새 윈도우 범위, 페이지별/상담하기/전체사용자/매체별 유입 기간 합계, 경고)을
-확인한 뒤 `--dry-run`을 떼고 재실행한다.
+확인한 뒤 `--dry-run`을 떼고 재실행한다. 윈도우가 클램프됐으면 요약에 "[BQ export 시작일
+...로 클램프]" 문구가 함께 출력된다 — 정상 동작이다. `--floor-date`는 BQ export 시작일이
+바뀌는 등 예외적인 경우에만 쓰는 수동 override이며, 평소엔 전달하지 않는다(스크립트
+기본값 `BQ_EXPORT_START`를 그대로 쓴다).
 
 `[SafetyError]`로 중단되면 **절대 우회하지 말고** 에러 메시지를 그대로 사용자에게
 보고하고 원인을 파악한다 — HTML 블록을 못 찾음, 윈도우 밖 날짜 잔존, 음수 값, 신규

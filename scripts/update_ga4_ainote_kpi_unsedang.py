@@ -7,11 +7,14 @@
 AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, 매 실행마다 D-1까지 날짜가 늘어난다.
 
 이 리포트는 데이터 출처가 두 종류다:
-  1) GA4(Supermetrics/GAWA) — CALL/PRETEL/PAGES(aiNote·noteInfo)/SUBEVENTS(7종)/ENGAGEMENT/
-     UTM_CLICK. activeUsers는 비집계 지표라, 이 스크립트는 Supermetrics를 직접 호출하지
-     않는다(에이전트만 MCP 툴 호출 가능) — `.claude/commands/update-ga4-ainote-kpi-unsedang.md`가
-     미리 JSON 파일로 떠서 `--indir`에 넣어두면 이 스크립트가 읽는다. 기간 합계는 "새 날짜만
-     반영"이 아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다.
+  1) GA4 BigQuery export(`unsedang.analytics_488612198`, 2026-10-15에 Supermetrics MCP에서
+     전환 — docs/bigquery-ga4-mapping.md 참고) — CALL/PRETEL/PAGES(aiNote·noteInfo)/
+     SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK. activeUsers는 비집계 지표라, 이 스크립트는
+     BigQuery를 직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능) —
+     `.claude/commands/update-ga4-ainote-kpi-unsedang.md`가 `scripts/sql/*.sql`을 읽어 조회한
+     결과를 미리 JSON 파일로 떠서 `--indir`에 넣어두면 이 스크립트가 읽는다. 기간 합계는
+     "새 날짜만 반영"이 아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다.
+     윈도우 시작일(2026-09-30)이 BQ export 시작일(2026-08-27)보다 항상 뒤라 클램프 불필요.
   2) 운세당 DB API(consultation-stats/monthly) — ALIMTALK/AINOTE_CONSULT_CNT/
      AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/AINOTE_AFTER_REPEAT_CNT(전부
      선불 전용, 후불은 항상 0). 이 API는 인증 없는
@@ -103,7 +106,7 @@ PAGE_PATH_TO_KEY = {
 
 DB_API_TEMPLATE = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth={month}'
 
-GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA + 운세당 DB API 조회, 정적 스냅샷)'
+GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (BigQuery GA4 export analytics_488612198 + 운세당 DB API 조회, 정적 스냅샷)'
 
 
 class SafetyError(Exception):

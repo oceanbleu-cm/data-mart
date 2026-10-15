@@ -11,9 +11,15 @@
      **매번 새 윈도우 전체를 재조회한 값으로 통째로 교체**한다 — activeUsers는 비집계 지표라
      날짜를 밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
-이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
-`.claude/commands/update-ga4-channel-unsedang.md`가 미리 4개의 임시 JSON 파일을 만들어두면
-이 스크립트가 그것을 읽어 HTML에 반영한다.
+이 스크립트는 BigQuery를 직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능).
+`.claude/commands/update-ga4-channel-unsedang.md`가 `scripts/sql/*.sql`을 읽어 BigQuery GA4
+export(`unsedang.analytics_488612198`)로 미리 4개의 임시 JSON 파일을 만들어두면 이 스크립트가
+그것을 읽어 HTML에 반영한다.
+
+2026-10-15에 Supermetrics MCP → BigQuery GA4 export로 데이터 소스를 전환했다
+(docs/bigquery-ga4-mapping.md 참고). 28일 윈도우는 BQ export 시작일(2026-08-27)보다
+항상 안쪽이라 클램프가 필요 없다. JSON 스키마·검증·병합 로직은 Supermetrics 시절과
+완전히 동일하다.
 
 2026-09-30 리디자인(커밋 110c44a)으로 이 페이지의 "레퍼러 도메인 그룹"(sessionSource 기준,
 REFERRER_DAILY/REFERRER_TOTALS/ETC_BREAKDOWN) 섹션이 삭제되고 "첫 사용자 소스 그룹"
@@ -103,7 +109,7 @@ def classify_source(raw):
     return 'etcGrp'
 
 
-GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
+GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (BigQuery GA4 export analytics_488612198 조회, 정적 스냅샷)'
 
 
 class SafetyError(Exception):

@@ -53,9 +53,10 @@ firstUserSource는 사용자당 평생 하나뿐인 값이라 원본 값을 **�
 sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가 없다 — 자동 분류만으로
 즉시 정확하다.
 
-이 커맨드가 실제로 Supermetrics를 호출하는 건 여기(에이전트)뿐이다.
-`scripts/update_ga4_channel_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 MCP를
-호출하지 않는다.
+이 커맨드가 실제로 BigQuery(`execute_sql_readonly`)를 호출하는 건 여기(에이전트)뿐이다.
+`scripts/update_ga4_channel_unsedang.py`는 병합/윈도우 슬라이딩/재작성만 담당하며 BigQuery를
+호출하지 않는다. **2026-10-15에 Supermetrics MCP에서 전환했다**(검증 기록:
+`docs/bigquery-ga4-mapping.md`) — JSON 스키마(§4)는 전환 전과 완전히 동일하다.
 
 ## §1 사전 확인
 
@@ -63,39 +64,45 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 2. `grep -n "const DATE_RANGE" html/ga4-channel-unsedang.html`로 현재 창(`DATE_RANGE.from`
    ~ `DATE_RANGE.to`)을 읽는다.
 3. 종료일 결정: `$ARGUMENTS`에 `--to YYYY-MM-DD`가 있으면 그 값, 없으면 **어제**
-   (`new_to`). `new_from = new_to - 27일`.
+   (`new_to`). `new_from = new_to - 27일`. (28일 창은 BQ export 시작일 2026-08-27보다
+   항상 안쪽이라 클램프 불필요 — 퍼널 리포트와 다름.)
 4. `incr_from = (기존 DATE_RANGE.to) + 1일`. `incr_from > new_to`이면 **"이미 최신
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
-5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
+5. **샤드 가용성 확인** — `execute_sql_readonly`로 아래 쿼리 실행(메타데이터 조회라 비용 0):
+   ```sql
+   SELECT COUNT(*) AS n_shards, MIN(table_id) AS first_shard, MAX(table_id) AS last_shard
+   FROM `unsedang.analytics_488612198.__TABLES__`
+   WHERE REGEXP_CONTAINS(table_id, r'^events_\d{8}$')
+     AND SUBSTR(table_id, 8) BETWEEN '<incr_from을 YYYYMMDD로>' AND '<new_to를 YYYYMMDD로>'
+   ```
+   `last_shard`가 `events_<new_to의 YYYYMMDD>`가 아니면 **중단**하고 "BigQuery 일별 export가
+   아직 D-1(`new_to`) 샤드를 만들지 않았습니다. 잠시 후 재실행하거나 `--to <D-2>`로 명시
+   실행하세요."라고 보고한다. `n_shards`가 날짜 수와 다르면(구멍) 어느 날짜가 비었는지
+   목록을 뽑아 보고하고 **중단**한다(조용히 넘어가지 않는다 — naver-powerlink.md §2와 동일
+   원칙). `events_intraday_*`는 이 정규식에 걸리지 않으므로(명시적으로 제외) 쓰지 않는다.
+6. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
 ## §2 증분 쿼리 2건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
-`ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
-`start_date=incr_from`, `end_date=new_to`로 아래 2개 쿼리를 실행한다.
+`scripts/sql/site_active_users_daily.sql`과 `scripts/sql/firstuser_daily.sql`을 Read하고,
+`{{FROM}}`/`{{TO}}`를 `incr_from`/`new_to`(YYYYMMDD, 대시 없이)로 치환한 뒤
+`execute_sql_readonly(projectId='unsedang', query=<치환된 SQL>)`로 실행한다.
 
-**쿼리 1 — 사이트 전체(합계 열, 소스 필터 없음)**
-- fields: `date,activeUsers`
-- filter: 없음
-
-**쿼리 2 — 첫 사용자 소스 전체(그룹핑 없음, firstUserSource)**
-- fields: `date,firstUserSource,activeUsers,sessions`
-- filter: 없음
+**쿼리 1** = `site_active_users_daily.sql` → 열: `date, activeUsers`
+**쿼리 2** = `firstuser_daily.sql` → 열: `date, source, activeUsers, sessions`
 - (이 값은 병합 쿼리가 필요 없다 — §0 참고. `scripts/update_ga4_channel_unsedang.py`가
-  `FIRST_USER_LABEL_TO_GROUP` + `classify_source()` 자동 분류로 그룹별 합산한다 — 여기는
-  동적 필터를 만들 필요 없이 원본 그대로 저장하면 된다.)
-
-응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
+  `FIRST_USER_LABEL_TO_GROUP` + `classify_source()` 자동 분류로 그룹별 합산한다. SQL의
+  `source` 컬럼은 이미 GA4 원본 표시값으로 정규화돼 있다 — `traffic_source.source`,
+  NULL은 `(not set)`로 COALESCE됨.)
 
 ## §3 기간 전체 쿼리 2건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from` ~ `new_to`)
 
-`date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
-`date`를 뺀다.**
+`scripts/sql/site_active_users_period.sql`과 `scripts/sql/firstuser_period.sql`을 Read하고
+`{{FROM}}`/`{{TO}}`를 `new_from`/`new_to`로 치환해 실행한다(이 두 파일은 애초에 `date`
+dimension이 없다).
 
-**쿼리 3 — 사이트 전체 기간 합계**: fields `activeUsers`, filter 없음
-
-**쿼리 4 — 첫 사용자 소스 전체 기간 합계(firstUserSource)**
-- fields: `firstUserSource,activeUsers,sessions`
-- filter: 없음
+**쿼리 3** = `site_active_users_period.sql` → 열: `activeUsers` (한 행)
+**쿼리 4** = `firstuser_period.sql` → 열: `source, activeUsers, sessions`
 - (병합 쿼리 없이 이 한 건으로 전 그룹(GROUP_KEYS)의 기간 합계를 전부 합산해서 만든다 —
   `scripts/update_ga4_channel_unsedang.py`가 자동 분류까지 포함해 정확히 처리한다.)
 
@@ -108,16 +115,12 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 ## §3b 최근 7일 서브합계 쿼리 2건 (2026-10-08 신설, 기간: `recent7_from = new_to - 6일` ~ `new_to`)
 
 표 중간(최근 7일 일별 행 바로 아래)에 삽입되는 "최근 7일 합계/평균" 행용. §3과 똑같은
-이유(비집계 지표)로 `TOTAL_DAILY`/`FIRST_USER_DAILY` 일별 값을 단순 합산하면 안 되고, 이
-7일 구간만 **반드시 새로 재조회**해야 한다. `date_range_type='custom'`,
-`start_date=recent7_from`, `end_date=new_to`, **dimension에서 `date`를 뺀다**(§3과 동일 형태,
-기간만 7일로 좁힌 버전).
+이유(비집계 지표)로 이 7일 구간만 **반드시 새로 재조회**해야 한다. §3과 **같은 두 SQL
+파일**(`site_active_users_period.sql`/`firstuser_period.sql`)을 `{{FROM}}=recent7_from`,
+`{{TO}}=new_to`로 다시 치환해 실행하면 된다(파일 재사용 — 신규 SQL 불필요).
 
-**쿼리 5 — 사이트 전체, 최근 7일 기간 합계**: fields `activeUsers`, filter 없음
-
-**쿼리 6 — 첫 사용자 소스 전체, 최근 7일 기간 합계(firstUserSource)**
-- fields: `firstUserSource,activeUsers,sessions`
-- filter: 없음
+**쿼리 5** = `site_active_users_period.sql`(recent7 기간) → 열: `activeUsers` (한 행)
+**쿼리 6** = `firstuser_period.sql`(recent7 기간) → 열: `source, activeUsers, sessions`
 
 ## §4 임시 JSON 저장
 
@@ -130,9 +133,9 @@ sessionSource와 달리 병합 쿼리 필터를 동적으로 구성할 필요가
 - `recent7_total.json`: `{"rows":[{"activeUsers": N}]}` (쿼리5, **한 행만**)
 - `recent7_firstuser_raw.json`: `{"rows":[{"source","activeUsers","sessions"}, ...]}` (쿼리6)
 
-`source` 필드는 GA4가 반환한 표시값 그대로 쓴다(예: `'LG'`, `'(not set)'`, `'(direct)'`,
-`'m.search.naver.com'` 등) — 가공하지 말 것. 값이 0이거나 GA4 응답에 없던 날짜/값은 행을
-만들지 않는다.
+`source` 필드는 SQL이 돌려준 값 그대로 쓴다(이미 GA4 원본 표시값으로 정규화됨 — 예: `'LG'`,
+`'(not set)'`, `'(direct)'`, `'m.search.naver.com'` 등) — 추가 가공하지 말 것. 값이 0이거나
+BigQuery 응답에 없던 날짜/값은 행을 만들지 않는다.
 
 ## §5 스크립트 실행
 

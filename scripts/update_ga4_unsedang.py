@@ -11,9 +11,17 @@
      전체를 재조회한 값으로 통째로 교체**한다 — activeUsers는 비집계 지표라 날짜를
      밀어내고 더하는 방식으로는 정확한 값을 유지할 수 없기 때문이다.
 
-이 스크립트는 Supermetrics를 직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능).
-`.claude/commands/update-ga4-unsedang.md`가 미리 6개의 임시 JSON 파일을 만들어두면
-이 스크립트가 그것을 읽어 HTML에 반영한다.
+이 스크립트는 BigQuery를 직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능).
+`.claude/commands/update-ga4-unsedang.md`가 `scripts/sql/*.sql`을 읽어 BigQuery GA4 export
+(`unsedang.analytics_488612198`)로 미리 6개의 임시 JSON 파일을 만들어두면 이 스크립트가
+그것을 읽어 HTML에 반영한다.
+
+2026-10-15에 Supermetrics MCP → BigQuery GA4 export로 데이터 소스를 전환했다
+(docs/bigquery-ga4-mapping.md 참고). BigQuery export는 2026-08-27(첫 완전한 날)부터만
+존재하므로(2026-08-26은 연동이 하루 중간에 시작된 부분일이라 제외), 목표 윈도우(90일)가
+export 시작일 이전으로 넘어가면 `BQ_EXPORT_START`로 자동 축소된다(아래 `new_from` 계산
+참고) — 날짜가 쌓여 목표 90일이 전부 export 범위 안에 들어오면 자동으로 90일 전체로
+복원된다. JSON 스키마·검증·병합 로직은 Supermetrics 시절과 완전히 동일하다.
 
 이 스크립트는 **데이터만** 롤링한다 — HTML의 화면 구성(카드/퍼널 정의)은 전혀 건드리지
 않으므로, 리포트 레이아웃을 바꿔도 아래 const 블록의 이름/JSON 구조/들여쓰기만 유지되면
@@ -86,6 +94,10 @@ import tempfile
 from datetime import date, datetime, timedelta, timezone
 
 WINDOW_DAYS = 90
+BQ_EXPORT_START = '2026-08-27'  # GA4 BigQuery export 첫 "완전한" 날짜(실측 확정값) — 2026-08-26은
+                                 # export 연동이 하루 중간에 시작돼 부분일(행 5개뿐)이라 제외한다.
+                                 # 2026-08-27~10-13 48일 전수 비교에서 eventCount가 완전히 일치해
+                                 # 확인됨(docs/bigquery-ga4-mapping.md §6-3). new_from 하한으로 쓴다.
 
 PAGE_PATH_TO_KEY = {
     '/view/home': 'home',
@@ -139,7 +151,7 @@ def group_of(raw):
     return FIRST_USER_LABEL_TO_GROUP.get(raw) or classify_source(raw)
 
 
-GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)'
+GENERATED_AT_FMT = '%Y-%m-%d %H:%M UTC (BigQuery GA4 export analytics_488612198 조회, 정적 스냅샷)'
 
 
 class SafetyError(Exception):
@@ -504,6 +516,8 @@ def main():
     ap.add_argument('--generated-at', default=None)
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--no-backup', action='store_true')
+    ap.add_argument('--floor-date', default=None,
+                     help='윈도우 하한을 강제 지정(기본값: BQ_EXPORT_START). 평소엔 불필요.')
     args = ap.parse_args()
 
     with open(args.html, encoding='utf-8') as f:
@@ -531,7 +545,10 @@ def main():
         raise SafetyError('신규 데이터가 없습니다.')
 
     new_to = max(incoming_dates)
-    new_from = (date.fromisoformat(new_to) - timedelta(days=WINDOW_DAYS - 1)).isoformat()
+    target_from = (date.fromisoformat(new_to) - timedelta(days=WINDOW_DAYS - 1)).isoformat()
+    floor = args.floor_date or BQ_EXPORT_START
+    new_from = max(target_from, floor)
+    window_len = (date.fromisoformat(new_to) - date.fromisoformat(new_from)).days + 1
 
     new_daily_pages = {k: merge_and_slide(old_daily_pages.get(k, {}), incr_pages.get(k, {}), new_from, new_to) for k in PAGE_KEYS}
     new_daily_call = merge_and_slide(old_daily_call, incr_call, new_from, new_to)
@@ -591,8 +608,9 @@ def main():
     chk_range = parse_scalars(new_src)
     assert chk_range == {'from': new_from, 'to': new_to}
 
+    clamp_note = '' if new_from == target_from else f' [BQ export 시작일 {floor}로 클램프 — 목표 {WINDOW_DAYS}일]'
     print('=== update_ga4_unsedang.py 요약 ===')
-    print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} ({WINDOW_DAYS}일 유지, 롤링)')
+    print(f'윈도우: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} ({window_len}일, 롤링){clamp_note}')
     print(f'PAGE_TOTALS(기간 합계, 활성사용자): {new_page_totals}')
     print(f'CALL_TOTAL(기간 합계): {new_call_total}')
     print(f'SITE_ACTIVE_USERS_TOTAL(기간 합계): {new_site_total}')

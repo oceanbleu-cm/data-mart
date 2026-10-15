@@ -15,13 +15,15 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 밀어내는 롤링 윈도우가 **아니다** — `html/ga4-funnel-unsedang.html`과 같은 철학).
 
 데이터 출처가 **두 종류**다:
-1. **GA4(Supermetrics/GAWA)** — CALL/PRETEL/PAGES(aiNote·noteInfo)/SUBEVENTS(7종)/
-   ENGAGEMENT/UTM_CLICK/RECO_CLICK(선생님 추천 버튼 클릭, 06 보조지표).
-   `scripts/update_ga4_ainote_kpi_unsedang.py`는 Supermetrics를
-   직접 호출하지 않는다(에이전트만 MCP 툴 호출 가능) — 이 커맨드(에이전트)가 미리 JSON
-   파일로 떠서 `--indir`에 넣어두면 스크립트가 읽는다. 기간 합계는 "새 날짜만 반영"이
-   아니라 **매번 전체 누적 기간을 재조회한 값으로 통째로 교체**한다(activeUsers는 비집계
-   지표).
+1. **GA4 BigQuery export**(`unsedang.analytics_488612198`, 2026-10-15에 Supermetrics MCP에서
+   전환 — 검증 기록: `docs/bigquery-ga4-mapping.md`) — CALL/PRETEL/PAGES(aiNote·noteInfo)/
+   SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK/RECO_CLICK(선생님 추천 버튼 클릭, 06 보조지표).
+   `scripts/update_ga4_ainote_kpi_unsedang.py`는 BigQuery를
+   직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능) — 이 커맨드(에이전트)가 미리
+   JSON 파일로 떠서 `--indir`에 넣어두면 스크립트가 읽는다(JSON 스키마는 전환 전과 완전히
+   동일). 기간 합계는 "새 날짜만 반영"이 아니라 **매번 전체 누적 기간을 재조회한 값으로
+   통째로 교체**한다(activeUsers는 비집계 지표). 윈도우 시작일(2026-09-30)이 BQ export
+   시작일(2026-08-27)보다 항상 뒤라 클램프는 불필요하다.
 2. **운세당 DB API**(`consultation-stats/monthly`) — ALIMTALK/AINOTE_CONSULT_CNT/
    AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/AINOTE_AFTER_REPEAT_CNT(전부
    선불 전용, 후불은 항상 0). 이 API는 인증
@@ -33,7 +35,7 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 (보조지표, 목표 없음) 판정에 영향 없다. 새 값이 생기면 사람이 직접
 `DAILY_AINOTE_USAGE` 딕셔너리에 추가해야 한다 — 이 커맨드의 책임이 아니다.
 
-이 커맨드가 실제로 Supermetrics를 호출하는 건 여기(에이전트)뿐이다.
+이 커맨드가 실제로 BigQuery(`execute_sql_readonly`)를 호출하는 건 여기(에이전트)뿐이다.
 `scripts/update_ga4_ainote_kpi_unsedang.py`는 GA4 쪽 병합/재작성만 담당하고, DB API
 쪽은 스크립트 자신이 직접 호출한다.
 
@@ -59,63 +61,59 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
    `new_to`). 시작일은 항상 `2026-09-30`로 고정(`new_from`).
 4. `incr_from = (기존 DATE_RANGE.to) + 1일`. `incr_from > new_to`이면 **"이미 최신
    상태입니다(마지막 수록일 {DATE_RANGE.to})"라고 보고하고 쿼리 없이 즉시 종료**한다.
-5. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
+5. **샤드 가용성 확인** — `execute_sql_readonly`로 아래 쿼리 실행(메타데이터 조회라 비용 0):
+   ```sql
+   SELECT COUNT(*) AS n_shards, MIN(table_id) AS first_shard, MAX(table_id) AS last_shard
+   FROM `unsedang.analytics_488612198.__TABLES__`
+   WHERE REGEXP_CONTAINS(table_id, r'^events_\d{8}$')
+     AND SUBSTR(table_id, 8) BETWEEN '<incr_from을 YYYYMMDD로>' AND '<new_to를 YYYYMMDD로>'
+   ```
+   `last_shard`가 `events_<new_to의 YYYYMMDD>`가 아니면 **중단**하고 "BigQuery 일별 export가
+   아직 D-1(`new_to`) 샤드를 만들지 않았습니다. 잠시 후 재실행하거나 `--to <D-2>`로 명시
+   실행하세요."라고 보고한다. `n_shards`가 날짜 수와 다르면(구멍) 어느 날짜가 비었는지
+   목록을 뽑아 보고하고 **중단**한다. `events_intraday_*`는 이 정규식에 걸리지 않으므로
+   쓰지 않는다.
+6. `$ARGUMENTS`에 `--dry-run`이 있으면 §5에서 스크립트를 `--dry-run`으로만 실행한다.
 
 ## §2 증분 쿼리 7건 (기간: `incr_from` ~ `new_to` — 보통 하루치)
 
-`ds_id='GAWA'`, `ds_accounts='488612198'`, `date_range_type='custom'`,
-`start_date=incr_from`, `end_date=new_to`.
+아래 SQL 파일을 Read하고 `{{FROM}}`/`{{TO}}`를 `incr_from`/`new_to`(YYYYMMDD, 대시 없이)로,
+`{{EVENT_PREDICATE}}`가 있는 파일은 해당 표의 값으로 치환한 뒤
+`execute_sql_readonly(projectId='unsedang', query=<치환된 SQL>)`로 실행한다.
 
-**쿼리 1 — 상담하기(선불+후불 합산)**
-- fields: `date,activeUsers`
-- filter: `eventName == 'pre_tel_click' OR eventName == 'post_tel_click'`
-
-**쿼리 2 — 상담하기(선불만)**
-- fields: `date,activeUsers`
-- filter: `eventName == 'pre_tel_click'`
-
-**쿼리 3 — AI 상담노트 페이지 2종**
-- fields: `date,pagePathWithoutQueryString,activeUsers`
-- filter: `pagePathWithoutQueryString == '/view/ai-note' OR pagePathWithoutQueryString == '/view/ai-note/noteInfo'`
-
-**쿼리 4 — 추적 이벤트 7종**
-- fields: `date,eventName,activeUsers`
-- filter (IN-list, 문자 그대로 복사):
-  ```
-  eventName [] ["ai-note-agree-pop","ai-note-cancel-click","ai-note-agree-click","ai-note-review-skip","ai-note-review-next","ai-note-review-submit","ai-note-councel-click"]
-  ```
-
-**쿼리 5 — 노트 상세 참여시간**
-- fields: `date,userEngagementDuration,activeUsers`
-- filter: `pagePathWithoutQueryString == '/view/ai-note/noteInfo'`
-
-**쿼리 6 — 알림톡 "바로가기" UTM 클릭**
-- fields: `date,activeUsers`
-- filter: `sessionSource == 'kakao_alimtalk' AND sessionMedium == 'push' AND sessionCampaignName == 'callnote_created'`
-
-**쿼리 13 — 선생님 추천 버튼 클릭(06 보조지표, 선생님번호 전체 합산)**
-- fields: `date,activeUsers`
-- filter: `eventName =@ 'callnote_reco_click'` (eventName이 `callnote_reco_click_{선생님번호}`로
-  선생님마다 달라져 IN-list 불가 — contains로 전체 합산)
-
-응답이 비동기(`schedule_id`)면 `get_async_query_results`로 완료까지 폴링한다.
+| 쿼리 | SQL 파일 | `{{EVENT_PREDICATE}}` (해당 시) | 출력 열 |
+|---|---|---|---|
+| 1 상담하기(선불+후불) | `scripts/sql/event_users_daily.sql` | `event_name IN ('pre_tel_click', 'post_tel_click')` | `date, activeUsers` |
+| 2 상담하기(선불만) | `scripts/sql/event_users_daily.sql` | `event_name = 'pre_tel_click'` | `date, activeUsers` |
+| 3 AI노트 페이지 2종 | `scripts/sql/ainote_pages_daily.sql` | (고정, 파일 안에 하드코딩) | `date, path, activeUsers` |
+| 4 추적 이벤트 7종 | `scripts/sql/ainote_subevents_daily.sql` | (고정) | `date, eventName, activeUsers` |
+| 5 노트 상세 참여시간 | `scripts/sql/ainote_engagement_daily.sql` | (고정, `/view/ai-note/noteInfo`) | `date, totalEngagementDuration, activeUsers` |
+| 6 알림톡 UTM 클릭 | `scripts/sql/ainote_utmclick_daily.sql` | (고정, 세션 스코프 필터 — naver-powerlink 패턴) | `date, activeUsers` |
+| 13 선생님 추천 클릭 | `scripts/sql/event_users_daily.sql` | `REGEXP_CONTAINS(event_name, r'callnote_reco_click')` | `date, activeUsers` |
 
 ## §3 기간 전체 쿼리 7건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from`(2026-09-30) ~ `new_to`)
 
-`date_range_type='custom'`, `start_date=new_from`, `end_date=new_to`. **dimension에서
-`date`를 뺀다.**
+대응하는 `_period.sql` 파일을 `{{FROM}}=new_from`, `{{TO}}=new_to`로 치환해 실행한다
+(이 파일들은 애초에 `date` dimension이 없다).
 
-**쿼리 7 — 상담하기(선불+후불) 기간 합계**: fields `activeUsers`, filter는 쿼리 1과 동일
-**쿼리 8 — 상담하기(선불만) 기간 합계**: fields `activeUsers`, filter는 쿼리 2와 동일
-**쿼리 9 — 페이지 2종 기간 합계**: fields `pagePathWithoutQueryString,activeUsers`, filter는 쿼리 3과 동일
-**쿼리 10 — 추적 이벤트 7종 기간 합계**: fields `eventName,activeUsers`, filter는 쿼리 4와 동일
-**쿼리 11 — 참여시간 기간 합계**: fields `userEngagementDuration,activeUsers`, filter는 쿼리 5와 동일
-**쿼리 12 — UTM 클릭 기간 합계**: fields `activeUsers`, filter는 쿼리 6과 동일
-**쿼리 14 — 선생님 추천 버튼 클릭 기간 합계**: fields `activeUsers`, filter는 쿼리 13과 동일
+| 쿼리 | SQL 파일 | `{{EVENT_PREDICATE}}` (해당 시) | 출력 열 |
+|---|---|---|---|
+| 7 상담하기(선불+후불) 기간 합계 | `scripts/sql/event_users_period.sql` | 쿼리 1과 동일 | `activeUsers` (한 행) |
+| 8 상담하기(선불만) 기간 합계 | `scripts/sql/event_users_period.sql` | 쿼리 2와 동일 | `activeUsers` (한 행) |
+| 9 페이지 2종 기간 합계 | `scripts/sql/ainote_pages_period.sql` | — | `path, activeUsers` |
+| 10 추적 이벤트 7종 기간 합계 | `scripts/sql/ainote_subevents_period.sql` | — | `eventName, activeUsers` |
+| 11 참여시간 기간 합계 | `scripts/sql/ainote_engagement_period.sql` | — | `totalEngagementDuration, activeUsers` (한 행) |
+| 12 UTM 클릭 기간 합계 | `scripts/sql/ainote_utmclick_period.sql` | — | `activeUsers` (한 행) |
+| 14 선생님 추천 클릭 기간 합계 | `scripts/sql/event_users_period.sql` | 쿼리 13과 동일 | `activeUsers` (한 행) |
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다. 창이 하루 늘 때마다 전체 누적 기간 기준으로 순사용자 수를 처음부터
 > 다시 계산해야 정확하다.
+
+> 검증 기록(`docs/bigquery-ga4-mapping.md` §6-2): 2026-09-30~10-13 전체 기간을 BQ로 재현한
+> 결과 `CALL_TOTAL`/`PRETEL_TOTAL`/`PAGE_TOTALS.noteInfo`/`ENGAGEMENT_TOTAL.users`/
+> `RECO_CLICK_TOTAL`/`SUBEVENT_TOTALS` 7종 전부 기존 Supermetrics 값과 **완전 일치**했고,
+> `PAGE_TOTALS.aiNote`(3.5%)·`ENGAGEMENT_TOTAL.duration`(1.6%)만 작은 오차가 있었다.
 
 ## §4 임시 JSON 저장
 
@@ -129,15 +127,15 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
 - `subevents_incremental.json`: `{"rows":[{"date","eventName","activeUsers"}]}` (쿼리4)
 - `subevents_period.json`: `{"rows":[{"eventName","activeUsers"}]}` (쿼리10)
 - `engagement_incremental.json`: `{"rows":[{"date","totalEngagementDuration","activeUsers"}]}` (쿼리5 —
-  `userEngagementDuration` 필드값을 `totalEngagementDuration` 키로 저장)
+  SQL이 이미 `totalEngagementDuration` 열 이름으로 돌려준다, 초 단위)
 - `engagement_period.json`: `{"rows":[{"totalEngagementDuration","activeUsers"}]}` (쿼리11, 한 행)
 - `utmclick_incremental.json` / `utmclick_period.json`: `{"rows":[{"date","activeUsers"}]}` /
   `{"rows":[{"activeUsers"}]}` (쿼리6/12, period는 한 행)
 - `recoclick_incremental.json` / `recoclick_period.json`: 동일 스키마 (쿼리13/14, 선생님
   추천 버튼 클릭, 06 보조지표 — 트래픽이 적어 결측일이 정상)
 
-값이 0이거나 GA4 응답에 없던 날짜/경로/이벤트는 행을 만들지 않아도 된다(희소 저장 방식 —
-특히 추적 이벤트 7종은 트래픽이 적어 결측이 정상).
+값이 0이거나 BigQuery 응답에 없던 날짜/경로/이벤트는 행을 만들지 않아도 된다(희소 저장
+방식 — 특히 추적 이벤트 7종은 트래픽이 적어 결측이 정상).
 
 ## §5 스크립트 실행
 
