@@ -1,10 +1,12 @@
+# GA4 계정
 1. unsedang-a3588 #운세당
 2. MINDCARE #마인트케어
 3. KT_PASS_TODAY - GA4 #kt 투데이
 4. PASS운세_신규 - GA4 #lg 투데이
-5. web.wisetoday.kr -GA4 #와이즈 외부가입창
-6. [SKT/KT/LGU+] app_passhealthcare_2.0 #헬스케어
-6. PASS_Cloud #클라우드
+5. web.wisetoday.kr - GA4 #와이즈 외부가입창
+7. [SKT/KT/LGU+] app_passhealthcare_2.0 #헬스케어
+8. PASS_Cloud #클라우드
+9. todaybook  # 오늘의 지식
 
 # DB json 데이터
 ## 운세당
@@ -18,3 +20,6 @@ https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.jso
 
 ## 마인드케어
 https://admin.firstmindcare.com/api/v1/reports/mindcare-subscription-stats/monthly.json?baseMonth=2026-09
+
+## 오놀의 지식
+https://api.todaybook.kr/api/v1/reports/todaybook-subscription-stats/monthly.json

@@ -97,6 +97,8 @@ Claude Code에서 같은 작업을 이어갈 때 참고하세요.
 ### MINDCARE
 - `/breathing`: 숨명상 메인 (⚠️ `/breathlist`와 다른 페이지, 혼동 주의)
 - `/transcription01~03`: 필사명상
+- `/careAudio`: 오디오명상 
+- `/mtmTextInput`: 게시판 상담 
 - `/topicList/ALL`: 명상 콘텐츠
 - `/main/2,3,4`: 마음관찰/마음케어/마음상담
 - **`/kpass/news2/`, `/kpass/recommend/`**: 전체 트래픽의 압도적 다수(월 75~95%)를 차지하는 페이지. 실제 콘텐츠 소비가 아닌 백그라운드성 호출로 추정됨. **전체 서비스 규모를 볼 때는 반드시 이 2개를 제외**하고 봐야 실제 이용 현황이 보임.
