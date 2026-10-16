@@ -253,10 +253,8 @@
   const DATE_RANGE = { from: '2026-09-18', to: '2026-10-15' };
 
   const FETCH_TIMEOUT_MS = 10000;
-  let CONSULT_DAILY = null; // {date: 상담수} — fetch 성공 시 채워짐
-  let CONSULT_USER_DAILY = null; // {date: 상담인원(userCount, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
-  let REPEAT_USER_DAILY = null; // {date: 재상담인원(userCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
-  let REPEAT_COUNT_DAILY = null; // {date: 재상담건(consultationCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
+  let CONSULT_DAILY = null; // {date: 상담건(consultationCount.total, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
+  let REPEAT_COUNT_DAILY = null; // {date: 재상담(consultationCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let NEW_CONSULT_DAILY = null; // {date: 신규상담(consultationCount.newConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
@@ -311,22 +309,16 @@
         return res.json();
       }));
       const map = {};
-      const userMap = {};
-      const repeatUserMap = {};
       const repeatCountMap = {};
       const newConsultMap = {};
       for (const data of results) {
         for (const day of data.dailyStats || []) {
           map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
-          userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
-          repeatUserMap[day.date] = day.userCount.prepaid.repeatConsultation + day.userCount.postpaid.repeatConsultation;
           repeatCountMap[day.date] = day.consultationCount.prepaid.repeatConsultation + day.consultationCount.postpaid.repeatConsultation;
           newConsultMap[day.date] = day.consultationCount.prepaid.newConsultation + day.consultationCount.postpaid.newConsultation;
         }
       }
       CONSULT_DAILY = map;
-      CONSULT_USER_DAILY = userMap;
-      REPEAT_USER_DAILY = repeatUserMap;
       REPEAT_COUNT_DAILY = repeatCountMap;
       NEW_CONSULT_DAILY = newConsultMap;
       CONSULT_STATE = 'ok';
@@ -347,12 +339,6 @@
     const v = CONSULT_DAILY[date];
     return v == null ? '–' : fmtCount(v);
   }
-  function consultUserCell(date) {
-    if (CONSULT_STATE === 'loading') return '로딩 중…';
-    if (CONSULT_STATE === 'error') return '로드 실패';
-    const v = CONSULT_USER_DAILY[date];
-    return v == null ? '–' : fmtUsers(v);
-  }
   function convRateCell(date) {
     if (CONSULT_STATE !== 'ok') return '–';
     const v = CONSULT_DAILY[date];
@@ -360,10 +346,22 @@
     if (v == null || !total) return '–';
     return fmtPercent((v / total) * 100);
   }
-  // "재상담건"(consultationCount, 건수 — 동일인 중복상담도 매번 집계)과 "재상담인원"
-  // (userCount, 유저수 — 중복제거)은 분모가 다른 별도 지표다. 운세당 매출 리포트
-  // (db-data-unsedang.html)가 재상담 건수를 consultationCount.prepaid/postpaid.
-  // repeatConsultation 합산으로 집계하는 것과 동일한 필드를 쓴다.
+  function newConsultCell(date) {
+    if (CONSULT_STATE === 'loading') return '로딩 중…';
+    if (CONSULT_STATE === 'error') return '로드 실패';
+    const v = NEW_CONSULT_DAILY[date];
+    return v == null ? '–' : fmtCount(v);
+  }
+  function newConsultRateCell(date) {
+    if (CONSULT_STATE !== 'ok') return '–';
+    const v = NEW_CONSULT_DAILY[date];
+    const total = TOTAL_DAILY[date];
+    if (v == null || !total) return '–';
+    return fmtPercent((v / total) * 100);
+  }
+  // "재상담"(consultationCount.repeatConsultation, 선불+후불 단순 합산, 건수 — 동일인이
+  // 여러 번 재상담하면 매번 집계)은 운세당 매출 리포트(db-data-unsedang.html)와 동일한
+  // 필드를 쓴다. 신규상담 + 재상담 = 상담건.
   function repeatCountCell(date) {
     if (CONSULT_STATE === 'loading') return '로딩 중…';
     if (CONSULT_STATE === 'error') return '로드 실패';
@@ -377,43 +375,25 @@
     if (v == null || !total) return '–';
     return fmtPercent((v / total) * 100);
   }
-  function repeatUserCell(date) {
-    if (CONSULT_STATE === 'loading') return '로딩 중…';
-    if (CONSULT_STATE === 'error') return '로드 실패';
-    const v = REPEAT_USER_DAILY[date];
-    return v == null ? '–' : fmtUsers(v);
-  }
-  // "재상담전환율" = 재상담인원 ÷ 합계(전체 활성사용자) × 100 — 기존 "전환율"(상담수÷합계)과
-  // 같은 분모 패턴을 그대로 따른다.
-  function repeatConvRateCell(date) {
-    if (CONSULT_STATE !== 'ok') return '–';
-    const v = REPEAT_USER_DAILY[date];
-    const total = TOTAL_DAILY[date];
-    if (v == null || !total) return '–';
-    return fmtPercent((v / total) * 100);
-  }
 
   function renderConsultFootnote() {
     const statusText = CONSULT_STATE === 'error'
       ? ` (로드 실패: ${CONSULT_ERROR_MSG} — 페이지를 새로고침하면 재시도됩니다)`
       : '';
     const apiLinks = CONSULT_MONTHS.map((m) => `<a href="${consultApiUrl(m)}" target="_blank" rel="noopener">${m}</a>`).join(', ');
-    return `<div class="note">ℹ "상담수"는 DB API(consultation-stats, 해당 월: ${apiLinks})에서
-      <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수 합계입니다 — 위 매체 유입
-      표(GA4)와 달리 정적 스냅샷이 아닙니다. "상담인원"은 동일 API의 userCount(선불+후불 단순 합산)로,
-      한 사람이 여러 번 상담하면 "상담수"보다 작게 나옵니다(참고용 근사치 — prepaid/postpaid
-      userCount를 그대로 더한 값이라 두 결제방식을 모두 쓴 사람은 중복 집계될 수 있습니다).
-      "전환율" = 상담수 ÷ "합계"(사이트 전체 활성사용자) × 100으로, 유입 대비 상담 전환 정도를
-      보는 참고 지표입니다. "재상담건"은 동일 API의 consultationCount.repeatConsultation
-      (선불+후불 단순 합산, <b>건수</b> — 같은 사람이 여러 번 재상담하면 매번 집계), "재상담건전환율"
-      = 재상담건 ÷ "합계" × 100입니다. "재상담인원"은 userCount.repeatConsultation(선불+후불
-      단순 합산, <b>유저수</b> — 중복제거)이고, "재상담전환율" = 재상담인원 ÷ "합계" × 100으로
-      "전환율"과 같은 분모를 씁니다. 건수와 유저수는 분모가 다른 별도 지표라 "재상담건" ≥
-      "재상담인원"입니다(운세당 매출 리포트의 재상담 집계 방식과 동일).${statusText}</div>`;
+    return `<div class="note">ℹ "상담건"은 DB API(consultation-stats, 해당 월: ${apiLinks})에서
+      <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수(consultationCount) 합계입니다
+      — 위 매체 유입 표(GA4)와 달리 정적 스냅샷이 아닙니다. "상담율" = 상담건 ÷ "합계"(사이트 전체
+      활성사용자) × 100으로, 유입 대비 상담 전환 정도를 보는 참고 지표입니다. "신규상담"은 동일
+      API의 consultationCount.newConsultation(선불+후불 단순 합산, 처음 상담하는 건수), "신규상담율"
+      = 신규상담 ÷ "합계" × 100입니다. "재상담"은 consultationCount.repeatConsultation(선불+후불
+      단순 합산, 같은 사람이 여러 번 재상담하면 매번 집계), "재상담율" = 재상담 ÷ "합계" × 100입니다.
+      신규상담 + 재상담 = 상담건입니다(운세당 매출 리포트의 재상담 집계 방식과 동일한 필드를
+      씁니다).${statusText}</div>`;
   }
 
   // --- 합계 열은 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 사용(어느 기준으로 쪼개든 사이트
-  // 전체 활성사용자 수 자체는 같기 때문). 상담수/전환율은 CONSULT_DAILY(실시간 fetch)/
+  // 전체 활성사용자 수 자체는 같기 때문). 상담건/상담율은 CONSULT_DAILY(실시간 fetch)/
   // TOTAL_DAILY 기준으로 계산한다. ---
   function firstUserDailyUsers(g, date) {
     const v = FIRST_USER_DAILY[g.key][date];
@@ -484,12 +464,11 @@
     const byGroup = {};
     FIRST_USER_GROUPS.forEach((g) => { byGroup[g.key] = firstUserDailyUsers(g, date); });
     const consult = CONSULT_STATE === 'ok' ? CONSULT_DAILY[date] : null;
-    const consultUser = CONSULT_STATE === 'ok' ? CONSULT_USER_DAILY[date] : null;
+    const newConsult = CONSULT_STATE === 'ok' ? NEW_CONSULT_DAILY[date] : null;
     const repeatCount = CONSULT_STATE === 'ok' ? REPEAT_COUNT_DAILY[date] : null;
-    const repeatUser = CONSULT_STATE === 'ok' ? REPEAT_USER_DAILY[date] : null;
     const rate = (consult != null && total) ? (consult / total) * 100 : null;
+    const newRate = (newConsult != null && total) ? (newConsult / total) * 100 : null;
     const repeatCountRate = (repeatCount != null && total) ? (repeatCount / total) * 100 : null;
-    const repeatRate = (repeatUser != null && total) ? (repeatUser / total) * 100 : null;
     const n = (v) => (v == null ? '–' : numFmt.format(v));
     const pct = (v) => (v == null ? '–' : v.toFixed(1) + '%');
     return [
@@ -501,13 +480,12 @@
       `google: ${n(byGroup.googleGrp)}`,
       `기타: ${n(byGroup.etcGrp)}`,
       `-------`,
-      `상담수: ${n(consult)}`,
-      `상담인원: ${n(consultUser)}`,
-      `전환율: ${pct(rate)}`,
-      `재상담건: ${n(repeatCount)}`,
-      `재상담건전환율: ${pct(repeatCountRate)}`,
-      `재상담인원: ${n(repeatUser)}`,
-      `재상담전환율: ${pct(repeatRate)}`,
+      `상담건: ${n(consult)}`,
+      `상담율: ${pct(rate)}`,
+      `신규상담: ${n(newConsult)}`,
+      `신규상담율: ${pct(newRate)}`,
+      `재상담: ${n(repeatCount)}`,
+      `재상담율: ${pct(repeatCountRate)}`,
     ].join('\n');
   }
 
@@ -546,62 +524,57 @@
 
   // 최근 7일 합계/평균 행(표 중간, 최근 7일 일별 행 바로 아래 삽입) — RECENT7_TOTAL/
   // RECENT7_FIRST_USER_TOTALS는 이 7일 구간만 GA4에 별도로 재조회한 정확한 값(비집계
-  // 지표라 일별 값 단순 합산이 아님). 상담수/상담인원은 CONSULT_DAILY가 매출·건수류라
-  // 안전하게 합산 가능해 최근 7일 날짜만 골라 그 자리에서 합산한다.
+  // 지표라 일별 값 단순 합산이 아님). 상담건/신규상담/재상담은 CONSULT_DAILY류가 건수
+  // 지표라 안전하게 합산 가능해 최근 7일 날짜만 골라 그 자리에서 합산한다.
   function recent7SubRows() {
     const last7Dates = rangeDates(RECENT7_RANGE.from, RECENT7_RANGE.to);
     const groupCellsFor = (divisor) =>
       FIRST_USER_GROUPS.map((g, i) => `<td class="col-s${i}">${fmtUsers(Math.round(firstUserRecent7(g) / divisor))}</td>`).join('');
 
     let consultSumCell = '–';
-    let consultUserSumCell = '–';
     let consultAvgCell = '–';
-    let consultUserAvgCell = '–';
     let convCell = '–';
+    let newConsultSumCell = '–';
+    let newConsultAvgCell = '–';
+    let newConvCell = '–';
     let repeatCountSumCell = '–';
     let repeatCountAvgCell = '–';
     let repeatCountConvCell = '–';
-    let repeatUserSumCell = '–';
-    let repeatUserAvgCell = '–';
-    let repeatConvCell = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = last7Dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
-      const consultUserSum = last7Dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
+      const newConsultSum = last7Dates.reduce((acc, d) => acc + (NEW_CONSULT_DAILY[d] || 0), 0);
       const repeatCountSum = last7Dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
-      const repeatUserSum = last7Dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
       consultSumCell = fmtCount(consultSum);
-      consultUserSumCell = fmtUsers(consultUserSum);
       consultAvgCell = fmtCount(Math.round(consultSum / 7));
-      consultUserAvgCell = fmtUsers(Math.round(consultUserSum / 7));
       convCell = fmtPercent((consultSum / RECENT7_TOTAL) * 100);
+      newConsultSumCell = fmtCount(newConsultSum);
+      newConsultAvgCell = fmtCount(Math.round(newConsultSum / 7));
+      newConvCell = fmtPercent((newConsultSum / RECENT7_TOTAL) * 100);
       repeatCountSumCell = fmtCount(repeatCountSum);
       repeatCountAvgCell = fmtCount(Math.round(repeatCountSum / 7));
       repeatCountConvCell = fmtPercent((repeatCountSum / RECENT7_TOTAL) * 100);
-      repeatUserSumCell = fmtUsers(repeatUserSum);
-      repeatUserAvgCell = fmtUsers(Math.round(repeatUserSum / 7));
-      repeatConvCell = fmtPercent((repeatUserSum / RECENT7_TOTAL) * 100);
     } else if (CONSULT_STATE === 'error') {
-      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = repeatCountSumCell = repeatCountAvgCell = repeatUserSumCell = repeatUserAvgCell = '로드 실패';
+      consultSumCell = consultAvgCell = newConsultSumCell = newConsultAvgCell = repeatCountSumCell = repeatCountAvgCell = '로드 실패';
     } else {
-      consultSumCell = consultUserSumCell = consultAvgCell = consultUserAvgCell = repeatCountSumCell = repeatCountAvgCell = repeatUserSumCell = repeatUserAvgCell = '로딩 중…';
+      consultSumCell = consultAvgCell = newConsultSumCell = newConsultAvgCell = repeatCountSumCell = repeatCountAvgCell = '로딩 중…';
     }
 
     const sumRow = `<tr class="total-row">
       <td>최근 7일 합계</td>
       ${groupCellsFor(1)}
-      <td>${fmtUsers(RECENT7_TOTAL)}</td><td>${consultSumCell}</td><td>${consultUserSumCell}</td><td>${convCell}</td><td>${repeatCountSumCell}</td><td>${repeatCountConvCell}</td><td>${repeatUserSumCell}</td><td>${repeatConvCell}</td>
+      <td>${fmtUsers(RECENT7_TOTAL)}</td><td>${consultSumCell}</td><td>${convCell}</td><td>${newConsultSumCell}</td><td>${newConvCell}</td><td>${repeatCountSumCell}</td><td>${repeatCountConvCell}</td>
     </tr>`;
     const avgRow = `<tr class="avg-sub-row">
       <td>최근 7일 평균(1일)</td>
       ${groupCellsFor(7)}
-      <td>${fmtUsers(Math.round(RECENT7_TOTAL / 7))}</td><td>${consultAvgCell}</td><td>${consultUserAvgCell}</td><td>${convCell}</td><td>${repeatCountAvgCell}</td><td>${repeatCountConvCell}</td><td>${repeatUserAvgCell}</td><td>${repeatConvCell}</td>
+      <td>${fmtUsers(Math.round(RECENT7_TOTAL / 7))}</td><td>${consultAvgCell}</td><td>${convCell}</td><td>${newConsultAvgCell}</td><td>${newConvCell}</td><td>${repeatCountAvgCell}</td><td>${repeatCountConvCell}</td>
     </tr>`;
     return [sumRow, avgRow];
   }
 
   function renderFirstUserTable(from, to) {
     const dates = rangeDates(from, to);
-    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담수</th><th>상담인원</th><th>전환율</th><th>재상담건</th><th>재상담건전환율</th><th>재상담인원</th><th>재상담전환율</th>`;
+    const headRow = `<th>일자</th>` + FIRST_USER_GROUPS.map((g, i) => `<th class="col-s${i}">${g.label}</th>`).join('') + `<th>합계</th><th>상담건</th><th>상담율</th><th>신규상담</th><th>신규상담율</th><th>재상담</th><th>재상담율</th>`;
     const dayRows = [...dates]
       .reverse()
       .map((date) => {
@@ -609,7 +582,7 @@
           .map((g, i) => `<td class="col-s${i}">${fmtUsers(firstUserDailyUsers(g, date))}</td>`)
           .join('');
         const dateCell = `<td class="date-cell"><span>${fmtDateLabel(date)}</span><button type="button" class="copy-btn" onclick="copyFirstUserDay('${date}', this)">복사</button></td>`;
-        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${consultUserCell(date)}</td><td>${convRateCell(date)}</td><td>${repeatCountCell(date)}</td><td>${repeatCountConvRateCell(date)}</td><td>${repeatUserCell(date)}</td><td>${repeatConvRateCell(date)}</td></tr>`;
+        return `<tr>${dateCell}${cells}<td>${fmtUsers(TOTAL_DAILY[date])}</td><td>${consultCell(date)}</td><td>${convRateCell(date)}</td><td>${newConsultCell(date)}</td><td>${newConsultRateCell(date)}</td><td>${repeatCountCell(date)}</td><td>${repeatCountConvRateCell(date)}</td></tr>`;
       });
     // "최근 7일 합계/평균" 서브행은 선택 구간이 전체 창의 최신 끝(DATE_RANGE.to)을 포함하고
     // 7일보다 길 때만 끼워 넣는다 — "최근 7일" 칩처럼 정확히 7일을 고르면 푸터 합계 행과
@@ -623,39 +596,34 @@
       return `<td class="col-s${i}">${fmtUsers(v)}</td>`;
     }).join('');
     let consultFoot = '–';
-    let consultUserFoot = '–';
     let convFoot = '–';
+    let newConsultFoot = '–';
+    let newConvFoot = '–';
     let repeatCountFoot = '–';
     let repeatCountConvFoot = '–';
-    let repeatUserFoot = '–';
-    let repeatConvFoot = '–';
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
-      const consultUserSum = dates.reduce((acc, d) => acc + (CONSULT_USER_DAILY[d] || 0), 0);
+      const newConsultSum = dates.reduce((acc, d) => acc + (NEW_CONSULT_DAILY[d] || 0), 0);
       const repeatCountSum = dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
-      const repeatUserSum = dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
       consultFoot = fmtCount(consultSum);
-      consultUserFoot = fmtUsers(consultUserSum);
       convFoot = fmtPercent((consultSum / total) * 100);
+      newConsultFoot = fmtCount(newConsultSum);
+      newConvFoot = fmtPercent((newConsultSum / total) * 100);
       repeatCountFoot = fmtCount(repeatCountSum);
       repeatCountConvFoot = fmtPercent((repeatCountSum / total) * 100);
-      repeatUserFoot = fmtUsers(repeatUserSum);
-      repeatConvFoot = fmtPercent((repeatUserSum / total) * 100);
     } else if (CONSULT_STATE === 'error') {
       consultFoot = '로드 실패';
-      consultUserFoot = '로드 실패';
+      newConsultFoot = '로드 실패';
       repeatCountFoot = '로드 실패';
-      repeatUserFoot = '로드 실패';
     } else {
       consultFoot = '로딩 중…';
-      consultUserFoot = '로딩 중…';
+      newConsultFoot = '로딩 중…';
       repeatCountFoot = '로딩 중…';
-      repeatUserFoot = '로딩 중…';
     }
     return `<div class="table-scroll"><table>
       <thead><tr>${headRow}</tr></thead>
       <tbody>${bodyRows}</tbody>
-      <tfoot><tr><td>합계(${from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(total)}</td><td>${consultFoot}</td><td>${consultUserFoot}</td><td>${convFoot}</td><td>${repeatCountFoot}</td><td>${repeatCountConvFoot}</td><td>${repeatUserFoot}</td><td>${repeatConvFoot}</td></tr></tfoot>
+      <tfoot><tr><td>합계(${from.slice(5).replace('-', '/')}~${to.slice(5).replace('-', '/')})</td>${footCells}<td>${fmtUsers(total)}</td><td>${consultFoot}</td><td>${convFoot}</td><td>${newConsultFoot}</td><td>${newConvFoot}</td><td>${repeatCountFoot}</td><td>${repeatCountConvFoot}</td></tr></tfoot>
     </table></div>`;
   }
 
@@ -678,14 +646,14 @@
 
   function updateFooter() {
     const consultStatusLine = CONSULT_STATE === 'ok'
-      ? '상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
+      ? '상담건/상담율/신규상담/신규상담율/재상담/재상담율은 페이지 로드 시점에 실시간 fetch됨(DB API).'
       : CONSULT_STATE === 'error'
-        ? `상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
-        : '상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 실시간 fetch 중…';
+        ? `상담건/상담율/신규상담/신규상담율/재상담/재상담율 실시간 fetch 실패(${CONSULT_ERROR_MSG}) — 새로고침 시 재시도.`
+        : '상담건/상담율/신규상담/신규상담율/재상담/재상담율 실시간 fetch 중…';
     document.getElementById('footer').innerHTML =
       `데이터 출처: BigQuery GA4 export (unsedang.analytics_488612198) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(최근 28일)<br>` +
       `매체 유입(활성사용자) 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — GA4는 공개 API 엔드포인트가 없어 조회 시점 값을 임베드했습니다. 갱신하려면 BigQuery로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
-      `상담수/전환율/재상담건/재상담건전환율/재상담인원/재상담전환율 열은 예외적으로 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 ${consultStatusLine}<br>` +
+      `상담건/상담율/신규상담/신규상담율/재상담/재상담율 열은 예외적으로 <b>${CONSULT_MONTHS.map(consultApiUrl).join(', ')}</b>를 ${consultStatusLine}<br>` +
       `표에 표시되는 활성사용자는 비집계 지표입니다 — 일별 값은 그날 실측치입니다.<br>` +
       `조회기간 필터는 이미 내장된 28일 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
       `생성 시각: ${GENERATED_AT}`;
