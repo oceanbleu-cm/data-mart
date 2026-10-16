@@ -257,6 +257,7 @@
   let CONSULT_USER_DAILY = null; // {date: 상담인원(userCount, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let REPEAT_USER_DAILY = null; // {date: 재상담인원(userCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let REPEAT_COUNT_DAILY = null; // {date: 재상담건(consultationCount.repeatConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
+  let NEW_CONSULT_DAILY = null; // {date: 신규상담(consultationCount.newConsultation, 선불+후불 단순 합산)} — fetch 성공 시 채워짐
   let CONSULT_STATE = 'loading'; // 'loading' | 'ok' | 'error'
   let CONSULT_ERROR_MSG = '';
   function consultApiUrl(baseMonth) {
@@ -313,18 +314,21 @@
       const userMap = {};
       const repeatUserMap = {};
       const repeatCountMap = {};
+      const newConsultMap = {};
       for (const data of results) {
         for (const day of data.dailyStats || []) {
           map[day.date] = day.consultationCount.prepaid.total + day.consultationCount.postpaid.total;
           userMap[day.date] = day.userCount.prepaid.total + day.userCount.postpaid.total;
           repeatUserMap[day.date] = day.userCount.prepaid.repeatConsultation + day.userCount.postpaid.repeatConsultation;
           repeatCountMap[day.date] = day.consultationCount.prepaid.repeatConsultation + day.consultationCount.postpaid.repeatConsultation;
+          newConsultMap[day.date] = day.consultationCount.prepaid.newConsultation + day.consultationCount.postpaid.newConsultation;
         }
       }
       CONSULT_DAILY = map;
       CONSULT_USER_DAILY = userMap;
       REPEAT_USER_DAILY = repeatUserMap;
       REPEAT_COUNT_DAILY = repeatCountMap;
+      NEW_CONSULT_DAILY = newConsultMap;
       CONSULT_STATE = 'ok';
     } catch (e) {
       CONSULT_STATE = 'error';
@@ -460,16 +464,16 @@
     items.push(`<div class="stat"><div class="label">합계(사이트 전체)</div><div class="value">${fmtUsers(total)}</div></div>`);
     if (CONSULT_STATE === 'ok') {
       const consultSum = dates.reduce((acc, d) => acc + (CONSULT_DAILY[d] || 0), 0);
+      const newConsultSum = dates.reduce((acc, d) => acc + (NEW_CONSULT_DAILY[d] || 0), 0);
       const repeatCountSum = dates.reduce((acc, d) => acc + (REPEAT_COUNT_DAILY[d] || 0), 0);
-      const repeatUserSum = dates.reduce((acc, d) => acc + (REPEAT_USER_DAILY[d] || 0), 0);
-      items.push(`<div class="stat"><div class="label">상담수(${periodLabel})</div><div class="value">${fmtCount(consultSum)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">전환율(${periodLabel})</div><div class="value">${fmtPercent((consultSum / total) * 100)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">재상담건(${periodLabel})</div><div class="value">${fmtCount(repeatCountSum)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">재상담건전환율(${periodLabel})</div><div class="value">${fmtPercent((repeatCountSum / total) * 100)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">재상담인원(${periodLabel})</div><div class="value">${fmtUsers(repeatUserSum)}</div></div>`);
-      items.push(`<div class="stat"><div class="label">재상담전환율(${periodLabel})</div><div class="value">${fmtPercent((repeatUserSum / total) * 100)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">상담건(${periodLabel})</div><div class="value">${fmtCount(consultSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">상담율(${periodLabel})</div><div class="value">${fmtPercent((consultSum / total) * 100)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">신규상담(${periodLabel})</div><div class="value">${fmtCount(newConsultSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">신규상담율(${periodLabel})</div><div class="value">${fmtPercent((newConsultSum / total) * 100)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담(${periodLabel})</div><div class="value">${fmtCount(repeatCountSum)}</div></div>`);
+      items.push(`<div class="stat"><div class="label">재상담율(${periodLabel})</div><div class="value">${fmtPercent((repeatCountSum / total) * 100)}</div></div>`);
     } else {
-      items.push(`<div class="stat"><div class="label">상담수(${periodLabel})</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
+      items.push(`<div class="stat"><div class="label">상담건(${periodLabel})</div><div class="value">${CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…'}</div></div>`);
     }
     return `<div class="summary-grid">${items.join('')}</div>`;
   }
