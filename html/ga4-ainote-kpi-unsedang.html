@@ -297,7 +297,6 @@
       <h2>조회 기간</h2>
       <div class="filter-row" id="filterRow">
         <button type="button" class="preset-btn" data-preset="1">어제</button>
-        <button type="button" class="preset-btn" data-preset="90" id="presetAllBtn">전체</button>
         <button type="button" class="preset-btn" data-preset="7">최근 7일</button>
         <button type="button" class="preset-btn" data-preset="14">최근 14일</button>
         <button type="button" class="preset-btn" data-preset="30">최근 30일</button>
@@ -960,12 +959,11 @@
 
   function init() {
     const totalDays = rangeDates(DATE_RANGE.from, DATE_RANGE.to).length;
-    document.getElementById('presetAllBtn').textContent = `전체(${totalDays}일)`;
-    // 7/14/30일 버튼은 "전체" 가용 일수보다 길면 전체와 결과가 똑같아 의미가 없으므로
+    // 7/14/30일 버튼은 가용 일수보다 길면 전체 범위와 결과가 똑같아 의미가 없으므로
     // 비활성화한다 — 내장 범위가 늘어나 가용 일수가 그 숫자를 넘으면 자동으로 풀린다.
     document.querySelectorAll('.preset-btn[data-preset]').forEach((btn) => {
       const days = Number(btn.dataset.preset);
-      if (days > 1 && days < 90) {
+      if (days > 1) {
         btn.disabled = days >= totalDays;
       }
     });
@@ -1002,7 +1000,8 @@
       });
     });
 
-    applyRange(DATE_RANGE.from, DATE_RANGE.to, 90);
+    const defaultDays = 7;
+    applyRange(clamp(addDays(DATE_RANGE.to, -(defaultDays - 1))), DATE_RANGE.to, defaultDays);
     updateFooter();
   }
 
