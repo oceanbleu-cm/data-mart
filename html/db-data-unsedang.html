@@ -331,7 +331,7 @@
     return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
   }
 
-  const AGG_FIELDS = ['total', 'newConsultation', 'repeatConsultation', 'sameDayRepeatConsultation', 'laterRepeatConsultation'];
+  const AGG_FIELDS = ['total', 'newConsultation', 'repeatConsultation'];
   function emptyAgg() {
     const zero = () => Object.fromEntries(AGG_FIELDS.map((f) => [f, 0]));
     return { prepaid: zero(), postpaid: zero() };
@@ -395,7 +395,7 @@
   const GROUP_LEGEND_HTML = `
     <div class="legend">
       <span><span class="swatch total"></span>합계</span>
-      <span><span class="swatch amount"></span>매출·건수 · 재상담(당일)</span>
+      <span><span class="swatch amount"></span>선불·후불 매출·건수</span>
     </div>`;
 
   function revenueTableHtml({ headLabel, rows, sumRev, sumRevTotal, avgAll, avgDivisor, avgLabel, hintHtml, checkHtml }) {
@@ -404,15 +404,13 @@
         (r) => `<tr${r.rowClass ? ` class="${r.rowClass}"` : ''}>
         <td>${r.label}</td>
         <td class="col-total">${won(r.revTotal)}</td>
-        <td>${won(r.avg)}</td>
         <td class="col-m-amount grp-start">${won(r.revenue.prepaid.total)}</td>
-        <td>${won(r.revenue.prepaid.newConsultation)}</td>
-        <td class="col-m-amount">${won(r.revenue.prepaid.sameDayRepeatConsultation)}</td>
-        <td>${won(r.revenue.prepaid.laterRepeatConsultation)}</td>
-        <td class="col-m-amount grp-start">${won(r.revenue.postpaid.total)}</td>
-        <td>${won(r.revenue.postpaid.newConsultation)}</td>
-        <td class="col-m-amount">${won(r.revenue.postpaid.sameDayRepeatConsultation)}</td>
-        <td>${won(r.revenue.postpaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount">${won(r.revenue.postpaid.total)}</td>
+        <td class="grp-start">${won(r.revenue.prepaid.newConsultation)}</td>
+        <td>${won(r.revenue.prepaid.repeatConsultation)}</td>
+        <td class="grp-start">${won(r.revenue.postpaid.newConsultation)}</td>
+        <td>${won(r.revenue.postpaid.repeatConsultation)}</td>
+        <td class="grp-start">${won(r.avg)}</td>
       </tr>`
       )
       .join('');
@@ -423,15 +421,13 @@
       ? `<tr class="avg-sub-row">
               <td>${avgLabel}</td>
               <td class="col-total">${won(avgRevTotal)}</td>
-              <td>${won(avgAll)}</td>
               <td class="col-m-amount grp-start">${won(avgRev.prepaid.total)}</td>
-              <td>${won(avgRev.prepaid.newConsultation)}</td>
-              <td class="col-m-amount">${won(avgRev.prepaid.sameDayRepeatConsultation)}</td>
-              <td>${won(avgRev.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-m-amount grp-start">${won(avgRev.postpaid.total)}</td>
-              <td>${won(avgRev.postpaid.newConsultation)}</td>
-              <td class="col-m-amount">${won(avgRev.postpaid.sameDayRepeatConsultation)}</td>
-              <td>${won(avgRev.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount">${won(avgRev.postpaid.total)}</td>
+              <td class="grp-start">${won(avgRev.prepaid.newConsultation)}</td>
+              <td>${won(avgRev.prepaid.repeatConsultation)}</td>
+              <td class="grp-start">${won(avgRev.postpaid.newConsultation)}</td>
+              <td>${won(avgRev.postpaid.repeatConsultation)}</td>
+              <td class="grp-start">${won(avgAll)}</td>
             </tr>`
       : '';
     return `
@@ -441,15 +437,12 @@
         <table>
           <thead>
             <tr>
-              <th rowspan="2">${headLabel}</th>
-              <th class="col-total" rowspan="2">매출 합계</th>
-              <th rowspan="2">건당 평균매출</th>
-              <th class="col-m-amount grp-start" rowspan="2">선불 매출</th><th rowspan="2">선불 신규</th><th colspan="2">선불 재상담</th>
-              <th class="col-m-amount grp-start" rowspan="2">후불 매출</th><th rowspan="2">후불 신규</th><th colspan="2">후불 재상담</th>
-            </tr>
-            <tr>
-              <th class="col-m-amount">당일</th><th>이후</th>
-              <th class="col-m-amount">당일</th><th>이후</th>
+              <th>${headLabel}</th>
+              <th class="col-total">총 매출</th>
+              <th class="col-m-amount grp-start">선불 매출</th><th class="col-m-amount">후불 매출</th>
+              <th class="grp-start">선불 신규</th><th>선불 재상담</th>
+              <th class="grp-start">후불 신규</th><th>후불 재상담</th>
+              <th class="grp-start">건당 평균</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -457,15 +450,13 @@
             <tr>
               <td>합계</td>
               <td class="col-total">${won(sumRevTotal)}</td>
-              <td>${won(avgAll)}</td>
               <td class="col-m-amount grp-start">${won(sumRev.prepaid.total)}</td>
-              <td>${won(sumRev.prepaid.newConsultation)}</td>
-              <td class="col-m-amount">${won(sumRev.prepaid.sameDayRepeatConsultation)}</td>
-              <td>${won(sumRev.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-m-amount grp-start">${won(sumRev.postpaid.total)}</td>
-              <td>${won(sumRev.postpaid.newConsultation)}</td>
-              <td class="col-m-amount">${won(sumRev.postpaid.sameDayRepeatConsultation)}</td>
-              <td>${won(sumRev.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount">${won(sumRev.postpaid.total)}</td>
+              <td class="grp-start">${won(sumRev.prepaid.newConsultation)}</td>
+              <td>${won(sumRev.prepaid.repeatConsultation)}</td>
+              <td class="grp-start">${won(sumRev.postpaid.newConsultation)}</td>
+              <td>${won(sumRev.postpaid.repeatConsultation)}</td>
+              <td class="grp-start">${won(avgAll)}</td>
             </tr>
             ${avgFootRow}
           </tfoot>
@@ -488,13 +479,11 @@
         <td>${r.label}</td>
         <td class="col-total">${cnt(r.cntTotal)}${uc(u && u.prepaid.total + u.postpaid.total)}</td>
         <td class="col-m-amount grp-start">${cnt(r.consultationCount.prepaid.total)}${uc(u && u.prepaid.total)}</td>
-        <td>${cnt(r.consultationCount.prepaid.newConsultation)}${uc(u && u.prepaid.newConsultation)}</td>
-        <td class="col-m-amount">${cnt(r.consultationCount.prepaid.sameDayRepeatConsultation)}${uc(u && u.prepaid.sameDayRepeatConsultation)}</td>
-        <td>${cnt(r.consultationCount.prepaid.laterRepeatConsultation)}${uc(u && u.prepaid.laterRepeatConsultation)}</td>
-        <td class="col-m-amount grp-start">${cnt(r.consultationCount.postpaid.total)}${uc(u && u.postpaid.total)}</td>
-        <td>${cnt(r.consultationCount.postpaid.newConsultation)}${uc(u && u.postpaid.newConsultation)}</td>
-        <td class="col-m-amount">${cnt(r.consultationCount.postpaid.sameDayRepeatConsultation)}${uc(u && u.postpaid.sameDayRepeatConsultation)}</td>
-        <td>${cnt(r.consultationCount.postpaid.laterRepeatConsultation)}${uc(u && u.postpaid.laterRepeatConsultation)}</td>
+        <td class="col-m-amount">${cnt(r.consultationCount.postpaid.total)}${uc(u && u.postpaid.total)}</td>
+        <td class="grp-start">${cnt(r.consultationCount.prepaid.newConsultation)}${uc(u && u.prepaid.newConsultation)}</td>
+        <td>${cnt(r.consultationCount.prepaid.repeatConsultation)}${uc(u && u.prepaid.repeatConsultation)}</td>
+        <td class="grp-start">${cnt(r.consultationCount.postpaid.newConsultation)}${uc(u && u.postpaid.newConsultation)}</td>
+        <td>${cnt(r.consultationCount.postpaid.repeatConsultation)}${uc(u && u.postpaid.repeatConsultation)}</td>
       </tr>`;
       })
       .join('');
@@ -507,13 +496,11 @@
               <td>${avgLabel}</td>
               <td class="col-total">${cnt(avgCntTotal)}</td>
               <td class="col-m-amount grp-start">${cnt(avgCnt.prepaid.total)}</td>
-              <td>${cnt(avgCnt.prepaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(avgCnt.prepaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(avgCnt.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-m-amount grp-start">${cnt(avgCnt.postpaid.total)}</td>
-              <td>${cnt(avgCnt.postpaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(avgCnt.postpaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(avgCnt.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount">${cnt(avgCnt.postpaid.total)}</td>
+              <td class="grp-start">${cnt(avgCnt.prepaid.newConsultation)}</td>
+              <td>${cnt(avgCnt.prepaid.repeatConsultation)}</td>
+              <td class="grp-start">${cnt(avgCnt.postpaid.newConsultation)}</td>
+              <td>${cnt(avgCnt.postpaid.repeatConsultation)}</td>
             </tr>`
       : '';
     return `
@@ -523,14 +510,11 @@
         <table>
           <thead>
             <tr>
-              <th rowspan="2">${headLabel}</th>
-              <th class="col-total" rowspan="2">건수 합계</th>
-              <th class="col-m-amount grp-start" rowspan="2">선불 건수</th><th rowspan="2">선불 신규</th><th colspan="2">선불 재상담</th>
-              <th class="col-m-amount grp-start" rowspan="2">후불 건수</th><th rowspan="2">후불 신규</th><th colspan="2">후불 재상담</th>
-            </tr>
-            <tr>
-              <th class="col-m-amount">당일</th><th>이후</th>
-              <th class="col-m-amount">당일</th><th>이후</th>
+              <th>${headLabel}</th>
+              <th class="col-total">총 상담 수</th>
+              <th class="col-m-amount grp-start">선불 상담 수</th><th class="col-m-amount">후불 상담 수</th>
+              <th class="grp-start">선불 신규상담 수</th><th>선불 재상담 수</th>
+              <th class="grp-start">후불 신규상담 수</th><th>후불 재상담 수</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -539,13 +523,11 @@
               <td>합계</td>
               <td class="col-total">${cnt(sumCntTotal)}${uc(fu && fu.prepaid.total + fu.postpaid.total)}</td>
               <td class="col-m-amount grp-start">${cnt(sumCnt.prepaid.total)}${uc(fu && fu.prepaid.total)}</td>
-              <td>${cnt(sumCnt.prepaid.newConsultation)}${uc(fu && fu.prepaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(sumCnt.prepaid.sameDayRepeatConsultation)}${uc(fu && fu.prepaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(sumCnt.prepaid.laterRepeatConsultation)}${uc(fu && fu.prepaid.laterRepeatConsultation)}</td>
-              <td class="col-m-amount grp-start">${cnt(sumCnt.postpaid.total)}${uc(fu && fu.postpaid.total)}</td>
-              <td>${cnt(sumCnt.postpaid.newConsultation)}${uc(fu && fu.postpaid.newConsultation)}</td>
-              <td class="col-m-amount">${cnt(sumCnt.postpaid.sameDayRepeatConsultation)}${uc(fu && fu.postpaid.sameDayRepeatConsultation)}</td>
-              <td>${cnt(sumCnt.postpaid.laterRepeatConsultation)}${uc(fu && fu.postpaid.laterRepeatConsultation)}</td>
+              <td class="col-m-amount">${cnt(sumCnt.postpaid.total)}${uc(fu && fu.postpaid.total)}</td>
+              <td class="grp-start">${cnt(sumCnt.prepaid.newConsultation)}${uc(fu && fu.prepaid.newConsultation)}</td>
+              <td>${cnt(sumCnt.prepaid.repeatConsultation)}${uc(fu && fu.prepaid.repeatConsultation)}</td>
+              <td class="grp-start">${cnt(sumCnt.postpaid.newConsultation)}${uc(fu && fu.postpaid.newConsultation)}</td>
+              <td>${cnt(sumCnt.postpaid.repeatConsultation)}${uc(fu && fu.postpaid.repeatConsultation)}</td>
             </tr>
             ${avgFootRow}
           </tfoot>
