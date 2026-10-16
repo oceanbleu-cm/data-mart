@@ -324,11 +324,12 @@
   // dauPaid/ebookUsers/audiobookUsers는 GA4에 맞춤 측정기준(customUser:member_status,
   // customEvent:format)이 아직 등록되지 않아 조회 불가 — null로 둔다(등록되면 커맨드
   // 문서만 고쳐서 채운다. docs/todaybook-data.md "GA4 실측 확인" 절 참고).
-  const GA4_GENERATED_AT = '2026-10-15 05:22 UTC (Supermetrics GA4/GAWA todaybook 556152838 조회, 정적 스냅샷)';
-  const GA4_RANGE = { from: '2026-10-13', to: '2026-10-14' };
+  const GA4_GENERATED_AT = '2026-10-16 04:40 UTC (Supermetrics GA4/GAWA todaybook 556152838 조회, 정적 스냅샷)';
+  const GA4_RANGE = { from: '2026-10-13', to: '2026-10-15' };
   const GA4_DAILY = [
     { date: '2026-10-13', dau: 40, dauPaid: null, mauToDate: 40, cardReadUsers: 6, booknoteReadUsers: 5, bookchatUsers: 6, bookUsers: 3, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-14', dau: 10, dauPaid: null, mauToDate: 44, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
+    { date: '2026-10-14', dau: 9, dauPaid: null, mauToDate: 44, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
+    { date: '2026-10-15', dau: 19, dauPaid: null, mauToDate: 61, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
   ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
