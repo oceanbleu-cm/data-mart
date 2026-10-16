@@ -364,28 +364,30 @@
 
   function summaryCardHtml(titleHtml, revAgg, cntAgg, userAgg) {
     const revAll = revAgg.prepaid.total + revAgg.postpaid.total;
-    const revNew = revAgg.prepaid.newConsultation + revAgg.postpaid.newConsultation;
-    const revRepeat = revAgg.prepaid.repeatConsultation + revAgg.postpaid.repeatConsultation;
     const cntAll = cntAgg.prepaid.total + cntAgg.postpaid.total;
-    const cntNew = cntAgg.prepaid.newConsultation + cntAgg.postpaid.newConsultation;
-    const cntRepeat = cntAgg.prepaid.repeatConsultation + cntAgg.postpaid.repeatConsultation;
+    const avgPerCount = cntAll > 0 ? Math.round(revAll / cntAll) : 0;
     return `
       <h2>${titleHtml}</h2>
       <div class="stat-group-title">매출</div>
       <div class="summary-grid">
-        <div class="stat"><div class="label">합계</div><div class="value">${won(revAll)}</div></div>
-        <div class="stat"><div class="label">선불</div><div class="value">${won(revAgg.prepaid.total)}</div></div>
-        <div class="stat"><div class="label">후불</div><div class="value">${won(revAgg.postpaid.total)}</div></div>
-        <div class="stat"><div class="label">신규</div><div class="value">${won(revNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${won(revRepeat)}</div></div>
+        <div class="stat"><div class="label">총 매출</div><div class="value">${won(revAll)}</div></div>
+        <div class="stat"><div class="label">선불 매출</div><div class="value">${won(revAgg.prepaid.total)}</div></div>
+        <div class="stat"><div class="label">후불 매출</div><div class="value">${won(revAgg.postpaid.total)}</div></div>
+        <div class="stat"><div class="label">선불 신규</div><div class="value">${won(revAgg.prepaid.newConsultation)}</div></div>
+        <div class="stat"><div class="label">선불 재상담</div><div class="value">${won(revAgg.prepaid.repeatConsultation)}</div></div>
+        <div class="stat"><div class="label">후불 신규</div><div class="value">${won(revAgg.postpaid.newConsultation)}</div></div>
+        <div class="stat"><div class="label">후불 재상담</div><div class="value">${won(revAgg.postpaid.repeatConsultation)}</div></div>
+        <div class="stat"><div class="label">건당 평균</div><div class="value">${won(avgPerCount)}</div></div>
       </div>
       <div class="stat-group-title">상담 건수</div>
       <div class="summary-grid">
-        <div class="stat"><div class="label">합계</div><div class="value">${cnt(cntAll)}</div></div>
-        <div class="stat"><div class="label">선불</div><div class="value">${cnt(cntAgg.prepaid.total)}${uc(userAgg && userAgg.prepaid.total)}</div></div>
-        <div class="stat"><div class="label">후불</div><div class="value">${cnt(cntAgg.postpaid.total)}${uc(userAgg && userAgg.postpaid.total)}</div></div>
-        <div class="stat"><div class="label">신규</div><div class="value">${cnt(cntNew)}</div></div>
-        <div class="stat"><div class="label">재상담</div><div class="value">${cnt(cntRepeat)}</div></div>
+        <div class="stat"><div class="label">총 상담 수</div><div class="value">${cnt(cntAll)}</div></div>
+        <div class="stat"><div class="label">선불 상담 수</div><div class="value">${cnt(cntAgg.prepaid.total)}${uc(userAgg && userAgg.prepaid.total)}</div></div>
+        <div class="stat"><div class="label">후불 상담 수</div><div class="value">${cnt(cntAgg.postpaid.total)}${uc(userAgg && userAgg.postpaid.total)}</div></div>
+        <div class="stat"><div class="label">선불 신규상담 수</div><div class="value">${cnt(cntAgg.prepaid.newConsultation)}${uc(userAgg && userAgg.prepaid.newConsultation)}</div></div>
+        <div class="stat"><div class="label">선불 재상담 수</div><div class="value">${cnt(cntAgg.prepaid.repeatConsultation)}${uc(userAgg && userAgg.prepaid.repeatConsultation)}</div></div>
+        <div class="stat"><div class="label">후불 신규상담 수</div><div class="value">${cnt(cntAgg.postpaid.newConsultation)}${uc(userAgg && userAgg.postpaid.newConsultation)}</div></div>
+        <div class="stat"><div class="label">후불 재상담 수</div><div class="value">${cnt(cntAgg.postpaid.repeatConsultation)}${uc(userAgg && userAgg.postpaid.repeatConsultation)}</div></div>
       </div>`;
   }
 
