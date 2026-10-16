@@ -376,22 +376,6 @@
     return fmtPercent((v / total) * 100);
   }
 
-  function renderConsultFootnote() {
-    const statusText = CONSULT_STATE === 'error'
-      ? ` (로드 실패: ${CONSULT_ERROR_MSG} — 페이지를 새로고침하면 재시도됩니다)`
-      : '';
-    const apiLinks = CONSULT_MONTHS.map((m) => `<a href="${consultApiUrl(m)}" target="_blank" rel="noopener">${m}</a>`).join(', ');
-    return `<div class="note">ℹ "상담건"은 DB API(consultation-stats, 해당 월: ${apiLinks})에서
-      <b>이 페이지를 열 때마다 실시간으로 가져온</b> 선불+후불 상담 건수(consultationCount) 합계입니다
-      — 위 매체 유입 표(GA4)와 달리 정적 스냅샷이 아닙니다. "상담율" = 상담건 ÷ "합계"(사이트 전체
-      활성사용자) × 100으로, 유입 대비 상담 전환 정도를 보는 참고 지표입니다. "신규상담"은 동일
-      API의 consultationCount.newConsultation(선불+후불 단순 합산, 처음 상담하는 건수), "신규상담율"
-      = 신규상담 ÷ "합계" × 100입니다. "재상담"은 consultationCount.repeatConsultation(선불+후불
-      단순 합산, 같은 사람이 여러 번 재상담하면 매번 집계), "재상담율" = 재상담 ÷ "합계" × 100입니다.
-      신규상담 + 재상담 = 상담건입니다(운세당 매출 리포트의 재상담 집계 방식과 동일한 필드를
-      씁니다).${statusText}</div>`;
-  }
-
   // --- 합계 열은 사이트 전체 TOTAL_DAILY/TOTAL_PERIOD를 사용(어느 기준으로 쪼개든 사이트
   // 전체 활성사용자 수 자체는 같기 때문). 상담건/상담율은 CONSULT_DAILY(실시간 fetch)/
   // TOTAL_DAILY 기준으로 계산한다. ---
@@ -640,7 +624,6 @@
         ${renderFirstUserLegend()}
         ${renderFirstUserTable(from, to)}
         ${renderFirstUserFootnote()}
-        ${renderConsultFootnote()}
       </div>`;
   }
 
