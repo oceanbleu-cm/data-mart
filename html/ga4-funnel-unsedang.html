@@ -99,20 +99,13 @@
   .src-badge.ga4 { background: var(--accent-bg); color: var(--accent); }
   .src-badge.db { background: var(--good-bg); color: var(--good); }
   .src-badge.manual { background: var(--mute-bg); color: var(--text-dim); }
-  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.66rem; font-weight: 700; white-space: nowrap; }
-  .badge.bad { background: var(--bad-bg); color: var(--bad); }
-  .badge.mute { background: var(--mute-bg); color: var(--text-dim); }
   .sec-title { font-size: 0.78rem; font-weight: 700; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
   .note { font-size: 0.72rem; color: var(--text-dim); margin: 10px 0 0; line-height: 1.65; }
   .note b { color: var(--text); font-variant-numeric: tabular-nums; }
   .note a { color: var(--accent); }
   .note.warn b, .note.warn { color: var(--bad); }
-  .chip { display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; margin-left: 5px; vertical-align: 1px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .chip.up { background: var(--good-bg); color: var(--good); }
-  .chip.down { background: var(--bad-bg); color: var(--bad); }
-  .chip.flat { background: var(--mute-bg); color: var(--text-dim); }
 
-  /* --- 퍼널(단계 막대 + 단계 간 전환율 커넥터) --- */
+  /* --- 퍼널(단계 막대만 나열 — 단계 간 연결을 암시하는 커넥터 없음) --- */
   .fnl { display: flex; flex-direction: column; }
   .fnl-row { display: grid; grid-template-columns: 150px 1fr 124px; align-items: center; gap: 12px; }
   .fnl-label { text-align: right; min-width: 0; }
@@ -124,17 +117,6 @@
   .fnl-figs { text-align: right; font-variant-numeric: tabular-nums; min-width: 0; }
   .fnl-figs .v { font-size: 0.94rem; font-weight: 700; white-space: nowrap; }
   .fnl-figs .p { font-size: 0.66rem; color: var(--text-dim); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fnl-conn {
-    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
-    margin: 4px 0 4px 162px; padding: 4px 10px;
-    border-left: 2px solid var(--border); font-size: 0.71rem; color: var(--text-dim);
-  }
-  .fnl-conn .rate { font-size: 0.84rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-  .fnl-conn .drop { font-variant-numeric: tabular-nums; }
-  .fnl-conn.worst { border-left-color: var(--bad); background: var(--bad-bg); border-radius: 0 6px 6px 0; }
-  .fnl-conn.worst .rate { color: var(--bad); }
-  .fnl-conn.gain { border-left-color: var(--accent); background: var(--accent-bg); border-radius: 0 6px 6px 0; }
-  .fnl-conn.gain .rate { color: var(--accent); }
 
   /* --- 일자별 상세 표 --- */
   .table-scroll { overflow-x: auto; }
@@ -152,8 +134,6 @@
     .fnl-label .sub { display: none; }
     .fnl-figs .v { font-size: 0.82rem; }
     .fnl-figs .pnote { display: none; }
-    .fnl-conn { margin-left: 96px; padding: 4px 8px; gap: 5px; }
-    .fnl-conn .rate { font-size: 0.78rem; }
     #captureBtn { margin-left: 0 !important; }
   }
 </style>
@@ -170,8 +150,8 @@
     </nav>
     <h1>운세당 GA4 퍼널 리포트</h1>
     <p class="subtitle">
-      상담 전환까지의 <b>핵심 전환 퍼널</b>만 봅니다 — 단계별 전환율·이탈, 운세당 DB(상담수·매출)
-      지표, 일자별 항목·수치 표를 함께 제공합니다.
+      상담 전환까지의 <b>핵심 단계</b>를 봅니다 — 단계별 활성사용자(페이지별 독립 집계), 운세당
+      DB(상담수·매출) 지표, 일자별 수치 표를 함께 제공합니다.
     </p>
 
     <div class="card">
@@ -226,20 +206,18 @@
   const GENERATED_AT = '2026-10-16 04:48 UTC (BigQuery GA4 export analytics_488612198 조회, 정적 스냅샷)';
 
   // ===========================================================================
-  // MAIN_FUNNEL — 상담 전환 경로의 **근사** 퍼널.
+  // MAIN_FUNNEL — 상담 전환 경로의 핵심 단계.
   // [중요] 이건 GA4 '유입경로 탐색'처럼 세션 경로를 추적한 값이 아니다. 각 단계는
   // 페이지 경로/이벤트별로 **따로 필터링해 조회한 activeUsers**일 뿐이라, "A를 거쳐
-  // B로 갔다"가 아니라 "같은 기간에 A도 B도 집계됐다"는 뜻이다. 내장 데이터 모든
-  // 기간(어제/7·14·30·90일)에서 단조감소가 성립하는 단계만 골라 퍼널로 근사했을
-  // 뿐이며, 단조감소는 두 단계가 이어져 있을 **정황**이지 증거가 아니다. 그래서
-  // 커넥터의 '전환율/이탈'도 추적된 이동이 아니라 두 단계 수치의 비/차이다.
-  // 진짜 순차 경로가 필요하면 GA4 UI의 탐색 분석 → 유입경로 탐색을 써야 한다
-  // (docs/ga4_guide.md §5 참고 — API로는 불가능).
+  // B로 갔다"가 아니라 "같은 기간에 A도 B도 집계됐다"는 뜻이다. 그래서 화면도(2026-10-16
+  // 재설계) 단계 사이에 전환율/이탈 같은 "연결"을 암시하는 커넥터 없이, 막대 + 1단계
+  // (전체사용자) 대비 비율만 compact하게 나열한다 — 순서는 그냥 진입 깊이가 깊은
+  // 순서일 뿐 반드시 단조감소여야 하는 건 아니다. 진짜 순차 경로가 필요하면 GA4 UI의
+  // 탐색 분석 → 유입경로 탐색을 써야 한다(docs/ga4_guide.md §5 참고 — API로는 불가능).
   // 상담사 목록(csl)은 **일부러 뺐다**:
   // 90일 순사용자 기준 상담사 상세(3,189명) > 상담사 목록(2,003명)이고 비율이
   // 모든 기간에서 149~182%라, 목록은 상세의 선행 관문이 아니다(광고·딥링크로
-  // 상세에 직접 진입하는 사용자가 다수). 목록을 퍼널 단계로 두면 전환율이
-  // 100%를 넘어 숫자가 무의미해진다.
+  // 상세에 직접 진입하는 사용자가 다수).
   //
   // (2026-10-08) 요약/② AI 상담노트 트랙/③ 병렬 참여 지표/매체별 유입/사업 성과 카드는
   // 사용자 요청으로 모두 제거하고 이 퍼널 하나만 남겼다 — 대신 GA4 상담하기 클릭 다음에
@@ -249,13 +227,21 @@
   // `/view/ai-note`·`/view/ai-note/noteInfo` 페이지 조회도 이때 함께 뺐다(스크립트 쪽도
   // scripts/update_ga4_unsedang.py에서 PAGE_KEYS/EVENT_KEYS를 정리했다).
   //
+  // (2026-10-16) '후기페이지 도달'(totalRatingComment, /view/csl/totalRatingComment)을
+  // 홈메인과 상담사 상세 사이에 추가했다. 2026-10-02부터 집계값이 급등해 그 이후로는
+  // 상담사 상세보다 커졌는데(예: 50일 합계 상담사 상세 2,768명 < 후기페이지 4,866명),
+  // 연결 퍼널이 아니라 단순 비교 막대라 순서를 상담사 상세보다 앞에 둬도 의미는 같다
+  // (상담사 상세를 맨 아래로 내린 것도 같은 이유 — 역전돼 보이지 않도록 진입 깊이 순으로
+  // 재배치했을 뿐, 실제 경로 추적 결과가 아니다).
+  //
   // 이 정의는 scripts/update_ga4_unsedang.py가 건드리는 const 블록이 아니다
   // (그 스크립트는 DAILY_*/*_TOTALS/DATE_RANGE/GENERATED_AT만 정규식으로 교체한다).
   // ===========================================================================
   const MAIN_FUNNEL = [
     { id: 'site', label: '전체사용자', sub: '사이트 전체' },
-    { id: 'home', label: '홈메인 도달', sub: '/view/home' },
-    { id: 'cslInfo', label: '상담사 상세 도달', sub: '/view/csl/cslInfo' },
+    { id: 'home', label: '홈메인 도달', sub: '/home' },
+    { id: 'totalRatingComment', label: '후기페이지 도달', sub: '/csl/totalRatingComment' },
+    { id: 'cslInfo', label: '상담사 상세 도달', sub: '/csl/cslInfo' },
     { id: 'call', label: '상담하기 클릭', sub: 'pre/post_tel_click' },
   ];
   const numFmt = new Intl.NumberFormat('ko-KR');
@@ -320,31 +306,6 @@
     return { value: nodeSum(id, from, to), exact: false };
   }
 
-  // --- 이전 동기간(바로 앞의 같은 길이 구간). 내장 범위를 벗어나면 비교 불가(null). ---
-  function prevPeriod(from, to) {
-    const len = rangeDates(from, to).length;
-    const pTo = addDays(from, -1);
-    const pFrom = addDays(pTo, -(len - 1));
-    if (pFrom < DATE_RANGE.from) return null;
-    return { from: pFrom, to: pTo };
-  }
-
-  // 증감 칩. mode 'rel' = 상대 증감률(%), mode 'pp' = 비율의 절대 차이(%p).
-  function deltaChip(cur, prev, mode) {
-    if (prev == null || cur == null || !isFinite(cur) || !isFinite(prev)) return '';
-    if (mode === 'pp') {
-      const d = (cur - prev) * 100;
-      if (Math.abs(d) < 0.05) return '<span class="chip flat">±0.0%p</span>';
-      const cls = d > 0 ? 'up' : 'down';
-      return `<span class="chip ${cls}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}%p</span>`;
-    }
-    if (!prev) return '';
-    const d = ((cur - prev) / prev) * 100;
-    if (Math.abs(d) < 0.05) return '<span class="chip flat">±0.0%</span>';
-    const cls = d > 0 ? 'up' : 'down';
-    return `<span class="chip ${cls}">${d > 0 ? '▲' : '▼'}${Math.abs(d).toFixed(1)}%</span>`;
-  }
-
   // 상담 매출/건수는 운세당 DB API(consultation-stats)에서 페이지를 열 때마다
   // 실시간으로 가져온다(GA4 정적 스냅샷과 별개) — ①의 "실제 상담(DB)" 단계/지표/
   // 일자별 상세 표 DB 열에 쓰인다.
@@ -397,50 +358,16 @@
   }
 
   // ===========================================================================
-  // 퍼널 렌더링 — 단계 막대 + 단계 사이에 "전환율 / 이탈 인원·이탈률" 커넥터를 넣는다.
-  // 막대 폭은 (전체사용자가 아니라) **그 퍼널의 1단계** 기준이라 작은 트랙도 읽힌다.
-  // 절대 이탈 인원이 가장 큰 구간은 '최대 이탈'로 강조한다.
+  // 퍼널 렌더링 — 단계 막대만 나열한다(단계 간 연결을 암시하는 전환율/이탈 커넥터
+  // 없음 — 각 단계는 독립 집계이므로). 막대 폭/비율은 1단계(전체사용자) 기준.
   // ===========================================================================
-  function renderFunnelRows(steps, from, to, compare) {
+  function renderFunnelRows(steps, from, to) {
     const cur = steps.map((s) => ({ ...s, value: nodeValue(s.id, from, to).value }));
     const base = cur[0].value;
-    const prev = compare ? prevPeriod(from, to) : null;
-    const prevVals = prev ? steps.map((s) => nodeSum(s.id, prev.from, prev.to)) : null;
-    const curSums = prev ? steps.map((s) => nodeSum(s.id, from, to)) : null;
-
-    // 최대 이탈 구간(절대 인원 기준). 전환율이 100%를 넘는 구간은 후보에서 제외한다.
-    let worstIdx = -1;
-    let worstDrop = 0;
-    for (let i = 1; i < cur.length; i++) {
-      const drop = cur[i - 1].value - cur[i].value;
-      if (drop > worstDrop) { worstDrop = drop; worstIdx = i; }
-    }
-
-    let html = '';
-    cur.forEach((s, i) => {
+    const html = cur.map((s, i) => {
       const pctOfBase = base ? s.value / base : null;
       const barPct = base ? Math.max((s.value / base) * 100, s.value > 0 ? 1.2 : 0) : 0;
-      if (i > 0) {
-        const fromV = cur[i - 1].value;
-        const rate = fromV ? cur[i].value / fromV : null;
-        const drop = fromV - cur[i].value;
-        const prevRate = prevVals && prevVals[i - 1] ? prevVals[i] / prevVals[i - 1] : null;
-        const curRate = curSums && curSums[i - 1] ? curSums[i] / curSums[i - 1] : null;
-        const gain = drop < 0;
-        const cls = gain ? 'gain' : (i === worstIdx && drop > 0 ? 'worst' : '');
-        const dropHtml = gain
-          ? `<span class="drop">상위 단계를 거치지 않은 직접 진입 <b>+${numFmt.format(-drop)}명</b></span>`
-          : `<span class="drop">이탈 ${numFmt.format(drop)}명 (${fmtPct(fromV ? drop / fromV : null)})</span>`;
-        html += `
-        <div class="fnl-conn ${cls}">
-          <span class="rate">↓ ${fmtPct(rate)}</span>
-          ${dropHtml}
-          ${deltaChip(curRate, prevRate, 'pp')}
-          ${cls === 'worst' ? '<span class="badge bad">최대 이탈</span>' : ''}
-          ${gain ? '<span class="badge mute">순차 아님</span>' : ''}
-        </div>`;
-      }
-      html += `
+      return `
         <div class="fnl-row${i === cur.length - 1 ? ' terminal' : ''}">
           <div class="fnl-label"><span class="nm">${s.label}</span><span class="sub">${s.sub || ''}</span></div>
           <div class="fnl-track"><div class="fnl-bar" style="width:${barPct}%"></div></div>
@@ -449,8 +376,8 @@
             <span class="p">${i === 0 ? '기준 100%' : fmtPct(pctOfBase) + '<span class="pnote"> (1단계 대비)</span>'}</span>
           </div>
         </div>`;
-    });
-    return { html, cur, base, prev };
+    }).join('');
+    return { html, cur, base };
   }
 
   // 일자별 상세 표 — steps(해당 트랙의 항목들)를 열로, 날짜를 행으로(최신순) 깐다.
@@ -483,14 +410,13 @@
           <tbody>${body}</tbody>
         </table>
       </div>
-      <p class="note">일별 원본 활성사용자 값입니다(비집계 지표라 여러 날 합산치가 아닙니다) — 위 퍼널 막대/전환율과 같은 정의입니다.${extraNote}</p>`;
+      <p class="note">일별 원본 활성사용자 값입니다(비집계 지표라 여러 날 합산치가 아닙니다) — 위 막대와 같은 정의입니다.${extraNote}</p>`;
   }
 
-  // --- ①번 퍼널에 이어붙이는 "실제 상담(DB)" 단계. GA4 활성사용자(명)가 아니라 운세당
-  // DB API(consultation-stats)의 상담건수(건)라 단위가 다르다 — 그래서 직전 단계와의
-  // 커넥터는 "전환율"이 아니라 건÷명 비율로 표기한다(이 코드베이스의 "클릭 1명당
-  // 상담건수"와 같은 패턴). 매출(원)은 사람 수 흐름인 퍼널 막대에 넣을 수 없는 지표라
-  // 여기엔 안 넣고 dbConsultIndicatorsNote()에서 별도 지표로 보여준다.
+  // --- ①번에 이어붙이는 "실제 상담(DB)" 단계. GA4 활성사용자(명)가 아니라 운세당
+  // DB API(consultation-stats)의 상담건수(건)라 단위가 다르다 — 건/명 비율·단위 차이
+  // 설명은 막대에 넣지 않고 dbConsultIndicatorsNote()의 "클릭 1명당 상담수"로만 보여준다.
+  // 매출(원)도 사람 수 막대에 넣을 수 없는 지표라 같은 note에 별도로 둔다.
   function dbConsultSum(from, to) {
     const dates = rangeDates(from, to);
     return dates.reduce((a, d) => a + (CONSULT_COUNT_PREPAID_DAILY[d] || 0) + (CONSULT_COUNT_POSTPAID_DAILY[d] || 0), 0);
@@ -500,14 +426,10 @@
     return dates.reduce((a, d) => a + (CONSULT_REVENUE_DAILY[d] || 0), 0);
   }
 
-  function renderDbConsultStep(from, to, base, clickV) {
+  function renderDbConsultStep(from, to, base) {
     if (CONSULT_STATE !== 'ok') {
       const ph = CONSULT_STATE === 'error' ? '로드 실패' : '로딩 중…';
       return `
-        <div class="fnl-conn">
-          <span class="rate">↓ –</span>
-          <span class="drop">DB 상담수 ${ph}</span>
-        </div>
         <div class="fnl-row terminal">
           <div class="fnl-label"><span class="nm">실제 상담 <span class="src-badge db">DB</span></span><span class="sub">consultation-stats</span></div>
           <div class="fnl-track"><div class="fnl-bar" style="width:0%"></div></div>
@@ -515,14 +437,9 @@
         </div>`;
     }
     const dbCount = dbConsultSum(from, to);
-    const rate = clickV ? dbCount / clickV : null;
     const barPct = base ? Math.max((dbCount / base) * 100, dbCount > 0 ? 1.2 : 0) : 0;
     const pctOfBase = base ? dbCount / base : null;
     return `
-      <div class="fnl-conn">
-        <span class="rate">↓ ${fmtRatio2(rate)}건/명</span>
-        <span class="drop">GA4 명 → DB 건, 단위가 달라 전환율이 아니라 비율입니다</span>
-      </div>
       <div class="fnl-row terminal">
         <div class="fnl-label"><span class="nm">실제 상담 <span class="src-badge db">DB</span></span><span class="sub">consultation-stats</span></div>
         <div class="fnl-track"><div class="fnl-bar" style="width:${barPct}%"></div></div>
@@ -542,12 +459,12 @@
       DB 실측 <span class="src-badge db">DB</span>: 상담수 <b>${fmtCount(dbCount)}</b> · 매출 <b>${fmtWon(revenueSum)}</b>
       · 클릭 1명당 상담수 <b>${clickV ? fmtRatio2(dbCount / clickV) + '건' : '–'}</b>
       · 상담 1건당 매출 <b>${dbCount ? fmtWon(Math.round(revenueSum / dbCount)) : '–'}</b>
-      — 운세당 DB API(consultation-stats)를 페이지 로드 시점에 실시간으로 가져온 값이라 위 GA4 퍼널(정적 스냅샷)과 집계 시점이 다릅니다.
+      — DB API 실시간 값(GA4는 정적 스냅샷이라 집계 시점이 다름).
     </p>`;
   }
 
   function renderMainFunnel(from, to) {
-    const { html, cur, base } = renderFunnelRows(MAIN_FUNNEL, from, to, true);
+    const { html, cur, base } = renderFunnelRows(MAIN_FUNNEL, from, to);
     const end = cur[cur.length - 1].value;
 
     const dbCols = CONSULT_STATE === 'ok'
@@ -568,8 +485,8 @@
     return `
       <div class="card">
         <h2>핵심 전환 퍼널 <span class="src-badge ga4">GA4</span>
-          <span class="hint">활성사용자 기준(근사 — 세션 경로 추적 아님) · ${from} ~ ${to}</span></h2>
-        <div class="fnl">${html}${renderDbConsultStep(from, to, base, end)}</div>
+          <span class="hint">활성사용자 기준 · 단계별 독립 집계(연결 추적 아님) · ${from} ~ ${to}</span></h2>
+        <div class="fnl">${html}${renderDbConsultStep(from, to, base)}</div>
         ${dbConsultIndicatorsNote(from, to, end)}
         ${renderDailyTable(MAIN_FUNNEL, from, to, dbCols)}
       </div>`;
