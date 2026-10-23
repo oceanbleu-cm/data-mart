@@ -9,7 +9,8 @@ AI 상담노트 기능 집계 시작일(2026-09-30)이 고정 시작점이고, �
 이 리포트는 데이터 출처가 두 종류다:
   1) GA4 BigQuery export(`unsedang.analytics_488612198`, 2026-10-15에 Supermetrics MCP에서
      전환 — docs/bigquery-ga4-mapping.md 참고) — CALL/PRETEL/PAGES(aiNote·noteInfo)/
-     SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK. activeUsers는 비집계 지표라, 이 스크립트는
+     SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK/RECO_CLICK/SCROLL90(노트 상세 스크롤 90% 도달,
+     scripts/sql/ainote_scroll90_*.sql). activeUsers는 비집계 지표라, 이 스크립트는
      BigQuery를 직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능) —
      `.claude/commands/update-ga4-ainote-kpi-unsedang.md`가 `scripts/sql/*.sql`을 읽어 조회한
      결과를 미리 JSON 파일로 떠서 `--indir`에 넣어두면 이 스크립트가 읽는다. 기간 합계는
@@ -43,7 +44,7 @@ AINOTE_AFTER_REPEAT_CNT)만 START_DATE~(--to 또는 기존 DATE_RANGE.to)로 다
 재시도 트리거가 안 걸리는 경우(증분 GA4 신규 날짜가 없어 조기 종료됨)를 메우기 위한
 땜빵용 모드다 — `--indir` 불필요.
 
-입력 디렉터리(--indir) 안의 GA4 JSON 파일 12개:
+입력 디렉터리(--indir) 안의 GA4 JSON 파일 16개:
     call_incremental.json / call_period.json
         {"rows":[{"date","activeUsers"}]} / {"rows":[{"activeUsers"}]}  (한 행)
         (eventName IN (pre_tel_click, post_tel_click), dimension은 date만 — eventName을
@@ -71,6 +72,10 @@ AINOTE_AFTER_REPEAT_CNT)만 START_DATE~(--to 또는 기존 DATE_RANGE.to)로 다
         (선생님 추천 버튼 클릭 — eventName이 callnote_reco_click_{선생님번호}로 선생님마다 달라져
          정확히 일치하는 이름이 없다. eventName =@ 'callnote_reco_click' (contains)로 전체
          선생님번호를 합산해 하나의 지표로 집계한다.)
+    scroll90_incremental.json / scroll90_period.json
+        {"rows":[{"date","activeUsers"}]} / {"rows":[{"activeUsers"}]} (한 행)
+        (노트 상세 /view/ai-note/noteInfo 페이지에서 GA4 Enhanced Measurement가 자동 수집하는
+         scroll 이벤트, percent_scrolled=90 필터. scripts/sql/ainote_scroll90_*.sql.)
 
 DB 쪽(ALIMTALK/AINOTE_CONSULT_CNT/AINOTE_CONSULT_USR/AINOTE_REPEAT_USR/AINOTE_REPEAT_CNT/
 AINOTE_AFTER_REPEAT_CNT)은 파일 스테이징이
@@ -423,6 +428,7 @@ FLAT_SERIES = [
     ('DAILY_PRETEL', 'PRETEL_TOTAL', 'pretel', 'ga4'),
     ('DAILY_UTM_CLICK', 'UTM_CLICK_TOTAL', 'utmclick', 'ga4'),
     ('DAILY_RECO_CLICK', 'RECO_CLICK_TOTAL', 'recoclick', 'ga4'),
+    ('DAILY_SCROLL90', 'SCROLL90_TOTAL', 'scroll90', 'ga4'),
     ('DAILY_ALIMTALK', 'ALIMTALK_TOTAL', None, 'db'),
     ('DAILY_AINOTE_CONSULT_CNT', 'AINOTE_CONSULT_CNT_TOTAL', None, 'db'),
     ('DAILY_AINOTE_CONSULT_USR', 'AINOTE_CONSULT_USR_TOTAL', None, 'db'),
@@ -712,7 +718,8 @@ def main():
 
     print('=== update_ga4_ainote_kpi_unsedang.py 요약 ===')
     print(f'범위: {date_range["from"]}~{date_range["to"]} -> {new_from}~{new_to} (누적, {START_DATE}부터 고정)')
-    print(f'CALL/PRETEL/UTM_CLICK 기간 합계: {new_total["CALL_TOTAL"]}/{new_total["PRETEL_TOTAL"]}/{new_total["UTM_CLICK_TOTAL"]}')
+    print(f'CALL/PRETEL/UTM_CLICK/RECO_CLICK/SCROLL90 기간 합계: {new_total["CALL_TOTAL"]}/{new_total["PRETEL_TOTAL"]}/'
+          f'{new_total["UTM_CLICK_TOTAL"]}/{new_total["RECO_CLICK_TOTAL"]}/{new_total["SCROLL90_TOTAL"]}')
     print(f'PAGE_TOTALS: {new_page_totals}')
     print(f'SUBEVENT_TOTALS: {new_subevent_totals}')
     print(f'ENGAGEMENT_TOTAL: {new_engagement_total}')

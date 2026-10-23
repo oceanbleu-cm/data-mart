@@ -17,7 +17,8 @@ argument-hint: "[--to YYYY-MM-DD] [--dry-run] [--skip-db]"
 데이터 출처가 **두 종류**다:
 1. **GA4 BigQuery export**(`unsedang.analytics_488612198`, 2026-10-15에 Supermetrics MCP에서
    전환 — 검증 기록: `docs/bigquery-ga4-mapping.md`) — CALL/PRETEL/PAGES(aiNote·noteInfo)/
-   SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK/RECO_CLICK(선생님 추천 버튼 클릭, 06 보조지표).
+   SUBEVENTS(7종)/ENGAGEMENT/UTM_CLICK/RECO_CLICK(선생님 추천 버튼 클릭, 06 보조지표)/
+   SCROLL90(노트 상세 스크롤 90% 도달, 핵심 퍼널 6단계).
    `scripts/update_ga4_ainote_kpi_unsedang.py`는 BigQuery를
    직접 호출하지 않는다(에이전트만 BigQuery MCP 툴 호출 가능) — 이 커맨드(에이전트)가 미리
    JSON 파일로 떠서 `--indir`에 넣어두면 스크립트가 읽는다(JSON 스키마는 전환 전과 완전히
@@ -90,6 +91,7 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
 | 5 노트 상세 참여시간 | `scripts/sql/ainote_engagement_daily.sql` | (고정, `/view/ai-note/noteInfo`) | `date, totalEngagementDuration, activeUsers` |
 | 6 알림톡 UTM 클릭 | `scripts/sql/ainote_utmclick_daily.sql` | (고정, 세션 스코프 필터 — naver-powerlink 패턴) | `date, activeUsers` |
 | 13 선생님 추천 클릭 | `scripts/sql/event_users_daily.sql` | `REGEXP_CONTAINS(event_name, r'callnote_reco_click')` | `date, activeUsers` |
+| 15 스크롤 90% 도달 | `scripts/sql/ainote_scroll90_daily.sql` | (고정, 파일 안에 하드코딩) | `date, activeUsers` |
 
 ## §3 기간 전체 쿼리 7건 (비집계 지표라 필수 — 생략 금지, 기간: `new_from`(2026-09-30) ~ `new_to`)
 
@@ -105,6 +107,7 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
 | 11 참여시간 기간 합계 | `scripts/sql/ainote_engagement_period.sql` | — | `totalEngagementDuration, activeUsers` (한 행) |
 | 12 UTM 클릭 기간 합계 | `scripts/sql/ainote_utmclick_period.sql` | — | `activeUsers` (한 행) |
 | 14 선생님 추천 클릭 기간 합계 | `scripts/sql/event_users_period.sql` | 쿼리 13과 동일 | `activeUsers` (한 행) |
+| 16 스크롤 90% 도달 기간 합계 | `scripts/sql/ainote_scroll90_period.sql` | — | `activeUsers` (한 행) |
 
 > 왜 매번 기간 전체를 다시 물어보는가? `activeUsers`는 비집계 지표라 일별 값을 더하면
 > 실제보다 부풀려진다. 창이 하루 늘 때마다 전체 누적 기간 기준으로 순사용자 수를 처음부터
@@ -117,8 +120,8 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
 
 ## §4 임시 JSON 저장
 
-`mkdir -p /tmp/ga4-ainote-kpi-update/<YYYYMMDD-HHMMSS>/` 후 아래 14개 파일을 Write
-(DB API 쪽 4개 필드는 스크립트가 직접 호출하므로 여기서 스테이징하지 않는다):
+`mkdir -p /tmp/ga4-ainote-kpi-update/<YYYYMMDD-HHMMSS>/` 후 아래 16개 파일을 Write
+(DB API 쪽 6개 필드는 스크립트가 직접 호출하므로 여기서 스테이징하지 않는다):
 
 - `call_incremental.json` / `call_period.json`: `{"rows":[{"date","activeUsers"}]}` (쿼리1/7)
 - `pretel_incremental.json` / `pretel_period.json`: 동일 스키마 (쿼리2/8)
@@ -133,6 +136,8 @@ START_DATE~기존 DATE_RANGE.to로 재조회해 채운다). 먼저 네트워크 
   `{"rows":[{"activeUsers"}]}` (쿼리6/12, period는 한 행)
 - `recoclick_incremental.json` / `recoclick_period.json`: 동일 스키마 (쿼리13/14, 선생님
   추천 버튼 클릭, 06 보조지표 — 트래픽이 적어 결측일이 정상)
+- `scroll90_incremental.json` / `scroll90_period.json`: `{"rows":[{"date","activeUsers"}]}` /
+  `{"rows":[{"activeUsers"}]}` (쿼리15/16, 노트 상세 스크롤 90% 도달, 핵심 퍼널 6단계)
 
 값이 0이거나 BigQuery 응답에 없던 날짜/경로/이벤트는 행을 만들지 않아도 된다(희소 저장
 방식 — 특히 추적 이벤트 7종은 트래픽이 적어 결측이 정상).
