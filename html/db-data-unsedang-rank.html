@@ -1,0 +1,440 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상담사 매출순위</title>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --card-bg: #ffffff;
+    --text: #1c1c1f;
+    --text-dim: #6b6b74;
+    --border: #e3e3e7;
+    --accent: #7c5cff;
+    --accent-bg: #efeaff;
+    --positive: #1a7f4b;
+    --negative: #c23b3b;
+    --table-head-bg: #f0f0f3;
+    --stripe: #fafafb;
+    --track-bg: #fff2cf;
+    --track-border: #e0a500;
+    --track-text: #8a6300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17171b;
+      --card-bg: #202024;
+      --text: #ececef;
+      --text-dim: #9a9aa4;
+      --border: #35353b;
+      --accent: #b3a1ff;
+      --accent-bg: #2a2440;
+      --positive: #5fd08c;
+      --negative: #ff8080;
+      --table-head-bg: #26262b;
+      --stripe: #232328;
+      --track-bg: #40330f;
+      --track-border: #e0a500;
+      --track-text: #f0c374;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17171b;
+    --card-bg: #202024;
+    --text: #ececef;
+    --text-dim: #9a9aa4;
+    --border: #35353b;
+    --accent: #b3a1ff;
+    --accent-bg: #2a2440;
+    --positive: #5fd08c;
+    --negative: #ff8080;
+    --table-head-bg: #26262b;
+    --stripe: #232328;
+    --track-bg: #40330f;
+    --track-border: #e0a500;
+    --track-text: #f0c374;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px 214px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 720px; margin: 0; }
+  .site-nav {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--card-bg);
+    border-right: 1px solid var(--border);
+    padding: 18px 10px;
+    overflow-y: auto;
+    z-index: 200;
+  }
+  .site-nav a {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text);
+    line-height: 1.4;
+    padding: 9px 8px;
+    border-radius: 8px;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .site-nav a:hover { background: var(--bg); }
+  .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
+  h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .card h2 { font-size: 0.88rem; font-weight: 400; margin: 0 0 8px; }
+  .card h2 .hint { font-weight: 400; color: var(--text-dim); font-size: 0.72rem; margin-left: 6px; }
+  .date-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bg);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .date-bar input[type="date"] {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .date-bar button {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 7px 11px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .date-bar button:hover { color: var(--accent); border-color: var(--accent); }
+  .date-bar button:disabled { opacity: 0.5; cursor: default; }
+  .date-bar .btn-reset { color: var(--accent); border-color: var(--accent); }
+  .date-bar .reload-btn { margin-left: auto; color: var(--text-dim); }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
+  }
+  .stat { padding: 7px 10px; background: var(--stripe); border-radius: 8px; }
+  .stat .label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 2px; }
+  .stat .value { font-size: 0.95rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 0.72rem; color: var(--text-dim); }
+  .legend .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: middle; border: 1px solid var(--track-border); }
+  .legend .swatch.track { background: var(--track-bg); }
+  .track-status { display: flex; flex-direction: column; gap: 6px; }
+  .track-status .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--track-bg);
+    border: 1px solid var(--track-border);
+    flex-wrap: wrap;
+  }
+  .track-status .row.absent { background: var(--stripe); border-color: var(--border); color: var(--text-dim); }
+  .track-status .name { font-weight: 700; color: var(--track-text); }
+  .track-status .row.absent .name { color: var(--text-dim); font-weight: 400; }
+  .track-status .rank { font-size: 0.78rem; color: var(--text-dim); }
+  .track-status .nums { font-size: 0.82rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: right; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: center; width: 2.4em; }
+  th:nth-child(2), td:nth-child(2) { text-align: left; font-variant-numeric: normal; }
+  th { background: var(--table-head-bg); font-weight: 400; color: var(--text-dim); font-size: 0.74rem; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: var(--stripe); }
+  tbody tr.tracked { background: var(--track-bg); }
+  tbody tr.tracked td { border-bottom-color: var(--track-border); }
+  .cell-sub { display: block; font-size: 0.68rem; color: var(--text-dim); margin-top: 1px; }
+  .star-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    color: var(--track-text);
+    background: var(--card-bg);
+    border: 1px solid var(--track-border);
+    border-radius: 999px;
+    padding: 0 6px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  .check-row { margin-top: 6px; font-size: 0.72rem; color: var(--text-dim); }
+  .check-row.loading::before { content: "⏳ "; }
+  .error-card { border-color: var(--negative); }
+  .error-card .msg { color: var(--negative); font-size: 0.85rem; margin-bottom: 12px; }
+  .retry-btn {
+    border: 1px solid var(--negative);
+    background: transparent;
+    color: var(--negative);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  @media (max-width: 640px) {
+    body { padding-left: 16px; }
+    .site-nav { position: static; width: auto; flex-direction: row; overflow-x: auto; margin-bottom: 12px; border-right: none; border-bottom: 1px solid var(--border); }
+    .date-bar .reload-btn { margin-left: 0; order: 10; width: 100%; }
+    .track-status .nums { margin-left: 0; width: 100%; }
+  }
+  footer { color: var(--text-dim); font-size: 0.72rem; margin-top: 24px; line-height: 1.7; }
+  footer a { color: var(--text-dim); }
+</style>
+<body>
+  <div class="wrap">
+    <nav class="site-nav">
+      <a href="db-data-unsedang.html">운세당 매출 리포트</a>
+      <a href="db-data-unsedang-rank.html" class="active">운세당 상담사 순위</a>
+      <a href="ga4-channel-unsedang.html">운세당 매체별 유입</a>
+      <a href="ga4-funnel-unsedang.html">운세당 GA4 퍼널</a>
+      <a href="ga4-ainote-kpi-unsedang.html">운세당 AI상담노트 KPI</a>
+      <a href="db-data-mindcare.html">마인드케어 리포트</a>
+      <a href="db-data-today.html">투데이 리포트</a>
+      <a href="db-data-todaybook.html">오늘의 지식 리포트</a>
+    </nav>
+    <h1>운세당 상담사 매출순위</h1>
+
+    <div class="date-bar">
+      <button id="prevDay" title="전날">◀</button>
+      <input type="date" id="datePick">
+      <button id="nextDay" title="다음날">▶</button>
+      <button id="resetDay" class="btn-reset">어제(D-1)</button>
+      <button id="reloadBtn" class="reload-btn">↻ 새로고침</button>
+    </div>
+
+    <div id="content"></div>
+
+    <footer id="footer"></footer>
+  </div>
+
+<script>
+(function () {
+  const API_TEMPLATE = "https://adm.unsedang.com/api/v1/reports/consultation-stats/daily/counselors?date={date}";
+  const FETCH_TIMEOUT_MS = 15000;
+  const TARGET_CSL_KEYS = [39, 270];
+
+  const numFmt = new Intl.NumberFormat('ko-KR');
+  const won = (n) => numFmt.format(n) + '원';
+  const cnt = (n) => numFmt.format(n) + '건';
+  const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+  function toYMD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function defaultYMD() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return toYMD(d);
+  }
+  function addDays(ymd, delta) {
+    const d = new Date(ymd + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    return toYMD(d);
+  }
+  function fmtDateLabel(ymd) {
+    const d = new Date(ymd + 'T00:00:00');
+    const [, m, day] = ymd.split('-');
+    return `${parseInt(m, 10)}/${parseInt(day, 10)} (${WEEKDAY_KO[d.getDay()]})`;
+  }
+
+  let lastFetchedAt = null;
+  let currentYmd = defaultYMD();
+
+  async function fetchDay(ymd) {
+    const apiDate = ymd.replace(/-/g, '');
+    const url = API_TEMPLATE.replace('{date}', apiDate);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { mode: 'cors', signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      lastFetchedAt = new Date();
+      updateFooter();
+      return data;
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('요청 시간 초과');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function renderLoadingCard(msg) {
+    document.getElementById('content').innerHTML = `<div class="card"><div class="check-row loading">${msg}</div></div>`;
+  }
+
+  function renderErrorCard(msg, onRetry) {
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'card error-card';
+    card.innerHTML = `<h2>데이터를 불러오지 못했습니다</h2><div class="msg">${msg}</div>`;
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'retry-btn';
+    retryBtn.textContent = '다시 시도';
+    retryBtn.onclick = onRetry;
+    card.appendChild(retryBtn);
+    content.appendChild(card);
+  }
+
+  function countSubHtml(c) {
+    return `<span class="cell-sub">선불 ${cnt(c.prepaid)} · 후불 ${cnt(c.postpaid)}</span>`;
+  }
+  function revenueSubHtml(r) {
+    return `<span class="cell-sub">선불 ${won(r.prepaid)} · 후불 ${won(r.postpaid)}</span>`;
+  }
+
+  function trackStatusRowHtml(ranked) {
+    return TARGET_CSL_KEYS.map((key) => {
+      const row = ranked.find((r) => r.cslKey === key);
+      if (!row) {
+        return `<div class="row absent"><span class="name">cslKey=${key}</span><span class="rank">이 날 상담 내역 없음</span></div>`;
+      }
+      return `<div class="row">
+        <span class="name">${row.consultantName}</span>
+        <span class="rank">cslKey=${key} · ${row.rank}위</span>
+        <span class="nums">${cnt(row.consultationCount.total)} · ${won(row.revenue.total)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function setReloadEnabled(enabled) {
+    const btn = document.getElementById('reloadBtn');
+    if (btn) btn.disabled = !enabled;
+  }
+
+  function updateNextDayState(ymd) {
+    document.getElementById('nextDay').disabled = ymd >= toYMD(new Date());
+  }
+
+  function updateFooter() {
+    const footer = document.getElementById('footer');
+    const ts = lastFetchedAt ? lastFetchedAt.toLocaleTimeString('ko-KR') : '-';
+    const url = API_TEMPLATE.replace('{date}', currentYmd.replace(/-/g, ''));
+    footer.innerHTML =
+      `데이터는 adm.unsedang.com API에서 실시간으로 조회됩니다 · 마지막 조회: ${ts}<br>` +
+      `출처: <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+  }
+
+  async function render(ymd, { force = false } = {}) {
+    currentYmd = ymd;
+    document.getElementById('datePick').value = ymd;
+    updateNextDayState(ymd);
+    setReloadEnabled(false);
+    renderLoadingCard(`${ymd} 데이터 불러오는 중...`);
+
+    let data;
+    try {
+      data = await fetchDay(ymd);
+    } catch (e) {
+      renderErrorCard(`${ymd} 조회 실패 (${e.message})`, () => render(ymd, { force: true }));
+      setReloadEnabled(true);
+      return;
+    }
+    setReloadEnabled(true);
+
+    const counselors = data.counselors || [];
+    const ranked = [...counselors]
+      .sort((a, b) => b.revenue.total - a.revenue.total)
+      .map((c, i) => ({ ...c, rank: i + 1 }));
+
+    const totalRevenue = ranked.reduce((s, c) => s + c.revenue.total, 0);
+    const totalCount = ranked.reduce((s, c) => s + c.consultationCount.total, 0);
+    const avgPerCounselor = ranked.length > 0 ? Math.round(totalRevenue / ranked.length) : 0;
+
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+
+    const summary = document.createElement('div');
+    summary.className = 'card';
+    summary.innerHTML = `
+      <h2>${fmtDateLabel(ymd)} 요약</h2>
+      <div class="summary-grid">
+        <div class="stat"><div class="label">상담사 수</div><div class="value">${numFmt.format(ranked.length)}명</div></div>
+        <div class="stat"><div class="label">총 매출</div><div class="value">${won(totalRevenue)}</div></div>
+        <div class="stat"><div class="label">총 상담건수</div><div class="value">${cnt(totalCount)}</div></div>
+        <div class="stat"><div class="label">상담사당 평균 매출</div><div class="value">${won(avgPerCounselor)}</div></div>
+      </div>`;
+    content.appendChild(summary);
+
+    const trackCard = document.createElement('div');
+    trackCard.className = 'card';
+    trackCard.innerHTML = `
+      <h2>지정 선생님 현황 <span class="hint">cslKey=${TARGET_CSL_KEYS.join(', ')}</span></h2>
+      <div class="track-status">${trackStatusRowHtml(ranked)}</div>`;
+    content.appendChild(trackCard);
+
+    const tableCard = document.createElement('div');
+    tableCard.className = 'card';
+    const rows = ranked
+      .map((c) => {
+        const tracked = TARGET_CSL_KEYS.includes(c.cslKey);
+        return `<tr${tracked ? ' class="tracked"' : ''}>
+          <td>${c.rank}</td>
+          <td>${c.consultantName}${tracked ? '<span class="star-badge">★ 지정</span>' : ''}</td>
+          <td>${cnt(c.consultationCount.total)}${countSubHtml(c.consultationCount)}</td>
+          <td>${won(c.revenue.total)}${revenueSubHtml(c.revenue)}</td>
+        </tr>`;
+      })
+      .join('');
+    tableCard.innerHTML = `
+      <h2>상담사 매출순위 <span class="hint">매출 기준 내림차순, 총 ${ranked.length}명</span></h2>
+      <div class="legend"><span><span class="swatch track"></span>★ 지정 선생님(cslKey ${TARGET_CSL_KEYS.join(', ')})</span></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>순위</th><th>상담사명</th><th>상담건수</th><th>매출</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:var(--text-dim);">이 날 상담 내역이 없습니다.</td></tr>'}</tbody>
+        </table>
+      </div>`;
+    content.appendChild(tableCard);
+  }
+
+  function init() {
+    const datePick = document.getElementById('datePick');
+    datePick.value = currentYmd;
+    datePick.max = toYMD(new Date());
+    datePick.addEventListener('change', () => {
+      if (datePick.value) render(datePick.value);
+    });
+    document.getElementById('prevDay').onclick = () => render(addDays(currentYmd, -1));
+    document.getElementById('nextDay').onclick = () => render(addDays(currentYmd, 1));
+    document.getElementById('resetDay').onclick = () => render(defaultYMD());
+    document.getElementById('reloadBtn').onclick = () => render(currentYmd, { force: true });
+
+    render(currentYmd);
+  }
+
+  init();
+})();
+</script>
+</body>

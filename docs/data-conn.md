@@ -27,6 +27,9 @@
 ## 운세당
 https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth=2026-09
 
+## 운세당 상담사 매출순위
+https://adm.unsedang.com/api/v1/reports/consultation-stats/daily/counselors?date=20261023
+
 ## 투데이
 KT:
 https://admin.wisetoday.kr/api/v1/reports/carrier-subscription-stats/monthly.json?baseMonth=2026-08&telCd=KT
