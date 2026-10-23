@@ -510,7 +510,7 @@
         { no: 6, label: 'AI 상담노트 상세 스크롤 90% 도달 사용자', value: scroll90, unit: 'count' },
         { no: 7, label: '재상담하기 클릭 수', value: councel, unit: 'count' },
         { no: 8, label: '추천 선생님 클릭 수 (2026-10-07부터 집계)', value: recoClick, unit: 'count' },
-        { no: 9, label: 'AI노트를 사용후 재상담 건수(선불) / AI노트가 생성된 재상담 건수(선불)', values: [{ value: aiNoteAfterRepeatCnt, unit: 'txn' }, { value: aiNoteRepeatCnt, unit: 'txn' }] },
+        { no: 9, label: '재상담건수', values: [{ value: aiNoteAfterRepeatCnt, unit: 'txn' }, { value: aiNoteRepeatCnt, unit: 'txn' }] },
       ],
       screens: [
         {
@@ -794,7 +794,7 @@
           <tbody>${rows}</tbody>
         </table>
         </div>
-        <p style="font-size:0.72rem;color:var(--text-dim);margin:8px 0 0;">9단계(AI노트를 사용후 재상담 건수(선불) / AI노트가 생성된 재상담 건수(선불))는 <span style="color:var(--bad);">AI상담노트가 생성된 상담건 기준입니다.</span></p>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin:8px 0 0;">9단계(재상담건수)는 왼쪽부터 <b>AI노트를 사용후 재상담 건수(선불)</b> / <b>AI노트가 생성된 재상담 건수(선불)</b> 순이며, <span style="color:var(--bad);">AI상담노트가 생성된 상담건 기준입니다.</span></p>
       </div>`;
   }
 
