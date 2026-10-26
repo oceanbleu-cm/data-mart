@@ -110,6 +110,27 @@
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
   h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  .main-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0 18px;
+  }
+  .main-tab-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 0.86rem;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .main-tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .hidden { display: none; }
   .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -303,11 +324,19 @@
     </nav>
     <h1>오늘의 지식 리포트</h1>
 
-    <div id="ga4Summary"></div>
+    <div class="main-tabs">
+      <button class="main-tab-btn active" id="mainTabGa4">GA4 활성 현황</button>
+      <button class="main-tab-btn" id="mainTabDb">DB 가입자 데이터 현황</button>
+    </div>
 
-    <div class="tabs" id="tabs"></div>
+    <div id="ga4Panel">
+      <div id="ga4Summary"></div>
+    </div>
 
-    <div id="content"></div>
+    <div id="dbPanel" class="hidden">
+      <div class="tabs" id="tabs"></div>
+      <div id="content"></div>
+    </div>
 
     <footer id="footer"></footer>
   </div>
@@ -775,6 +804,15 @@
       `GA4 활성 현황은 Supermetrics(todaybook, account 556152838) 정적 스냅샷입니다 · 마지막 갱신: ${GA4_GENERATED_AT}<br>` +
       `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
   }
+
+  function switchMainTab(which) {
+    document.getElementById('mainTabGa4').classList.toggle('active', which === 'ga4');
+    document.getElementById('mainTabDb').classList.toggle('active', which === 'db');
+    document.getElementById('ga4Panel').classList.toggle('hidden', which !== 'ga4');
+    document.getElementById('dbPanel').classList.toggle('hidden', which !== 'db');
+  }
+  document.getElementById('mainTabGa4').onclick = () => switchMainTab('ga4');
+  document.getElementById('mainTabDb').onclick = () => switchMainTab('db');
 
   // D-1 기준으로 데이터가 적재되는 구조라, 당월 첫날엔 전날이 아직 당월에 속하지 않아
   // 당월 dailyStats가 비어 있을 수 있다. 이 경우 당월 탭 자체를 숨긴다.

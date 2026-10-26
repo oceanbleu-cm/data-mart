@@ -361,19 +361,23 @@
   // AI 상담노트는 선불 전용 기능이라 후불 값은 전부 0(API로 실측 확인). 03 발송성공률의
   // 분자(알림톡 발송 성공건수, 최상위 aiNoteAlimtalkCount)와 분모(발송 시도 근사치로 쓰는
   // consultationCount.prepaid.aiNoteConsultation).
-  const DAILY_ALIMTALK = {"2026-09-30":23,"2026-10-01":22,"2026-10-02":40,"2026-10-03":38,"2026-10-04":44,"2026-10-05":60,"2026-10-06":52,"2026-10-07":73,"2026-10-08":63,"2026-10-09":57,"2026-10-10":59,"2026-10-11":54,"2026-10-12":111,"2026-10-13":55,"2026-10-14":34,"2026-10-15":47,"2026-10-16":54,"2026-10-17":63,"2026-10-18":34,"2026-10-19":67,"2026-10-20":57,"2026-10-21":30,"2026-10-22":45,"2026-10-23":55,"2026-10-24":44};
-  const ALIMTALK_TOTAL = 1281;
-  const DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50,"2026-10-06":46,"2026-10-07":48,"2026-10-08":38,"2026-10-09":40,"2026-10-10":39,"2026-10-11":41,"2026-10-12":90,"2026-10-13":55,"2026-10-14":35,"2026-10-15":50,"2026-10-16":54,"2026-10-17":62,"2026-10-18":35,"2026-10-19":68,"2026-10-20":56,"2026-10-21":31,"2026-10-22":45,"2026-10-23":58,"2026-10-24":41};
-  const AINOTE_CONSULT_CNT_TOTAL = 1140;
+  // ⚠️ 이 6개 지표(DAILY_ALIMTALK~AINOTE_AFTER_REPEAT_CNT_TOTAL)는 더 이상 정적 스냅샷이 아니다
+  // — 아래 §DB 실시간 조회 블록이 페이지를 열 때마다 adm.unsedang.com을 브라우저에서 직접
+  // 호출해 이 변수들을 덮어쓴다(사용자 요청: "DB 데이터는 D-1 기준 실시간 조회"). 여기 박힌
+  // 값은 그 fetch가 실패했을 때 쓰는 폴백(마지막 자동 라우틴 스냅샷)일 뿐이라 let으로 둔다.
+  let DAILY_ALIMTALK = {"2026-09-30":23,"2026-10-01":22,"2026-10-02":40,"2026-10-03":38,"2026-10-04":44,"2026-10-05":60,"2026-10-06":52,"2026-10-07":73,"2026-10-08":63,"2026-10-09":57,"2026-10-10":59,"2026-10-11":54,"2026-10-12":111,"2026-10-13":55,"2026-10-14":34,"2026-10-15":47,"2026-10-16":54,"2026-10-17":63,"2026-10-18":34,"2026-10-19":67,"2026-10-20":57,"2026-10-21":30,"2026-10-22":45,"2026-10-23":55,"2026-10-24":44};
+  let ALIMTALK_TOTAL = 1281;
+  let DAILY_AINOTE_CONSULT_CNT = {"2026-09-30":23,"2026-10-01":25,"2026-10-02":38,"2026-10-03":40,"2026-10-04":32,"2026-10-05":50,"2026-10-06":46,"2026-10-07":48,"2026-10-08":38,"2026-10-09":40,"2026-10-10":39,"2026-10-11":41,"2026-10-12":90,"2026-10-13":55,"2026-10-14":35,"2026-10-15":50,"2026-10-16":54,"2026-10-17":62,"2026-10-18":35,"2026-10-19":68,"2026-10-20":56,"2026-10-21":31,"2026-10-22":45,"2026-10-23":58,"2026-10-24":41};
+  let AINOTE_CONSULT_CNT_TOTAL = 1140;
 
   // 06 전체 재상담율의 분모(userCount.prepaid.aiNoteConsultation)·분자(userCount.prepaid.
   // aiNoteRepeatConsultation, "전체 재상담" 유저수). 유저수는 날짜 간 중복제거가 보장되지
   // 않아 일별 합산은 근사값(API가 baseMonth 단위만 지원해 09월/10월에 걸친 이 구간의 단일
   // 정확값을 재조회할 방법이 없음).
-  const DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28,"2026-10-06":32,"2026-10-07":29,"2026-10-08":25,"2026-10-09":27,"2026-10-10":24,"2026-10-11":26,"2026-10-12":56,"2026-10-13":24,"2026-10-14":29,"2026-10-15":33,"2026-10-16":34,"2026-10-17":38,"2026-10-18":26,"2026-10-19":51,"2026-10-20":39,"2026-10-21":23,"2026-10-22":33,"2026-10-23":37,"2026-10-24":29};
-  const AINOTE_CONSULT_USR_TOTAL = 742;
-  const DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17,"2026-10-06":16,"2026-10-07":12,"2026-10-08":11,"2026-10-09":13,"2026-10-10":10,"2026-10-11":17,"2026-10-12":24,"2026-10-13":14,"2026-10-14":15,"2026-10-15":16,"2026-10-16":15,"2026-10-17":17,"2026-10-18":15,"2026-10-19":21,"2026-10-20":15,"2026-10-21":9,"2026-10-22":15,"2026-10-23":21,"2026-10-24":9};
-  const AINOTE_REPEAT_USR_TOTAL = 344;
+  let DAILY_AINOTE_CONSULT_USR = {"2026-09-30":9,"2026-10-01":17,"2026-10-02":23,"2026-10-03":29,"2026-10-04":21,"2026-10-05":28,"2026-10-06":32,"2026-10-07":29,"2026-10-08":25,"2026-10-09":27,"2026-10-10":24,"2026-10-11":26,"2026-10-12":56,"2026-10-13":24,"2026-10-14":29,"2026-10-15":33,"2026-10-16":34,"2026-10-17":38,"2026-10-18":26,"2026-10-19":51,"2026-10-20":39,"2026-10-21":23,"2026-10-22":33,"2026-10-23":37,"2026-10-24":29};
+  let AINOTE_CONSULT_USR_TOTAL = 742;
+  let DAILY_AINOTE_REPEAT_USR = {"2026-09-30":6,"2026-10-01":9,"2026-10-02":10,"2026-10-03":9,"2026-10-04":8,"2026-10-05":17,"2026-10-06":16,"2026-10-07":12,"2026-10-08":11,"2026-10-09":13,"2026-10-10":10,"2026-10-11":17,"2026-10-12":24,"2026-10-13":14,"2026-10-14":15,"2026-10-15":16,"2026-10-16":15,"2026-10-17":17,"2026-10-18":15,"2026-10-19":21,"2026-10-20":15,"2026-10-21":9,"2026-10-22":15,"2026-10-23":21,"2026-10-24":9};
+  let AINOTE_REPEAT_USR_TOTAL = 344;
 
   // 핵심 퍼널 9단계 — consultationCount.prepaid 기준 건수(위 06화면 유저수 지표와는 분모가
   // 다른 별도 지표). aiNoteRepeatConsultation="AI노트가 생성된 재상담 건수"(후불은 전 기간
@@ -381,10 +385,10 @@
   // 건수(선불)"(AI 상담노트 알림톡을 받은 뒤 재상담한 건수) — 이 필드는 후불에도 값이
   // 존재하지만(이 기간 23건) 의도적으로 선불만 집계한다(리포트 전체가 "AI상담노트=선불 전용"
   // 원칙을 따름).
-  const DAILY_AINOTE_REPEAT_CNT = {"2026-09-30":17,"2026-10-01":12,"2026-10-02":22,"2026-10-03":18,"2026-10-04":17,"2026-10-05":30,"2026-10-06":27,"2026-10-07":24,"2026-10-08":19,"2026-10-09":21,"2026-10-10":18,"2026-10-11":24,"2026-10-12":46,"2026-10-13":40,"2026-10-14":20,"2026-10-15":28,"2026-10-16":28,"2026-10-17":32,"2026-10-18":20,"2026-10-19":29,"2026-10-20":25,"2026-10-21":14,"2026-10-22":24,"2026-10-23":35,"2026-10-24":16};
-  const AINOTE_REPEAT_CNT_TOTAL = 606; // 전체 기간 정확값
-  const DAILY_AINOTE_AFTER_REPEAT_CNT = {"2026-09-30":13,"2026-10-01":5,"2026-10-02":18,"2026-10-03":13,"2026-10-04":11,"2026-10-05":20,"2026-10-06":17,"2026-10-07":11,"2026-10-08":15,"2026-10-09":12,"2026-10-10":12,"2026-10-11":11,"2026-10-12":27,"2026-10-13":36,"2026-10-14":16,"2026-10-15":25,"2026-10-16":19,"2026-10-17":25,"2026-10-18":18,"2026-10-19":18,"2026-10-20":24,"2026-10-21":13,"2026-10-22":35,"2026-10-23":32,"2026-10-24":14};
-  const AINOTE_AFTER_REPEAT_CNT_TOTAL = 460; // 전체 기간 정확값(선불만, 후불 23건 제외)
+  let DAILY_AINOTE_REPEAT_CNT = {"2026-09-30":17,"2026-10-01":12,"2026-10-02":22,"2026-10-03":18,"2026-10-04":17,"2026-10-05":30,"2026-10-06":27,"2026-10-07":24,"2026-10-08":19,"2026-10-09":21,"2026-10-10":18,"2026-10-11":24,"2026-10-12":46,"2026-10-13":40,"2026-10-14":20,"2026-10-15":28,"2026-10-16":28,"2026-10-17":32,"2026-10-18":20,"2026-10-19":29,"2026-10-20":25,"2026-10-21":14,"2026-10-22":24,"2026-10-23":35,"2026-10-24":16};
+  let AINOTE_REPEAT_CNT_TOTAL = 606; // 전체 기간 정확값
+  let DAILY_AINOTE_AFTER_REPEAT_CNT = {"2026-09-30":13,"2026-10-01":5,"2026-10-02":18,"2026-10-03":13,"2026-10-04":11,"2026-10-05":20,"2026-10-06":17,"2026-10-07":11,"2026-10-08":15,"2026-10-09":12,"2026-10-10":12,"2026-10-11":11,"2026-10-12":27,"2026-10-13":36,"2026-10-14":16,"2026-10-15":25,"2026-10-16":19,"2026-10-17":25,"2026-10-18":18,"2026-10-19":18,"2026-10-20":24,"2026-10-21":13,"2026-10-22":35,"2026-10-23":32,"2026-10-24":14};
+  let AINOTE_AFTER_REPEAT_CNT_TOTAL = 460; // 전체 기간 정확값(선불만, 후불 23건 제외)
 
   // 노트 상세(/view/ai-note/noteInfo) 스크롤 90% 도달 — GA4 Enhanced Measurement가 자동 수집하는
   // scroll 이벤트(percent_scrolled=90)의 activeUsers. page_location LIKE '%/view/ai-note/noteInfo%'로
@@ -403,6 +407,70 @@
   const ACCOUNT_ID = '488612198';
   const ACCOUNT_NAME = 'unsedang-a3588';
   const GENERATED_AT = '2026-10-26 01:28 UTC (BigQuery GA4 export analytics_488612198 + 운세당 DB API 조회, 정적 스냅샷)';
+
+  // --- DB(운세당 consultation-stats) 실시간 조회 — adm.unsedang.com은 인증 없는 공개 CORS API라
+  // (html/db-data-unsedang.html 등에서 선례 확인됨) 이 페이지도 브라우저에서 직접 호출한다.
+  // 위 6개 지표(DAILY_ALIMTALK~AINOTE_AFTER_REPEAT_CNT_TOTAL)는 더 이상 "매일 자동 라우틴이
+  // 갱신하는 정적 스냅샷"이 아니라, 페이지를 열 때마다 DATE_RANGE.from~DATE_RANGE.to(이 리포트
+  // 설계상 D-1) 구간을 새로 조회해 덮어쓴다. 클라우드 자동 라우틴 샌드박스에서 adm.unsedang.com
+  // 아웃바운드가 간헐적으로 막히는 문제(daylog 2026-10-23~25)를 뷰어 브라우저가 대신 조회해서
+  // 우회하는 목적 — 실패하면 위에 박힌 폴백(마지막 라우틴 스냅샷) 값을 그대로 쓴다.
+  const DB_API_TEMPLATE = 'https://adm.unsedang.com/api/v1/reports/consultation-stats/monthly?baseMonth={month}';
+  const DB_FETCH_TIMEOUT_MS = 15000;
+  let dbLiveStatus = { state: 'pending', fetchedAt: null };
+
+  function dbMonthsBetween(from, to) {
+    const months = [];
+    let y = parseInt(from.slice(0, 4), 10), m = parseInt(from.slice(5, 7), 10);
+    const toY = parseInt(to.slice(0, 4), 10), toM = parseInt(to.slice(5, 7), 10);
+    while (y < toY || (y === toY && m <= toM)) {
+      months.push(`${y}-${String(m).padStart(2, '0')}`);
+      m += 1;
+      if (m > 12) { m = 1; y += 1; }
+    }
+    return months;
+  }
+
+  async function fetchDbMonth(month) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), DB_FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(DB_API_TEMPLATE.replace('{month}', month), { mode: 'cors', signal: controller.signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // DATE_RANGE.from~DATE_RANGE.to(이 리포트의 D-1 경계) 구간을 baseMonth별로 조회해
+  // 6개 지표의 DAILY_*/*_TOTAL 변수를 덮어쓴다. 실패 시 예외를 던지고 폴백 값은 그대로 둔다.
+  async function fetchDbLive() {
+    const dbTo = DATE_RANGE.to;
+    const buckets = { alimtalk: {}, consultCnt: {}, consultUsr: {}, repeatUsr: {}, repeatCnt: {}, afterRepeatCnt: {} };
+    for (const month of dbMonthsBetween(DATE_RANGE.from, dbTo)) {
+      const payload = await fetchDbMonth(month);
+      for (const day of (payload.dailyStats || [])) {
+        const d = day.date;
+        if (d < DATE_RANGE.from || d > dbTo) continue;
+        const cc = (day.consultationCount || {}).prepaid || {};
+        const uc = (day.userCount || {}).prepaid || {};
+        buckets.alimtalk[d] = day.aiNoteAlimtalkCount || 0;
+        buckets.consultCnt[d] = cc.aiNoteConsultation || 0;
+        buckets.consultUsr[d] = uc.aiNoteConsultation || 0;
+        buckets.repeatUsr[d] = uc.aiNoteRepeatConsultation || 0;
+        buckets.repeatCnt[d] = cc.aiNoteRepeatConsultation || 0;
+        buckets.afterRepeatCnt[d] = cc.afterAiNoteRepeatConsultation || 0;
+      }
+    }
+    const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+    DAILY_ALIMTALK = buckets.alimtalk; ALIMTALK_TOTAL = sum(buckets.alimtalk);
+    DAILY_AINOTE_CONSULT_CNT = buckets.consultCnt; AINOTE_CONSULT_CNT_TOTAL = sum(buckets.consultCnt);
+    DAILY_AINOTE_CONSULT_USR = buckets.consultUsr; AINOTE_CONSULT_USR_TOTAL = sum(buckets.consultUsr);
+    DAILY_AINOTE_REPEAT_USR = buckets.repeatUsr; AINOTE_REPEAT_USR_TOTAL = sum(buckets.repeatUsr);
+    DAILY_AINOTE_REPEAT_CNT = buckets.repeatCnt; AINOTE_REPEAT_CNT_TOTAL = sum(buckets.repeatCnt);
+    DAILY_AINOTE_AFTER_REPEAT_CNT = buckets.afterRepeatCnt; AINOTE_AFTER_REPEAT_CNT_TOTAL = sum(buckets.afterRepeatCnt);
+  }
 
   const numFmt = new Intl.NumberFormat('ko-KR');
   const fmtUsers = (n) => numFmt.format(n) + '명';
@@ -900,14 +968,23 @@
     setActivePreset(presetDays || null);
     render(from, to);
   }
+  function dbLiveStatusLine() {
+    if (dbLiveStatus.state === 'ok') {
+      return `DB 지표(알림톡 발송 수·AI 상담노트 상담건수 등 6종)는 adm.unsedang.com API를 브라우저가 직접 호출해 ${DATE_RANGE.from}~${DATE_RANGE.to}(D-1) 기준 <b>실시간 조회</b>합니다 · 마지막 조회: ${dbLiveStatus.fetchedAt.toLocaleTimeString('ko-KR')}`;
+    }
+    if (dbLiveStatus.state === 'error') {
+      return `DB 지표 실시간 조회 실패 — 최신 자동 라우틴 스냅샷 값(아래 생성 시각 기준)을 대신 표시 중입니다. 새로고침하면 재시도합니다.`;
+    }
+    return `DB 지표 실시간 조회 중...`;
+  }
+
   function updateFooter() {
     document.getElementById('footer').innerHTML =
       `데이터 출처: BigQuery GA4 export (unsedang.analytics_488612198) · GA4 계정 ${ACCOUNT_NAME} (account_id ${ACCOUNT_ID}) · 내장 데이터 범위 ${DATE_RANGE.from} ~ ${DATE_RANGE.to}(AI 상담노트 집계 시작일인 9월 30일부터, 총 ${rangeDates(DATE_RANGE.from, DATE_RANGE.to).length}일)<br>` +
-      `03 발송 성공률·06 전체 재상담율은 GA4가 아닌 운세당 DB API(consultation-stats/monthly)에서 2026-10-06 조회한 값입니다.<br>` +
-      `이 표는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 조회 시점 값을 임베드했습니다. 갱신하려면 BigQuery/DB API로 재조회 후 리포트를 다시 생성해야 합니다.<br>` +
-      `날짜 필터는 이미 내장된 데이터 안에서 다시 집계하는 것이며, 그 순간 GA4에 실시간으로 쿼리하는 것이 아닙니다.<br>` +
+      `${dbLiveStatusLine()}<br>` +
+      `GA4 쪽 지표(상담하기/페이지뷰/스크롤 등)는 실시간 fetch가 아닌 <b>정적 스냅샷</b>입니다 — 매일 자동 라우틴이 BigQuery를 재조회해 새 날짜만 추가합니다. 날짜 필터는 이미 내장된 GA4 데이터 안에서 다시 집계하는 것입니다(그 순간 BigQuery에 실시간 쿼리하지 않음).<br>` +
       `원본 KPI 목표 문서: AI상담노트-화면별-KPI목표-260929.html (작성일 2026-09-29)<br>` +
-      `생성 시각: ${GENERATED_AT}`;
+      `생성 시각(GA4 스냅샷): ${GENERATED_AT}`;
   }
 
   function init() {
@@ -954,9 +1031,29 @@
     });
 
     const defaultDays = 7;
+    // 폴백(위에 박힌 마지막 라우틴 스냅샷) 값으로 즉시 1차 렌더 — DB 실시간 조회가 끝나기 전에도
+    // 화면이 비어 보이지 않는다. fetchDbLive()가 성공하면 아래에서 같은 범위로 다시 렌더한다.
     applyRange(clamp(addDays(DATE_RANGE.to, -(defaultDays - 1))), DATE_RANGE.to, defaultDays);
     updateFooter();
   }
 
+  function rerenderWithCurrentRange() {
+    const from = document.getElementById('customFrom').value || DATE_RANGE.from;
+    const to = document.getElementById('customTo').value || DATE_RANGE.to;
+    render(from, to);
+    updateFooter();
+  }
+
   init();
+
+  fetchDbLive()
+    .then(() => {
+      dbLiveStatus = { state: 'ok', fetchedAt: new Date() };
+      rerenderWithCurrentRange();
+    })
+    .catch((e) => {
+      dbLiveStatus = { state: 'error', fetchedAt: null };
+      console.warn('DB 실시간 조회 실패, 폴백 스냅샷 값을 유지합니다:', e);
+      updateFooter();
+    });
 </script>
