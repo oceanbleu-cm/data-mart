@@ -166,9 +166,10 @@ python3 scripts/update_ga4_ainote_kpi_unsedang.py --html html/ga4-ainote-kpi-uns
 
 사용자 확인을 기다리지 말고 끝까지 자동으로 진행한다:
 - 이미 최신이면(§1-4) 아무 파일도 건드리지 말고 그대로 종료한다.
-- 갱신됐다면 `git add html/ga4-ainote-kpi-unsedang.html daylog/<오늘 날짜>.md` / commit
+- 갱신됐다면 `git add html/ga4-ainote-kpi-unsedang.html` / commit
   (메시지: `"AI상담노트 KPI 리포트 자동 업데이트: <이전 범위> -> <새 범위>"`) / push까지
-  반드시 완료한다. 저장소는 `origin/main`에 이미 연결돼 있다.
+  반드시 완료한다. 저장소는 `origin/main`에 이미 연결돼 있다. daylog는 `.gitignore`에
+  등록된 로컬 전용 파일이라 git add 대상에서 뺀다(§8에서 로컬에만 작성).
 - `[SafetyError]`로 중단되면(DB API 호출 실패 포함) 우회 플래그 없이, 무엇이 왜 실패했는지
   세션 결과에 명확히 남기고 커밋 없이 종료한다. DB API 호출이 일시적으로 실패하면
   `--skip-db`로 재시도할지, 그냥 실패로 두고 다음 실행을 기다릴지는 에러 성격에 따라

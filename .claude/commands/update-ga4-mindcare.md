@@ -95,9 +95,10 @@ python3 scripts/update_ga4_mindcare.py --html html/db-data-mindcare.html --data 
 ## §6 무인 스케줄 실행 시 (routine으로 호출된 경우)
 
 사용자 확인을 기다리지 말고 끝까지 자동으로 진행한다:
-- `git add html/db-data-mindcare.html daylog/<오늘 날짜>.md` / commit(메시지:
+- `git add html/db-data-mindcare.html` / commit(메시지:
   `"마인드케어 GA4 활성 현황 자동 업데이트: <21일 범위>"`) / push까지 반드시 완료한다.
-  저장소는 `origin/main`에 이미 연결돼 있다.
+  저장소는 `origin/main`에 이미 연결돼 있다. daylog는 `.gitignore`에 등록된 로컬 전용
+  파일이라 git add 대상에서 뺀다(§7에서 로컬에만 작성).
 - `[SafetyError]`로 중단되면 우회 플래그 없이, 무엇이 왜 실패했는지 세션 결과에 명확히
   남기고 커밋 없이 종료한다.
 

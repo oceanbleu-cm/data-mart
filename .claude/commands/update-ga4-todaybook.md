@@ -129,9 +129,10 @@ python3 scripts/update_ga4_todaybook.py --html html/db-data-todaybook.html --dat
 
 사용자 확인을 기다리지 말고 끝까지 자동으로 진행한다:
 - 신규 데이터가 없으면("이미 최신입니다") 아무 파일도 건드리지 말고 그대로 종료한다.
-- 신규 데이터가 있어서 `html/db-data-todaybook.html`과 daylog가 갱신됐다면, `git add` /
+- 신규 데이터가 있어서 `html/db-data-todaybook.html`이 갱신됐다면, `git add html/db-data-todaybook.html` /
   commit(메시지: `"오늘의 지식 GA4 활성 현황 자동 업데이트: <이전 범위> -> <새 범위>"`) /
-  push까지 반드시 완료한다. 저장소는 `origin/main`에 이미 연결돼 있다.
+  push까지 반드시 완료한다. 저장소는 `origin/main`에 이미 연결돼 있다. daylog는
+  `.gitignore`에 등록된 로컬 전용 파일이라 git add 대상에서 뺀다(§7에서 로컬에만 작성).
 - §1-4(우선 계정 미포함)로 중단되면 커밋 없이, 쿼터를 임의로 건드리지 않고 그대로 종료한다.
 - `[SafetyError]`로 중단되면 우회 플래그 없이, 무엇이 왜 실패했는지 세션 결과에 명확히
   남기고 커밋 없이 종료한다.
