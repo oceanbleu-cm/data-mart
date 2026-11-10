@@ -368,7 +368,8 @@
   // 시작점부터 D-1까지 누적되는 정적 스냅샷. html/ga4-ainote-kpi-unsedang.html과 같은
   // 철학(윈도우 롤링 아님). 매일 자동 라우틴이 새 날짜만 추가한다.
   // activeUsers/totalUsers는 비집계 지표라 요청서가 "더하면 안 된다"고 명시 —
-  // 그래서 일별 표에 합계 행을 두지 않는다(마인드케어의 단순합산 타협과 다름).
+  // 2026-11-10부터 마인드케어와 같이 선택 기간 합계 행(단순합산, 중복 집계 가능)을 하단에
+  // 둔다. 최신일 요약 카드는 제거했다.
   // dauPaid/ebookUsers/audiobookUsers는 GA4에 맞춤 측정기준(customUser:member_status,
   // customEvent:format)이 아직 등록되지 않아 조회 불가 — null로 둔다(등록되면 커맨드
   // 문서만 고쳐서 채운다. docs/todaybook-data.md "GA4 실측 확인" 절 참고).
@@ -444,7 +445,7 @@
   const GA4_METRICS = [
     { key: 'dau', label: 'DAU' },
     { key: 'dauPaid', label: 'DAU(유료)', pending: true },
-    { key: 'mauToDate', label: '월 누적 MAU' },
+    { key: 'mauToDate', label: '월 누적 MAU', lastValue: true },
     { key: 'cardReadUsers', label: '지식카드 읽음' },
     { key: 'booknoteReadUsers', label: '북노트 읽음' },
     { key: 'bookchatUsers', label: '북챗 이용' },
@@ -473,12 +474,25 @@
     const rows = sorted
       .map((d) => `<tr><td>${fmtDateLabel(d.date)}</td>${GA4_METRICS.map((m) => `<td>${num(d[m.key])}</td>`).join('')}<td>${paidActiveRateHtml(d.date, d)}</td></tr>`)
       .join('');
+    // 선택 기간 합계 — 월 누적 MAU는 이미 누적값이라 합산하지 않고 기간 마지막 날 값을 보여준다.
+    // 값이 전부 null인 열은 "–".
+    const sumRow = GA4_METRICS
+      .map((m) => {
+        if (m.lastValue) {
+          const last = sorted[0]; // 최신 날짜 행
+          return `<td>${last ? num(last[m.key]) : '–'}</td>`;
+        }
+        const vals = filtered.map((d) => d[m.key]).filter((v) => v !== null && v !== undefined);
+        return `<td>${vals.length === 0 ? '–' : num(vals.reduce((s, v) => s + v, 0))}</td>`;
+      })
+      .join('');
 
     body.innerHTML = `
       <div class="table-scroll">
         <table class="ga4-summary-table">
           <thead><tr><th>날짜</th>${headCells}<th>유료 활성률</th></tr></thead>
           <tbody>${rows}</tbody>
+          <tfoot><tr><td>선택 기간 합계 (${filtered.length}일)</td>${sumRow}<td>–</td></tr></tfoot>
         </table>
       </div>`;
   }
@@ -490,7 +504,6 @@
       el.innerHTML = '<div class="card"><div class="check-row loading">GA4 데이터가 아직 없습니다.</div></div>';
       return;
     }
-    const latest = [...GA4_DAILY].sort((a, b) => b.date.localeCompare(a.date))[0];
 
     // 월별 칩 — GA4_DAILY에 실제 있는 날짜로 월 범위를 만든다(오픈 월·진행 중인 월이 부분월이어도
     // 그대로 반영). 새 달 데이터가 쌓이면 칩이 자동으로 늘어난다.
@@ -509,6 +522,8 @@
       { label: '전체', from: GA4_RANGE.from, to: GA4_RANGE.to },
       ...monthRanges.map((r) => ({ label: chipLabel(r.key), from: r.from, to: r.to })),
     ];
+    // 기본 선택: D-1(GA4_RANGE.to)이 속한 달의 월 칩(마지막 월 칩).
+    const defaultChip = chips[chips.length - 1];
     const chipsHtml = chips
       .map((c) => `<button type="button" class="ga4-chip" data-from="${c.from}" data-to="${c.to}">${c.label}</button>`)
       .join('');
@@ -516,21 +531,13 @@
     el.innerHTML = `
       <div class="card">
         <h2>GA4 활성 현황 <span class="hint">서비스 오픈일(${fmtShortDate(GA4_RANGE.from)})부터 누적 · ${fmtShortDate(GA4_RANGE.from)}~${fmtShortDate(GA4_RANGE.to)}</span></h2>
-        <div class="stat-group-title">최신일(${fmtDateLabel(latest.date)}) 요약</div>
-        <div class="summary-grid summary-grid-4">
-          <div class="stat"><div class="label">DAU</div><div class="value">${num(latest.dau)}</div></div>
-          <div class="stat"><div class="label">DAU(유료)</div><div class="value">${num(latest.dauPaid)}</div></div>
-          <div class="stat"><div class="label">월 누적 MAU</div><div class="value">${num(latest.mauToDate)}</div></div>
-          <div class="stat"><div class="label">유료 활성률</div><div class="value" id="ga4LatestPaidRate">${paidActiveRateHtml(latest.date, latest)}</div></div>
-        </div>
-        <hr class="section-divider">
         <div class="ga4-chips" id="ga4Chips">${chipsHtml}</div>
         <div class="ga4-range-picker">
-          <label>시작일<input type="date" id="ga4FromInput" value="${GA4_RANGE.from}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
-          <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
+          <label>시작일<input type="date" id="ga4FromInput" value="${defaultChip.from}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
+          <label>종료일<input type="date" id="ga4ToInput" value="${defaultChip.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
         </div>
         <div id="ga4DailyBody"></div>
-        <div class="check-row">* 사용자 수(DAU·MAU·읽음/이용 지표)는 비집계 지표라 더하면 실제보다 크게 나옵니다 — 요청서 지침에 따라 합계 행을 두지 않습니다. 일자별 값만 참고하세요.</div>
+        <div class="check-row">* 선택 기간 합계는 일별 값을 단순 합산한 값입니다 — 사용자 수는 비집계 지표라 동일 사용자가 여러 날 중복 집계될 수 있어 실제 순사용자 수보다 클 수 있습니다. 월 누적 MAU는 합산하지 않고 선택 기간 마지막 날 값을 표시하며(월을 넘겨 선택하면 마지막 달의 누적값), 유료 활성률은 "–"로 표시합니다.</div>
         <div class="check-row">* "측정기준 등록 대기" 표시 열은 GA4에 맞춤 측정기준(customUser:member_status · customEvent:format)이 아직 등록되지 않아 조회할 수 없습니다 — 등록되면 채워집니다.</div>
         <div class="check-row">* 공통 필터 hostName == web.todaybook.kr 기준(dev·api·localhost 등 테스트 트래픽 제외).</div>
         <div class="check-row">출처 — GA4 todaybook 계정(Supermetrics, account_id 556152838), 정적 스냅샷 · 마지막 갱신: ${GA4_GENERATED_AT}</div>

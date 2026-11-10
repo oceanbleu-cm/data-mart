@@ -652,8 +652,6 @@
     const el = document.getElementById('ga4Summary');
     if (!el) return;
     const DAY_COUNT = GA4_DAILY.length;
-    const defaultFromRaw = shiftDateStr(GA4_RANGE.to, -6);
-    const defaultFrom = defaultFromRaw > GA4_RANGE.from ? defaultFromRaw : GA4_RANGE.from;
 
     // 월별 칩 — GA4_DAILY에 실제 있는 날짜로 월 범위를 만든다(21일 창이 두 달에 걸치면 각 달의
     // 일부 날짜만 잡힌다). 창이 롤링되면 칩도 자동으로 바뀐다.
@@ -672,6 +670,10 @@
       { label: '전체', from: GA4_RANGE.from, to: GA4_RANGE.to },
       ...monthRanges.map((r) => ({ label: chipLabel(r.key), from: r.from, to: r.to })),
     ];
+    // 기본 선택: D-1(GA4_RANGE.to)이 속한 달의 월 칩(마지막 월 칩).
+    const defaultChip = chips[chips.length - 1];
+    const defaultFrom = defaultChip.from;
+    const defaultTo = defaultChip.to;
     const chipsHtml = chips
       .map((c) => `<button type="button" class="ga4-chip" data-from="${c.from}" data-to="${c.to}">${c.label}</button>`)
       .join('');
@@ -682,7 +684,7 @@
         <div class="ga4-chips" id="ga4Chips">${chipsHtml}</div>
         <div class="ga4-range-picker">
           <label>시작일<input type="date" id="ga4FromInput" value="${defaultFrom}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
-          <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
+          <label>종료일<input type="date" id="ga4ToInput" value="${defaultTo}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
         </div>
         <div id="ga4DailyBody"></div>
         <div class="check-row">* 활성사용자(전체)는 /kpass/news2/·/kpass/recommend/(백그라운드성 호출 추정 페이지) 제외 기준. 통신사(KT/LGU+/SKT)별 구분은 GA4에서 신뢰 가능한 방법이 없어 서비스 전체 합계만 제공합니다.</div>
