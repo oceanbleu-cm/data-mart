@@ -119,6 +119,27 @@
   .site-nav a:hover { background: var(--bg); }
   .site-nav a.active { background: var(--accent-bg); color: var(--accent); font-weight: 700; }
   h1 { font-size: 1.35rem; margin: 16px 0 4px; }
+  .main-tabs {
+    display: flex;
+    gap: 6px;
+    margin: 14px 0 18px;
+  }
+  .main-tab-btn {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 6px;
+    font-size: 0.86rem;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .main-tab-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .hidden { display: none; }
   .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -208,6 +229,29 @@
     border-radius: 6px;
     background: var(--card-bg);
     color: var(--text);
+  }
+  .ga4-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 0;
+  }
+  .ga4-chip {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .ga4-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .ga4-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
   }
   .summary-grid {
     display: grid;
@@ -336,11 +380,19 @@
     </nav>
     <h1>마인드케어 리포트</h1>
 
-    <div id="ga4Summary"></div>
+    <div class="main-tabs">
+      <button class="main-tab-btn active" id="mainTabGa4">GA4 활성 현황</button>
+      <button class="main-tab-btn" id="mainTabDb">DB 가입자 데이터 현황</button>
+    </div>
 
-    <div class="tabs" id="tabs"></div>
+    <div id="ga4Panel">
+      <div id="ga4Summary"></div>
+    </div>
 
-    <div id="content"></div>
+    <div id="dbPanel" class="hidden">
+      <div class="tabs" id="tabs"></div>
+      <div id="content"></div>
+    </div>
 
     <footer id="footer"></footer>
   </div>
@@ -603,9 +655,31 @@
     const defaultFromRaw = shiftDateStr(GA4_RANGE.to, -6);
     const defaultFrom = defaultFromRaw > GA4_RANGE.from ? defaultFromRaw : GA4_RANGE.from;
 
+    // 월별 칩 — GA4_DAILY에 실제 있는 날짜로 월 범위를 만든다(21일 창이 두 달에 걸치면 각 달의
+    // 일부 날짜만 잡힌다). 창이 롤링되면 칩도 자동으로 바뀐다.
+    const monthRanges = [];
+    GA4_DAILY.forEach((d) => {
+      const key = d.date.slice(0, 7);
+      let r = monthRanges.find((x) => x.key === key);
+      if (!r) { r = { key, from: d.date, to: d.date }; monthRanges.push(r); }
+      if (d.date < r.from) r.from = d.date;
+      if (d.date > r.to) r.to = d.date;
+    });
+    monthRanges.sort((a, b) => a.key.localeCompare(b.key));
+    const multiYear = new Set(monthRanges.map((r) => r.key.slice(0, 4))).size > 1;
+    const chipLabel = (key) => (multiYear ? `${key.slice(2, 4)}년 ` : '') + fmtMonthLabel(key);
+    const chips = [
+      { label: '전체', from: GA4_RANGE.from, to: GA4_RANGE.to },
+      ...monthRanges.map((r) => ({ label: chipLabel(r.key), from: r.from, to: r.to })),
+    ];
+    const chipsHtml = chips
+      .map((c) => `<button type="button" class="ga4-chip" data-from="${c.from}" data-to="${c.to}">${c.label}</button>`)
+      .join('');
+
     el.innerHTML = `
       <div class="card">
         <h2>GA4 활성 현황 <span class="hint">최근 ${DAY_COUNT}일 · ${fmtShortDate(GA4_RANGE.from)}~${fmtShortDate(GA4_RANGE.to)}</span></h2>
+        <div class="ga4-chips" id="ga4Chips">${chipsHtml}</div>
         <div class="ga4-range-picker">
           <label>시작일<input type="date" id="ga4FromInput" value="${defaultFrom}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
           <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
@@ -618,7 +692,23 @@
 
     const fromInput = document.getElementById('ga4FromInput');
     const toInput = document.getElementById('ga4ToInput');
-    const update = () => renderGa4Daily(fromInput.value, toInput.value);
+    // 현재 시작일/종료일이 어떤 칩의 범위와 같으면 그 칩을 활성 표시(날짜를 직접 바꾸면 해제된다).
+    const chipEls = [...el.querySelectorAll('.ga4-chip')];
+    const syncChips = () => {
+      const hit = chipEls.find((c) => c.dataset.from === fromInput.value && c.dataset.to === toInput.value);
+      chipEls.forEach((c) => c.classList.toggle('active', c === hit));
+    };
+    const update = () => {
+      renderGa4Daily(fromInput.value, toInput.value);
+      syncChips();
+    };
+    chipEls.forEach((c) => {
+      c.onclick = () => {
+        fromInput.value = c.dataset.from;
+        toInput.value = c.dataset.to;
+        update();
+      };
+    });
     fromInput.onchange = update;
     toInput.onchange = update;
     update();
@@ -882,9 +972,19 @@
     const footer = document.getElementById('footer');
     const ts = lastFetchedAt ? lastFetchedAt.toLocaleTimeString('ko-KR') : '-';
     footer.innerHTML =
-      `데이터는 mindcare-subscription-stats API에서 실시간으로 조회됩니다 · 마지막 조회: ${ts}<br>` +
+      `DB 가입자 데이터는 mindcare-subscription-stats API에서 실시간으로 조회됩니다 · 마지막 조회: ${ts}<br>` +
+      `GA4 활성 현황은 Supermetrics(MINDCARE, account 295084110) 정적 스냅샷입니다 · 마지막 갱신: ${GA4_GENERATED_AT}<br>` +
       `출처: <a href="${API_TEMPLATE}" target="_blank" rel="noopener">${API_TEMPLATE}</a>`;
   }
+
+  function switchMainTab(which) {
+    document.getElementById('mainTabGa4').classList.toggle('active', which === 'ga4');
+    document.getElementById('mainTabDb').classList.toggle('active', which === 'db');
+    document.getElementById('ga4Panel').classList.toggle('hidden', which !== 'ga4');
+    document.getElementById('dbPanel').classList.toggle('hidden', which !== 'db');
+  }
+  document.getElementById('mainTabGa4').onclick = () => switchMainTab('ga4');
+  document.getElementById('mainTabDb').onclick = () => switchMainTab('db');
 
   // D-1 기준으로 데이터가 적재되는 구조라, 당월 첫날(예: 10/1)엔 전날(9/30)이 아직
   // 당월에 속하지 않아 당월 dailyStats가 비어 있다. 이 경우 당월 탭 자체를 숨기고,
