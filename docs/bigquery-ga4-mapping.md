@@ -1,3 +1,7 @@
+> ⚠️ **폐기됨(2026-11-10)** — GA4 리포트 3종(퍼널/채널/AI노트 KPI)의 데이터 소스를 BigQuery에서 Supermetrics(GAWA)로
+> 되돌렸다. 이 문서는 2026-10-15 전환 당시의 검증 기록(이력)이며 현재 절차가 아니다. 현재 쿼리 정의는
+> `.claude/commands/update-ga4-*.md`를 따른다. 이 전환에 쓰던 `scripts/sql/*.sql`은 삭제됐다(git 이력에 보존).
+
 # GA4 리포트 BigQuery 전환 — 지표 매핑 및 검증 기록
 
 > `html/ga4-channel-unsedang.html` / `ga4-funnel-unsedang.html` / `ga4-ainote-kpi-unsedang.html`의
