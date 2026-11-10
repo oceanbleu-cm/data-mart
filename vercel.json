@@ -2,6 +2,6 @@
   "framework": null,
   "outputDirectory": "html",
   "rewrites": [
-    { "source": "/", "destination": "/db-data-unsedang.html" }
+    { "source": "/", "destination": "/db-data-mindcare.html" }
   ]
 }
