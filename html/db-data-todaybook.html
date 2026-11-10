@@ -221,6 +221,29 @@
     background: var(--card-bg);
     color: var(--text);
   }
+  .ga4-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0 0;
+  }
+  .ga4-chip {
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  .ga4-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .ga4-chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -469,6 +492,27 @@
     }
     const latest = [...GA4_DAILY].sort((a, b) => b.date.localeCompare(a.date))[0];
 
+    // 월별 칩 — GA4_DAILY에 실제 있는 날짜로 월 범위를 만든다(오픈 월·진행 중인 월이 부분월이어도
+    // 그대로 반영). 새 달 데이터가 쌓이면 칩이 자동으로 늘어난다.
+    const monthRanges = [];
+    GA4_DAILY.forEach((d) => {
+      const key = d.date.slice(0, 7);
+      let r = monthRanges.find((x) => x.key === key);
+      if (!r) { r = { key, from: d.date, to: d.date }; monthRanges.push(r); }
+      if (d.date < r.from) r.from = d.date;
+      if (d.date > r.to) r.to = d.date;
+    });
+    monthRanges.sort((a, b) => a.key.localeCompare(b.key));
+    const multiYear = new Set(monthRanges.map((r) => r.key.slice(0, 4))).size > 1;
+    const chipLabel = (key) => (multiYear ? `${key.slice(2, 4)}년 ` : '') + fmtMonthLabel(key);
+    const chips = [
+      { label: '전체', from: GA4_RANGE.from, to: GA4_RANGE.to },
+      ...monthRanges.map((r) => ({ label: chipLabel(r.key), from: r.from, to: r.to })),
+    ];
+    const chipsHtml = chips
+      .map((c) => `<button type="button" class="ga4-chip" data-from="${c.from}" data-to="${c.to}">${c.label}</button>`)
+      .join('');
+
     el.innerHTML = `
       <div class="card">
         <h2>GA4 활성 현황 <span class="hint">서비스 오픈일(${fmtShortDate(GA4_RANGE.from)})부터 누적 · ${fmtShortDate(GA4_RANGE.from)}~${fmtShortDate(GA4_RANGE.to)}</span></h2>
@@ -480,6 +524,7 @@
           <div class="stat"><div class="label">유료 활성률</div><div class="value" id="ga4LatestPaidRate">${paidActiveRateHtml(latest.date, latest)}</div></div>
         </div>
         <hr class="section-divider">
+        <div class="ga4-chips" id="ga4Chips">${chipsHtml}</div>
         <div class="ga4-range-picker">
           <label>시작일<input type="date" id="ga4FromInput" value="${GA4_RANGE.from}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
           <label>종료일<input type="date" id="ga4ToInput" value="${GA4_RANGE.to}" min="${GA4_RANGE.from}" max="${GA4_RANGE.to}"></label>
@@ -493,7 +538,23 @@
 
     const fromInput = document.getElementById('ga4FromInput');
     const toInput = document.getElementById('ga4ToInput');
-    const update = () => renderGa4Daily(fromInput.value, toInput.value);
+    // 현재 시작일/종료일이 어떤 칩의 범위와 같으면 그 칩을 활성 표시(날짜를 직접 바꾸면 해제된다).
+    const chipEls = [...el.querySelectorAll('.ga4-chip')];
+    const syncChips = () => {
+      const hit = chipEls.find((c) => c.dataset.from === fromInput.value && c.dataset.to === toInput.value);
+      chipEls.forEach((c) => c.classList.toggle('active', c === hit));
+    };
+    const update = () => {
+      renderGa4Daily(fromInput.value, toInput.value);
+      syncChips();
+    };
+    chipEls.forEach((c) => {
+      c.onclick = () => {
+        fromInput.value = c.dataset.from;
+        toInput.value = c.dataset.to;
+        update();
+      };
+    });
     fromInput.onchange = update;
     toInput.onchange = update;
     update();
