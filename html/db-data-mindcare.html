@@ -410,10 +410,9 @@
   // 화면의 "선택 기간 합계"는 일별 값을 그대로 더한 단순 합산이다(activeUsers는 비집계
   // 지표라 동일 사용자가 여러 날 중복 집계될 수 있어 실제 순사용자 수보다 클 수 있음 — 사용자
   // 요청으로 별도 비집계 합계 조회는 넣지 않기로 함, 2026-10-14).
-  const GA4_GENERATED_AT = '2026-11-12 04:05 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
-  const GA4_RANGE = { from: '2026-10-22', to: '2026-11-11' };
+  const GA4_GENERATED_AT = '2026-11-13 04:05 UTC (Supermetrics GA4/GAWA 조회, 정적 스냅샷)';
+  const GA4_RANGE = { from: '2026-10-23', to: '2026-11-12' };
   const GA4_DAILY = [
-    { date: '2026-10-22', activeUsers: 1587, breathing: 474, transcription: 225, careAudio: 12, mtmTextInput: 1 },
     { date: '2026-10-23', activeUsers: 1056, breathing: 268, transcription: 198, careAudio: 8, mtmTextInput: 1 },
     { date: '2026-10-24', activeUsers: 960, breathing: 312, transcription: 218, careAudio: 10, mtmTextInput: 0 },
     { date: '2026-10-25', activeUsers: 999, breathing: 339, transcription: 233, careAudio: 11, mtmTextInput: 1 },
@@ -433,7 +432,8 @@
     { date: '2026-11-08', activeUsers: 1509, breathing: 331, transcription: 219, careAudio: 18, mtmTextInput: 0 },
     { date: '2026-11-09', activeUsers: 1558, breathing: 327, transcription: 207, careAudio: 12, mtmTextInput: 0 },
     { date: '2026-11-10', activeUsers: 1826, breathing: 465, transcription: 213, careAudio: 10, mtmTextInput: 0 },
-    { date: '2026-11-11', activeUsers: 10646, breathing: 531, transcription: 229, careAudio: 15, mtmTextInput: 1 },
+    { date: '2026-11-11', activeUsers: 10606, breathing: 531, transcription: 229, careAudio: 15, mtmTextInput: 1 },
+    { date: '2026-11-12', activeUsers: 2664, breathing: 484, transcription: 222, careAudio: 17, mtmTextInput: 1 },
   ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
