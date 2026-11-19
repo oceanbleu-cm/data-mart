@@ -163,3 +163,10 @@ https://api.todaybook.kr/api/v1/reports/todaybook-subscription-stats/monthly.jso
     }
   ]
 }
+
+## API 필드 추가 (2026-11-19, 실API 확인)
+
+`monthly.knowledgeCardNotiCumulative`, `dailyStats[].knowledgeCardNotiCumulative` — 지식카드 설정 수
+(= 위 "9. 지식카드 알림 신청자" `noti_on_total`, 스냅샷). 2026-11-17부터 집계돼 그 이전 날짜는 0.
+`html/db-data-todaybook.html` 요약 카드·일별/월별 표에 "지식카드 설정 수(누적)"로 표시, 합산하지 않는다.
+쿠폰 신청건수는 여전히 API에 없음.

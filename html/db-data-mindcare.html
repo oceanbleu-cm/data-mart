@@ -27,6 +27,12 @@
     --cashback-bg: #efeaff;
     --cashback-head-bg: #ddd1ff;
     --cashback-text: #5c3fd6;
+    --activity-bg: #e6f6f7;
+    --activity-head-bg: #c4eaee;
+    --activity-text: #0f6f7a;
+    --cost-bg: #fdecef;
+    --cost-head-bg: #f9d0d8;
+    --cost-text: #a8344d;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -53,6 +59,12 @@
       --cashback-bg: #2a2440;
       --cashback-head-bg: #362a5c;
       --cashback-text: #c9b8ff;
+      --activity-bg: #12302f;
+      --activity-head-bg: #1a4646;
+      --activity-text: #7fd8dc;
+      --cost-bg: #3a1c24;
+      --cost-head-bg: #532633;
+      --cost-text: #f3a3b5;
     }
   }
   :root[data-theme="dark"] {
@@ -79,6 +91,12 @@
     --cashback-bg: #2a2440;
     --cashback-head-bg: #362a5c;
     --cashback-text: #c9b8ff;
+    --activity-bg: #12302f;
+    --activity-head-bg: #1a4646;
+    --activity-text: #7fd8dc;
+    --cost-bg: #3a1c24;
+    --cost-head-bg: #532633;
+    --cost-text: #f3a3b5;
   }
   * { box-sizing: border-box; }
   body {
@@ -293,6 +311,10 @@
   tfoot td.col-premium { background: var(--premium-bg); }
   tfoot td.col-free { background: var(--free-bg); }
   tfoot td.col-cashback { background: var(--cashback-bg); }
+  th.col-activity { background: var(--activity-head-bg); color: var(--activity-text); }
+  td.col-activity, tfoot td.col-activity { background: var(--activity-bg); }
+  th.col-cost { background: var(--cost-head-bg); color: var(--cost-text); }
+  td.col-cost, tfoot td.col-cost { background: var(--cost-bg); }
   .legend {
     display: flex;
     flex-wrap: wrap;
@@ -313,6 +335,8 @@
   .legend .swatch.premium { background: var(--premium-head-bg); }
   .legend .swatch.free { background: var(--free-head-bg); }
   .legend .swatch.cashback { background: var(--cashback-head-bg); }
+  .legend .swatch.activity { background: var(--activity-head-bg); }
+  .legend .swatch.cost { background: var(--cost-head-bg); }
   .delta { font-size: 0.68rem; margin-left: 2px; }
   .delta.up { color: var(--negative); }
   .delta.down { color: var(--paid-text); }
@@ -536,44 +560,84 @@
     content.appendChild(card);
   }
 
-  function summaryCardHtml(titleHtml, latestPaid, latestPremium, latestFree, medAgg) {
-    return `
-      <h2>${titleHtml}</h2>
-      <div class="stat-group-title">요약 (누적가입자는 최신값 기준)</div>
-      <div class="summary-grid summary-grid-5">
-        <div class="stat"><div class="label">유료 누적가입자</div><div class="value">${num(latestPaid)}</div></div>
-        <div class="stat"><div class="label">프리미엄 누적가입자</div><div class="value">${num(latestPremium)}</div></div>
-        <div class="stat"><div class="label">무료 누적가입자</div><div class="value">${num(latestFree)}</div></div>
-        <div class="stat"><div class="label">필사명상 참여인원</div><div class="value">${num(medAgg.participants)}</div></div>
-        <div class="stat"><div class="label">필사명상 적립금</div><div class="value">${won(medAgg.points)}</div></div>
-      </div>`;
+  // 기간 집계 항목(일별 발생값) — API monthly / dailyStats에 같은 키로 들어온다.
+  // unique: 월 API 값이 기간 내 중복 제거 순인원이라 일별 합과 다를 수 있음(일별 합산 검증 제외).
+  const FLOW_FIELDS = [
+    { key: 'transcriptionMeditationParticipants', label: '필사명상 참여인원', fmt: num, cls: 'col-cashback', group: 'conv', unique: true },
+    { key: 'transcriptionMeditationPoints', label: '필사명상 적립금', fmt: won, cls: 'col-cashback', group: 'conv' },
+    { key: 'audioMeditationCompleteCnt', label: '오디오명상 완료', fmt: num, cls: 'col-activity', group: 'conv' },
+    { key: 'diaryWriteCnt', label: '마음일기 작성 완료', fmt: num, cls: 'col-activity', group: 'conv' },
+    { key: 'boardCounselApplyCnt', label: '게시판 상담 신청 완료', fmt: num, cls: 'col-activity', group: 'conv' },
+    { key: 'chatCounselCompleteCnt', label: '채팅 상담 완료', fmt: num, cls: 'col-activity', group: 'conv' },
+    { key: 'rewardPaidAmount', label: '리워드 지급액', fmt: won, cls: 'col-cost', group: 'cost' },
+    { key: 'rewardSettleAmount', label: '리워드 정산액', fmt: won, cls: 'col-cost', group: 'cost' },
+  ];
+
+  // API 객체(monthly 또는 dailyStats 1건)에서 기간 집계 항목만 뽑는다. 값이 없으면(null/과거 월) 0.
+  function pickFlow(obj) {
+    const out = {};
+    FLOW_FIELDS.forEach((f) => { out[f.key] = (obj && obj[f.key]) || 0; });
+    return out;
+  }
+  function emptyFlow() {
+    return pickFlow(null);
+  }
+  function addFlow(acc, flow) {
+    FLOW_FIELDS.forEach((f) => { acc[f.key] += flow[f.key]; });
+    return acc;
   }
 
-  // rows: [{ label, paid, premium, free, participants, points }]
-  function combinedTableHtml({ headLabel, rows, sumAgg, hintHtml, checkHtml }) {
+  function statHtml(label, value) {
+    return `<div class="stat"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+  }
+
+  // latest: { paid, premium, free } (최신 스냅샷), flowAgg: pickFlow 형태의 기간 합계
+  function summaryCardHtml(titleHtml, latest, flowAgg) {
+    const flowStats = (group) =>
+      FLOW_FIELDS.filter((f) => f.group === group).map((f) => statHtml(f.label, f.fmt(flowAgg[f.key]))).join('');
+    return `
+      <h2>${titleHtml}</h2>
+      <div class="stat-group-title">가입자 (누적가입자는 최신값 기준)</div>
+      <div class="summary-grid">
+        ${statHtml('유료 누적가입자', num(latest.paid))}
+        ${statHtml('프리미엄 누적가입자', num(latest.premium))}
+        ${statHtml('무료 누적가입자', num(latest.free))}
+      </div>
+      <div class="stat-group-title">이용·전환 (기간 합계)</div>
+      <div class="summary-grid">${flowStats('conv')}</div>
+      <div class="stat-group-title">비용 (기간 합계)</div>
+      <div class="summary-grid">${flowStats('cost')}</div>`;
+  }
+
+  // rows: [{ label, paid, premium, free, flow }] — flow는 pickFlow 형태
+  function combinedTableHtml({ headLabel, rows, sumAgg, hintHtml, checkHtml, uniqueNote }) {
     const bodyRows = rows
       .map((r, i) => {
         const prev = rows[i + 1];
         const paidDelta = prev ? r.paid - prev.paid : null;
         const premiumDelta = prev ? r.premium - prev.premium : null;
         const freeDelta = prev ? r.free - prev.free : null;
+        const flowCells = FLOW_FIELDS.map((f) => `<td class="${f.cls}">${f.fmt(r.flow[f.key])}</td>`).join('');
         return `<tr>
         <td>${r.label}</td>
         <td class="col-paid">${num(r.paid)} ${fmtDelta(paidDelta)}</td>
         <td class="col-premium">${num(r.premium)} ${fmtDelta(premiumDelta)}</td>
         <td class="col-free">${num(r.free)} ${fmtDelta(freeDelta)}</td>
-        <td class="col-cashback">${num(r.participants)}</td>
-        <td class="col-cashback">${won(r.points)}</td>
+        ${flowCells}
       </tr>`;
       })
       .join('');
+    const flowHeads = FLOW_FIELDS.map((f) => `<th class="${f.cls}">${f.label}</th>`).join('');
+    const flowFoot = FLOW_FIELDS.map((f) => `<td class="${f.cls}">${f.fmt(sumAgg[f.key])}</td>`).join('');
     return `
-      <h2>가입자 현황 · 필사명상 <span class="hint">${hintHtml}</span></h2>
+      <h2>가입자 현황 · 이용·전환 · 비용 <span class="hint">${hintHtml}</span></h2>
       <div class="legend">
         <span><span class="swatch paid"></span>유료 누적</span>
         <span><span class="swatch premium"></span>프리미엄 누적</span>
         <span><span class="swatch free"></span>무료 누적</span>
         <span><span class="swatch cashback"></span>필사명상</span>
+        <span><span class="swatch activity"></span>명상·일기·상담</span>
+        <span><span class="swatch cost"></span>리워드 비용</span>
       </div>
       <div class="table-scroll">
         <table>
@@ -583,8 +647,7 @@
               <th class="col-paid">유료 누적가입자</th>
               <th class="col-premium">프리미엄 누적가입자</th>
               <th class="col-free">무료 누적가입자</th>
-              <th class="col-cashback">필사명상 참여인원</th>
-              <th class="col-cashback">필사명상 적립금</th>
+              ${flowHeads}
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -594,15 +657,15 @@
               <td class="col-paid">–</td>
               <td class="col-premium">–</td>
               <td class="col-free">–</td>
-              <td class="col-cashback">${num(sumAgg.participants)}</td>
-              <td class="col-cashback">${won(sumAgg.points)}</td>
+              ${flowFoot}
             </tr>
           </tfoot>
         </table>
       </div>
       <div class="check-row">* 유료·프리미엄·무료 누적은 스냅샷 값이라 합산하지 않습니다(합계 열 "–") — 최신값은 위 요약 카드를 참고하세요.</div>
+      <div class="check-row">* ${uniqueNote}</div>
       ${checkHtml || ''}
-      <div class="check-row">출처 — 유료·프리미엄·무료 누적: 와이즈모니터</div>`;
+      <div class="check-row">출처 — 유료·프리미엄·무료 누적: 와이즈모니터 · 필사명상·명상·일기·상담·리워드: mindcare-subscription-stats API</div>`;
   }
 
   function fmtShortDate(dateStr) {
@@ -766,14 +829,7 @@
   }
 
   function sumCarrierMonthly(carriers) {
-    return carriers.reduce(
-      (acc, c) => {
-        acc.participants += c.monthly.transcriptionMeditationParticipants;
-        acc.points += c.monthly.transcriptionMeditationPoints;
-        return acc;
-      },
-      { participants: 0, points: 0 }
-    );
+    return carriers.reduce((acc, c) => addFlow(acc, pickFlow(c.monthly)), emptyFlow());
   }
 
   // --- 월간 뷰 ---
@@ -800,9 +856,7 @@
     overallCard.className = 'card';
     overallCard.innerHTML = summaryCardHtml(
       `마인드케어 ${data.baseMonth} 월 통합 요약 <span class="hint">SKT+KT+LGU+ · ${data.dateRange.from} ~ ${data.dateRange.to}</span>`,
-      overallLatest.paid,
-      overallLatest.premium,
-      overallLatest.free,
+      overallLatest,
       overallMed
     );
     content.appendChild(overallCard);
@@ -810,48 +864,41 @@
     const carrierHtmlMap = {};
     carriers.forEach((c) => {
       const days = sortedDays(c.monthly);
-      const latestPaid = days[0].paidCumulative;
-      const latestPremium = days[0].premiumCumulative;
-      const latestFree = days[0].freeCumulative;
-      const medAgg = {
-        participants: c.monthly.transcriptionMeditationParticipants,
-        points: c.monthly.transcriptionMeditationPoints,
-      };
+      const latest = { paid: days[0].paidCumulative, premium: days[0].premiumCumulative, free: days[0].freeCumulative };
+      const monthAgg = pickFlow(c.monthly);
 
       const rows = days.map((d) => ({
         label: fmtDateLabel(d.date),
         paid: d.paidCumulative,
         premium: d.premiumCumulative,
         free: d.freeCumulative,
-        participants: d.transcriptionMeditationParticipants,
-        points: d.transcriptionMeditationPoints,
+        flow: pickFlow(d),
       }));
-      const medSum = rows.reduce(
-        (acc, r) => ({
-          participants: acc.participants + r.participants,
-          points: acc.points + r.points,
-        }),
-        { participants: 0, points: 0 }
-      );
-      const medMatches = medSum.participants === medAgg.participants && medSum.points === medAgg.points;
+      const dailySum = rows.reduce((acc, r) => addFlow(acc, r.flow), emptyFlow());
+      // 합계 행: 가산 항목은 일별 합, 순인원 항목은 월 API 값(일별 합은 같은 사람이 중복 집계됨)
+      const footAgg = { ...dailySum };
+      FLOW_FIELDS.filter((f) => f.unique).forEach((f) => { footAgg[f.key] = monthAgg[f.key]; });
+      const mismatched = FLOW_FIELDS.filter((f) => !f.unique && dailySum[f.key] !== monthAgg[f.key]);
+      const checkHtml = mismatched.length === 0
+        ? '<div class="check-row ok">일별 합계가 월 API 합계와 일치합니다 (필사명상 적립금·명상·일기·상담·리워드).</div>'
+        : `<div class="check-row bad">일별 합계가 월 API 합계와 다릅니다 — ${mismatched
+            .map((f) => `${f.label} ${f.fmt(dailySum[f.key])}/${f.fmt(monthAgg[f.key])}`)
+            .join(', ')}. 데이터 확인 필요.</div>`;
 
       carrierHtmlMap[c.carrier] =
         summaryCardHtml(
           `${c.carrier} ${data.baseMonth} 월 요약 <span class="hint">${data.dateRange.from} ~ ${data.dateRange.to}</span>`,
-          latestPaid,
-          latestPremium,
-          latestFree,
-          medAgg
+          latest,
+          monthAgg
         ) +
         '<hr class="section-divider">' +
         combinedTableHtml({
           headLabel: '일자',
           rows,
-          sumAgg: medSum,
+          sumAgg: footAgg,
           hintHtml: '해당 월 일별 상세 내역',
-          checkHtml: `<div class="check-row ${medMatches ? 'ok' : 'bad'}">
-            ${medMatches ? '일별 필사명상 합계가 월 API 합계와 일치합니다.' : '일별 필사명상 합계가 월 API 합계와 다릅니다 — 데이터 확인 필요.'}
-          </div>`,
+          uniqueNote: '필사명상 참여인원 합계는 월 API의 순인원(중복 제거)입니다 — 일별 값을 더하면 같은 사람이 여러 번 집계돼 더 커집니다.',
+          checkHtml,
         });
     });
 
@@ -890,23 +937,13 @@
     const last = monthsData[monthsData.length - 1];
 
     const lastLatest = sumCarrierLatest(monthsCarriers[monthsCarriers.length - 1]);
-    const yearMed = monthsCarriers.reduce(
-      (acc, carriers) => {
-        const m = sumCarrierMonthly(carriers);
-        acc.participants += m.participants;
-        acc.points += m.points;
-        return acc;
-      },
-      { participants: 0, points: 0 }
-    );
+    const yearMed = monthsCarriers.reduce((acc, carriers) => addFlow(acc, sumCarrierMonthly(carriers)), emptyFlow());
 
     const overallCard = document.createElement('div');
     overallCard.className = 'card';
     overallCard.innerHTML = summaryCardHtml(
       `마인드케어 ${year}년 통합 요약 <span class="hint">SKT+KT+LGU+ · ${first.dateRange.from} ~ ${last.dateRange.to} · 마감월 기준</span>`,
-      lastLatest.paid,
-      lastLatest.premium,
-      lastLatest.free,
+      lastLatest,
       yearMed
     );
     content.appendChild(overallCard);
@@ -915,7 +952,7 @@
     const carrierNames = [];
     CARRIER_ORDER.forEach((carrierName) => {
       const rows = [];
-      let carrierYearAgg = { participants: 0, points: 0 };
+      const carrierYearAgg = emptyFlow();
       let lastCarrierLatest = null;
       for (let i = monthsData.length - 1; i >= 0; i--) {
         const c = monthsCarriers[i].find((cc) => cc.carrier === carrierName);
@@ -927,11 +964,9 @@
           paid: days[0].paidCumulative,
           premium: days[0].premiumCumulative,
           free: days[0].freeCumulative,
-          participants: c.monthly.transcriptionMeditationParticipants,
-          points: c.monthly.transcriptionMeditationPoints,
+          flow: pickFlow(c.monthly),
         });
-        carrierYearAgg.participants += c.monthly.transcriptionMeditationParticipants;
-        carrierYearAgg.points += c.monthly.transcriptionMeditationPoints;
+        addFlow(carrierYearAgg, pickFlow(c.monthly));
       }
       if (rows.length === 0) return;
 
@@ -939,9 +974,7 @@
       carrierHtmlMap[carrierName] =
         summaryCardHtml(
           `${carrierName} ${year}년 요약 <span class="hint">${first.dateRange.from} ~ ${last.dateRange.to} · 마감월 기준</span>`,
-          lastCarrierLatest.paid,
-          lastCarrierLatest.premium,
-          lastCarrierLatest.free,
+          lastCarrierLatest,
           carrierYearAgg
         ) +
         '<hr class="section-divider">' +
@@ -950,6 +983,7 @@
           rows,
           sumAgg: carrierYearAgg,
           hintHtml: `${year}년 월별 상세 내역 (누적가입자는 월말 기준)`,
+          uniqueNote: '필사명상 참여인원은 월별 순인원이며, 연 합계는 월별 값을 더한 것이라 여러 달 참여한 사람은 중복 집계됩니다.',
         });
     });
 

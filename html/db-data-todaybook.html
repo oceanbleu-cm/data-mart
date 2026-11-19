@@ -24,6 +24,9 @@
     --cancel-bg: #fff2e2;
     --cancel-head-bg: #ffe3bd;
     --cancel-text: #a15c00;
+    --noti-bg: #efeaff;
+    --noti-head-bg: #ddd1ff;
+    --noti-text: #5c3fd6;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -47,6 +50,9 @@
       --cancel-bg: #3a2c10;
       --cancel-head-bg: #4a3a15;
       --cancel-text: #f0c374;
+      --noti-bg: #2a2440;
+      --noti-head-bg: #362a5c;
+      --noti-text: #c9b8ff;
     }
   }
   :root[data-theme="dark"] {
@@ -70,6 +76,9 @@
     --cancel-bg: #3a2c10;
     --cancel-head-bg: #4a3a15;
     --cancel-text: #f0c374;
+    --noti-bg: #2a2440;
+    --noti-head-bg: #362a5c;
+    --noti-text: #c9b8ff;
   }
   * { box-sizing: border-box; }
   body {
@@ -283,6 +292,8 @@
   tfoot td.col-paid { background: var(--paid-bg); }
   tfoot td.col-join { background: var(--join-bg); }
   tfoot td.col-cancel { background: var(--cancel-bg); }
+  th.col-noti { background: var(--noti-head-bg); color: var(--noti-text); }
+  td.col-noti, tfoot td.col-noti { background: var(--noti-bg); }
   .legend {
     display: flex;
     flex-wrap: wrap;
@@ -302,6 +313,7 @@
   .legend .swatch.paid { background: var(--paid-head-bg); }
   .legend .swatch.join { background: var(--join-head-bg); }
   .legend .swatch.cancel { background: var(--cancel-head-bg); }
+  .legend .swatch.noti { background: var(--noti-head-bg); }
   .delta { font-size: 0.68rem; margin-left: 2px; }
   .delta.up { color: var(--negative); }
   .delta.down { color: var(--paid-text); }
@@ -645,31 +657,37 @@
     content.appendChild(card);
   }
 
-  function summaryCardHtml(titleHtml, latestPaid, joinSum, cancelSum) {
+  // 지식카드 설정(알림 ON 유료회원) — 스냅샷 값. null(미집계)이면 "–"
+  const numOrDash = (n) => (n === null || n === undefined ? '–' : num(n));
+
+  function summaryCardHtml(titleHtml, latestPaid, joinSum, cancelSum, latestNoti) {
     return `
       <h2>${titleHtml}</h2>
-      <div class="stat-group-title">요약 (누적가입자는 최신값 기준)</div>
-      <div class="summary-grid summary-grid-4">
+      <div class="stat-group-title">요약 (누적가입자·지식카드 설정은 최신값 기준)</div>
+      <div class="summary-grid summary-grid-5">
         <div class="stat"><div class="label">유료 누적가입자</div><div class="value">${num(latestPaid)}</div></div>
         <div class="stat"><div class="label">신규 가입(월 합계)</div><div class="value">${num(joinSum)}</div></div>
         <div class="stat"><div class="label">해지(월 합계)</div><div class="value">${num(cancelSum)}</div></div>
         <div class="stat"><div class="label">해지율(월)</div><div class="value">${latestPaid ? ((cancelSum / latestPaid) * 100).toFixed(2) + '%' : '–'}</div></div>
+        <div class="stat"><div class="label">지식카드 설정 수(누적)</div><div class="value">${numOrDash(latestNoti)}</div></div>
       </div>`;
   }
 
-  // rows: [{ label, date, paid, join, cancel }]
+  // rows: [{ label, date, paid, join, cancel, noti }]
   function combinedTableHtml({ headLabel, rows, joinSum, cancelSum, hintHtml, checkHtmls }) {
     const bodyRows = rows
       .map((r, i) => {
         const prev = rows[i + 1];
         const paidDelta = prev && r.paid !== null && prev.paid !== null ? r.paid - prev.paid : null;
         const churnRate = r.paid !== null && prev && prev.paid ? ((r.cancel / prev.paid) * 100).toFixed(2) + '%' : '–';
+        const notiDelta = prev && r.noti !== null && prev.noti !== null ? r.noti - prev.noti : null;
         return `<tr>
         <td>${r.label}</td>
         <td class="col-paid">${num(r.paid)} ${fmtDelta(paidDelta)}</td>
         <td class="col-join">${num(r.join)}</td>
         <td class="col-cancel">${num(r.cancel)}</td>
         <td>${churnRate}</td>
+        <td class="col-noti">${numOrDash(r.noti)} ${r.noti !== null ? fmtDelta(notiDelta) : ''}</td>
       </tr>`;
       })
       .join('');
@@ -679,6 +697,7 @@
         <span><span class="swatch paid"></span>유료 누적</span>
         <span><span class="swatch join"></span>신규 가입</span>
         <span><span class="swatch cancel"></span>해지</span>
+        <span><span class="swatch noti"></span>지식카드 설정</span>
       </div>
       <div class="table-scroll">
         <table>
@@ -689,6 +708,7 @@
               <th class="col-join">신규 가입</th>
               <th class="col-cancel">해지</th>
               <th>해지율</th>
+              <th class="col-noti">지식카드 설정 수(누적)</th>
             </tr>
           </thead>
           <tbody>${bodyRows}</tbody>
@@ -699,14 +719,16 @@
               <td class="col-join">${num(joinSum)}</td>
               <td class="col-cancel">${num(cancelSum)}</td>
               <td>–</td>
+              <td class="col-noti">–</td>
             </tr>
           </tfoot>
         </table>
       </div>
       <div class="check-row">* 유료 누적가입자는 스냅샷 값이라 합산하지 않습니다(합계 열 "–") — 최신값은 위 요약 카드를 참고하세요. 서비스 오픈(2026-10-13) 이전 날짜는 집계 대상이 없어 "–"로 표시됩니다.</div>
       ${(checkHtmls || []).join('')}
-      <div class="check-row">출처 — 유료 누적·가입·해지: todaybook-subscription-stats API</div>
-      <div class="check-row">* 요청서(docs/todaybook-data.md)의 지식카드 알림 신청자·쿠폰 신청건수는 이 API에 포함돼 있지 않아 리포트에서 생략했습니다.</div>`;
+      <div class="check-row">* 지식카드 설정 수는 지식카드 알림을 켠 유료회원 수(스냅샷)라 합산하지 않습니다. API 집계는 2026-11-17부터 시작돼 그 이전 날짜는 0으로 내려옵니다.</div>
+      <div class="check-row">출처 — 유료 누적·가입·해지·지식카드 설정: todaybook-subscription-stats API</div>
+      <div class="check-row">* 요청서(docs/todaybook-data.md)의 쿠폰 신청건수는 이 API에 포함돼 있지 않아 리포트에서 생략했습니다.</div>`;
   }
 
   // --- 월간 뷰 ---
@@ -733,6 +755,7 @@
 
     const latestDay = days.find((d) => d.paidCumulative !== null);
     const latestPaid = latestDay ? latestDay.paidCumulative : null;
+    const latestNoti = c.monthly.knowledgeCardNotiCumulative ?? (latestDay ? latestDay.knowledgeCardNotiCumulative ?? null : null);
     const joinSum = days.reduce((s, d) => s + (d.paidJoin || 0), 0);
     const cancelSum = days.reduce((s, d) => s + (d.paidCancel || 0), 0);
     const joinMatches = joinSum === c.monthly.paidJoin;
@@ -744,6 +767,7 @@
       paid: d.paidCumulative,
       join: d.paidJoin || 0,
       cancel: d.paidCancel || 0,
+      noti: d.knowledgeCardNotiCumulative ?? null,
       hasData: dayHasData(d),
     }));
     const visibleRows = allRows.filter((r) => r.hasData);
@@ -783,7 +807,8 @@
         `오늘의 지식(SKT) ${data.baseMonth} 월 요약 <span class="hint">${data.dateRange.from} ~ ${data.dateRange.to}</span>`,
         latestPaid,
         c.monthly.paidJoin,
-        c.monthly.paidCancel
+        c.monthly.paidCancel,
+        latestNoti
       ) +
       '<hr class="section-divider">' +
       combinedTableHtml({
@@ -833,6 +858,7 @@
     const latestPaid = lastLatestDay ? lastLatestDay.paidCumulative : null;
     const joinSum = carriers.reduce((s, c) => s + c.monthly.paidJoin, 0);
     const cancelSum = carriers.reduce((s, c) => s + c.monthly.paidCancel, 0);
+    const latestNoti = carriers[carriers.length - 1].monthly.knowledgeCardNotiCumulative ?? null;
 
     const first = monthsData[0];
     const last = monthsData[monthsData.length - 1];
@@ -847,6 +873,7 @@
         paid: d ? d.paidCumulative : null,
         join: c.monthly.paidJoin,
         cancel: c.monthly.paidCancel,
+        noti: c.monthly.knowledgeCardNotiCumulative ?? null,
       });
     }
     const card = document.createElement('div');
@@ -856,7 +883,8 @@
         `오늘의 지식(SKT) ${year}년 요약 <span class="hint">${first.dateRange.from} ~ ${last.dateRange.to} · 마감월 기준</span>`,
         latestPaid,
         joinSum,
-        cancelSum
+        cancelSum,
+        latestNoti
       ) +
       '<hr class="section-divider">' +
       combinedTableHtml({

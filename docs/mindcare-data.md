@@ -90,3 +90,20 @@
   ]
 }
 ```
+## 필드 추가 (2026-11-19, 실API 확인)
+
+`monthly`와 `dailyStats[]` 양쪽에 같은 키로 아래 6개가 추가됨. 모두 기간 발생값이라 일별 합 = 월 값.
+`html/db-data-mindcare.html`의 `FLOW_FIELDS`에 등록해 요약 카드·일별/월별 표에 표시한다.
+
+| 키 | 리포트 지표 | 단위 |
+|---|---|---|
+| `audioMeditationCompleteCnt` | 오디오명상 완료 수 | 건 |
+| `diaryWriteCnt` | 마음일기 작성 완료 수 | 건 |
+| `boardCounselApplyCnt` | 게시판 상담 신청 완료 수 | 건 |
+| `chatCounselCompleteCnt` | 채팅 상담 완료 수 | 건 |
+| `rewardPaidAmount` | 리워드 지급액 | 원 |
+| `rewardSettleAmount` | 리워드 정산액 | 원 |
+
+주의: `monthly.transcriptionMeditationParticipants`는 **월 순인원(중복 제거)**이라 일별 합보다 작다
+(예: 2026-10 KT 월 366 vs 일별 합 3,980). 일별 합산 검증에서 제외하고, 월 표 합계 행에는 월 API 값을 쓴다.
+숨명상·전체 MAU는 API에 없고 GA4 탭에서 본다.
