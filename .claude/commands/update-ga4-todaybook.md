@@ -20,12 +20,11 @@ todaybook GA4 속성(556152838)은 BigQuery export가 연동돼 있지 않다
 **공통 필터**: `hostName == 'web.todaybook.kr'` — dev/api/localhost 등 테스트 호스트를
 제외해야 한다(실측 확인됨, `docs/todaybook-data.md` "Supermetrics 실측 확인" 절 참고).
 
-**9개 지표 중 3개(`dauPaid`, `ebookUsers`, `audiobookUsers`)는 현재 조회 불가**다.
-Supermetrics GAWA 커넥터가 GA4 맞춤 측정기준(`customUser:member_status`,
-`customEvent:format`)을 노출하지 않기 때문이다(`contentType`은 예외 — GA4 표준
-디멘션으로 노출되어 조회 가능, 지식카드/북노트 구분에 이미 쓰고 있음). 이 3개는 항상
-`null`로 채운다 — **추측값을 넣지 않는다.** 해소 경로는 `docs/todaybook-data.md`
-"Supermetrics 실측 확인" 절 참고(GA4 Audience 생성 또는 GTM 이벤트명 분리).
+**`dauPaid`, `ebookUsers`, `audiobookUsers`는 맞춤 측정기준으로 조회한다**(2026-11-19부터).
+예전에는 Supermetrics GAWA가 GA4 맞춤 측정기준을 노출하지 않아 `null`로 두었지만, 지금은
+`c_customuser_member_status`(사용자 범위)·`c_customevent_format`(이벤트 범위)이
+`field_discovery`에 나온다. 2026-11-19에 오픈일(10/13)부터 소급해 채웠다. 쿼리가 실패하면
+**추측값 대신 `null`**로 넣는다(0은 "조회했는데 0", null은 "조회 못 함").
 
 **`mauToDate`(월 누적 MAU)는 요청서 원문(월초~해당일)이 아니라 `max(그 달 1일,
 2026-10-13)`~해당일로 클램프한다.** 오픈일 이전(10/1~10/12)에도 QA/사전 트래픽이
@@ -66,8 +65,11 @@ DB 섹션(가입자 현황, `api.todaybook.kr`)은 브라우저가 페이지 로
 | `booknoteReadUsers` | `date,contentType,totalUsers` | `eventName == 'content_read_complete' AND contentType == 'booknote'` |
 | `bookchatUsers` | `date,totalUsers` | `eventName == 'bookchat_start'` |
 | `bookUsers` | `date,totalUsers` | `eventName == 'book_open'` |
+| `dauPaid` | `date,c_customuser_member_status,activeUsers` | `c_customuser_member_status == paid` |
+| `ebookUsers` + `audiobookUsers` | `date,c_customevent_format,totalUsers` | `eventName == book_open` (한 번에 받아 `format` 값 `ebook`/`audiobook`으로 나눔) |
 
-`dauPaid`/`ebookUsers`/`audiobookUsers`는 조회하지 않는다(§0) — 항상 `null`.
+같은 날 전자책·오디오북을 모두 연 사람은 양쪽에 1명씩 잡혀 `ebookUsers + audiobookUsers > bookUsers`
+가 될 수 있다(예: 2026-11-11). 스크립트가 경고를 내지만 정상 — 그대로 진행한다.
 
 **주의**:
 - 연산자 양쪽에 공백 필수(`docs/ga4_guide.md` §2-1). `contentType`은 필터뿐 아니라
@@ -97,16 +99,15 @@ DB 섹션(가입자 현황, `api.todaybook.kr`)은 브라우저가 페이지 로
 {
   "range": {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD"},
   "daily": [
-    {"date": "YYYY-MM-DD", "dau": N, "dauPaid": null, "mauToDate": N,
+    {"date": "YYYY-MM-DD", "dau": N, "dauPaid": N, "mauToDate": N,
      "cardReadUsers": N, "booknoteReadUsers": N, "bookchatUsers": N,
-     "bookUsers": N, "ebookUsers": null, "audiobookUsers": null}
+     "bookUsers": N, "ebookUsers": N, "audiobookUsers": N}
     // incr_from~new_to 사이 날짜순(오름차순), 공백 없이 전부
   ]
 }
 ```
 
-`range.from`은 `incr_from`, `range.to`는 `new_to`. 지표가 나중에 열리면(§0 해소 경로)
-해당 키에 `null` 대신 실제 값을 넣으면 된다 — 스크립트가 자동으로 반영한다.
+`range.from`은 `incr_from`, `range.to`는 `new_to`. 행이 없는 날짜(0건)는 `0`으로 채운다.
 
 ## §4 스크립트 실행
 

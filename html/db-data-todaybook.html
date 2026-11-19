@@ -382,49 +382,48 @@
   // activeUsers/totalUsers는 비집계 지표라 요청서가 "더하면 안 된다"고 명시 —
   // 2026-11-10부터 마인드케어와 같이 선택 기간 합계 행(단순합산, 중복 집계 가능)을 하단에
   // 둔다. 최신일 요약 카드는 제거했다.
-  // dauPaid/ebookUsers/audiobookUsers는 GA4에 맞춤 측정기준(customUser:member_status,
-  // customEvent:format)이 아직 등록되지 않아 조회 불가 — null로 둔다(등록되면 커맨드
-  // 문서만 고쳐서 채운다. docs/todaybook-data.md "GA4 실측 확인" 절 참고).
-  const GA4_GENERATED_AT = '2026-11-19 04:13 UTC (Supermetrics GA4/GAWA todaybook 556152838 조회, 정적 스냅샷)';
+  // dauPaid/ebookUsers/audiobookUsers는 맞춤 측정기준(member_status·format)으로 조회한다.
+  // Supermetrics 노출 후 2026-11-19에 오픈일부터 소급 채움(docs/todaybook-data.md 참고).
+  const GA4_GENERATED_AT = '2026-11-19 08:55 UTC (Supermetrics GA4/GAWA todaybook 556152838 조회, 정적 스냅샷)';
   const GA4_RANGE = { from: '2026-10-13', to: '2026-11-18' };
   const GA4_DAILY = [
-    { date: '2026-10-13', dau: 40, dauPaid: null, mauToDate: 40, cardReadUsers: 6, booknoteReadUsers: 5, bookchatUsers: 6, bookUsers: 3, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-14', dau: 9, dauPaid: null, mauToDate: 44, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-15', dau: 19, dauPaid: null, mauToDate: 61, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-16', dau: 132, dauPaid: null, mauToDate: 189, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-17', dau: 360, dauPaid: null, mauToDate: 546, cardReadUsers: 6, booknoteReadUsers: 3, bookchatUsers: 5, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-18', dau: 212, dauPaid: null, mauToDate: 755, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 3, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-19', dau: 42, dauPaid: null, mauToDate: 792, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-20', dau: 18, dauPaid: null, mauToDate: 807, cardReadUsers: 0, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-21', dau: 16, dauPaid: null, mauToDate: 817, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-22', dau: 27, dauPaid: null, mauToDate: 840, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-23', dau: 157, dauPaid: null, mauToDate: 993, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 2, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-24', dau: 278, dauPaid: null, mauToDate: 1269, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 1, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-25', dau: 222, dauPaid: null, mauToDate: 1484, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-26', dau: 374, dauPaid: null, mauToDate: 1848, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 1, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-27', dau: 333, dauPaid: null, mauToDate: 2172, cardReadUsers: 1, booknoteReadUsers: 2, bookchatUsers: 1, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-28', dau: 350, dauPaid: null, mauToDate: 2510, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-29', dau: 481, dauPaid: null, mauToDate: 2986, cardReadUsers: 2, booknoteReadUsers: 5, bookchatUsers: 1, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-30', dau: 374, dauPaid: null, mauToDate: 3348, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-10-31', dau: 397, dauPaid: null, mauToDate: 3731, cardReadUsers: 6, booknoteReadUsers: 2, bookchatUsers: 2, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-01', dau: 389, dauPaid: null, mauToDate: 389, cardReadUsers: 6, booknoteReadUsers: 1, bookchatUsers: 4, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-02', dau: 519, dauPaid: null, mauToDate: 903, cardReadUsers: 6, booknoteReadUsers: 2, bookchatUsers: 0, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-03', dau: 339, dauPaid: null, mauToDate: 1234, cardReadUsers: 4, booknoteReadUsers: 3, bookchatUsers: 2, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-04', dau: 644, dauPaid: null, mauToDate: 1872, cardReadUsers: 5, booknoteReadUsers: 2, bookchatUsers: 3, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-05', dau: 1002, dauPaid: null, mauToDate: 2855, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-06', dau: 936, dauPaid: null, mauToDate: 3767, cardReadUsers: 4, booknoteReadUsers: 1, bookchatUsers: 4, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-07', dau: 584, dauPaid: null, mauToDate: 4332, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 3, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-08', dau: 459, dauPaid: null, mauToDate: 4781, cardReadUsers: 4, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-09', dau: 2025, dauPaid: null, mauToDate: 6824, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-10', dau: 5862, dauPaid: null, mauToDate: 12697, cardReadUsers: 3, booknoteReadUsers: 2, bookchatUsers: 0, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-11', dau: 5834, dauPaid: null, mauToDate: 18566, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-12', dau: 3933, dauPaid: null, mauToDate: 22441, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-13', dau: 1627, dauPaid: null, mauToDate: 23871, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-14', dau: 200, dauPaid: null, mauToDate: 24065, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-15', dau: 123, dauPaid: null, mauToDate: 24150, cardReadUsers: 4, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-16', dau: 140, dauPaid: null, mauToDate: 24214, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-17', dau: 136, dauPaid: null, mauToDate: 24322, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 2, ebookUsers: null, audiobookUsers: null },
-    { date: '2026-11-18', dau: 97, dauPaid: null, mauToDate: 24396, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 1, ebookUsers: null, audiobookUsers: null },
+    { date: '2026-10-13', dau: 40, dauPaid: 11, mauToDate: 40, cardReadUsers: 6, booknoteReadUsers: 5, bookchatUsers: 6, bookUsers: 3, ebookUsers: 3, audiobookUsers: 0 },
+    { date: '2026-10-14', dau: 9, dauPaid: 1, mauToDate: 44, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-15', dau: 19, dauPaid: 1, mauToDate: 61, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-16', dau: 132, dauPaid: 57, mauToDate: 189, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-17', dau: 360, dauPaid: 162, mauToDate: 546, cardReadUsers: 6, booknoteReadUsers: 3, bookchatUsers: 5, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-10-18', dau: 212, dauPaid: 77, mauToDate: 755, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 3, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-10-19', dau: 42, dauPaid: 12, mauToDate: 792, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-20', dau: 18, dauPaid: 1, mauToDate: 807, cardReadUsers: 0, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-21', dau: 16, dauPaid: 2, mauToDate: 817, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-22', dau: 27, dauPaid: 10, mauToDate: 840, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-23', dau: 157, dauPaid: 71, mauToDate: 993, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 2, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-10-24', dau: 278, dauPaid: 125, mauToDate: 1269, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 1, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-25', dau: 222, dauPaid: 96, mauToDate: 1484, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-26', dau: 374, dauPaid: 171, mauToDate: 1848, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 1, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-27', dau: 333, dauPaid: 154, mauToDate: 2172, cardReadUsers: 1, booknoteReadUsers: 2, bookchatUsers: 1, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-28', dau: 350, dauPaid: 138, mauToDate: 2510, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-10-29', dau: 481, dauPaid: 207, mauToDate: 2986, cardReadUsers: 2, booknoteReadUsers: 5, bookchatUsers: 1, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-10-30', dau: 374, dauPaid: 156, mauToDate: 3348, cardReadUsers: 3, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-10-31', dau: 397, dauPaid: 206, mauToDate: 3731, cardReadUsers: 6, booknoteReadUsers: 2, bookchatUsers: 2, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-01', dau: 389, dauPaid: 169, mauToDate: 389, cardReadUsers: 6, booknoteReadUsers: 1, bookchatUsers: 4, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-02', dau: 519, dauPaid: 226, mauToDate: 903, cardReadUsers: 6, booknoteReadUsers: 2, bookchatUsers: 0, bookUsers: 1, ebookUsers: 0, audiobookUsers: 1 },
+    { date: '2026-11-03', dau: 339, dauPaid: 145, mauToDate: 1234, cardReadUsers: 4, booknoteReadUsers: 3, bookchatUsers: 2, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-04', dau: 644, dauPaid: 98, mauToDate: 1872, cardReadUsers: 5, booknoteReadUsers: 2, bookchatUsers: 3, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-05', dau: 1002, dauPaid: 135, mauToDate: 2855, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-06', dau: 936, dauPaid: 251, mauToDate: 3767, cardReadUsers: 4, booknoteReadUsers: 1, bookchatUsers: 4, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-07', dau: 584, dauPaid: 143, mauToDate: 4332, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 3, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-08', dau: 459, dauPaid: 134, mauToDate: 4781, cardReadUsers: 4, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-11-09', dau: 2025, dauPaid: 93, mauToDate: 6824, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-11-10', dau: 5862, dauPaid: 72, mauToDate: 12697, cardReadUsers: 3, booknoteReadUsers: 2, bookchatUsers: 0, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-11', dau: 5834, dauPaid: 78, mauToDate: 18566, cardReadUsers: 2, booknoteReadUsers: 1, bookchatUsers: 0, bookUsers: 1, ebookUsers: 1, audiobookUsers: 1 },
+    { date: '2026-11-12', dau: 3933, dauPaid: 63, mauToDate: 22441, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-13', dau: 1627, dauPaid: 60, mauToDate: 23871, cardReadUsers: 1, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-14', dau: 200, dauPaid: 40, mauToDate: 24065, cardReadUsers: 0, booknoteReadUsers: 1, bookchatUsers: 1, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
+    { date: '2026-11-15', dau: 123, dauPaid: 20, mauToDate: 24150, cardReadUsers: 4, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 0, ebookUsers: 0, audiobookUsers: 0 },
+    { date: '2026-11-16', dau: 140, dauPaid: 36, mauToDate: 24214, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-17', dau: 136, dauPaid: 35, mauToDate: 24322, cardReadUsers: 1, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 2, ebookUsers: 2, audiobookUsers: 0 },
+    { date: '2026-11-18', dau: 97, dauPaid: 27, mauToDate: 24396, cardReadUsers: 2, booknoteReadUsers: 0, bookchatUsers: 0, bookUsers: 1, ebookUsers: 1, audiobookUsers: 0 },
   ];
 
   const numFmt = new Intl.NumberFormat('ko-KR');
@@ -465,14 +464,14 @@
   // --- GA4 요약/일별 표 ---
   const GA4_METRICS = [
     { key: 'dau', label: 'DAU' },
-    { key: 'dauPaid', label: 'DAU(유료)', pending: true },
+    { key: 'dauPaid', label: 'DAU(유료)' },
     { key: 'mauToDate', label: '월 누적 MAU', lastValue: true },
     { key: 'cardReadUsers', label: '지식카드 읽음' },
     { key: 'booknoteReadUsers', label: '북노트 읽음' },
     { key: 'bookchatUsers', label: '북챗 이용' },
     { key: 'bookUsers', label: '도서 이용' },
-    { key: 'ebookUsers', label: '전자책 이용', pending: true },
-    { key: 'audiobookUsers', label: '오디오북 이용', pending: true },
+    { key: 'ebookUsers', label: '전자책 이용' },
+    { key: 'audiobookUsers', label: '오디오북 이용' },
   ];
 
   // DB 섹션이 로드되면 같은 날짜의 paidCumulative로 유료 활성률을 계산해 채운다
@@ -559,7 +558,7 @@
         </div>
         <div id="ga4DailyBody"></div>
         <div class="check-row">* 선택 기간 합계는 일별 값을 단순 합산한 값입니다 — 사용자 수는 비집계 지표라 동일 사용자가 여러 날 중복 집계될 수 있어 실제 순사용자 수보다 클 수 있습니다. 월 누적 MAU는 합산하지 않고 선택 기간 마지막 날 값을 표시하며(월을 넘겨 선택하면 마지막 달의 누적값), 유료 활성률은 "–"로 표시합니다.</div>
-        <div class="check-row">* "측정기준 등록 대기" 표시 열은 GA4에 맞춤 측정기준(customUser:member_status · customEvent:format)이 아직 등록되지 않아 조회할 수 없습니다 — 등록되면 채워집니다.</div>
+        <div class="check-row">* DAU(유료)는 사용자 속성 member_status = paid, 전자책·오디오북은 book_open 이벤트의 format = ebook·audiobook 기준입니다. 같은 날 전자책과 오디오북을 모두 연 사람은 각각 1명으로 세므로 둘의 합이 도서 이용보다 클 수 있습니다.</div>
         <div class="check-row">* 공통 필터 hostName == web.todaybook.kr 기준(dev·api·localhost 등 테스트 트래픽 제외).</div>
         <div class="check-row">출처 — GA4 todaybook 계정(Supermetrics, account_id 556152838), 정적 스냅샷 · 마지막 갱신: ${GA4_GENERATED_AT}</div>
       </div>`;
